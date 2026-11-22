@@ -1,43 +1,52 @@
 # AgentOffice
 
-**A living 3D software company where autonomous AI agents collaborate, code, test, and ship real projects.**
+**A desktop workspace for a virtual software team.**
 
-## AgentOffice Desktop — v1.2.0
+AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
 
-AgentOffice is an early Windows 3D office prototype with seven rooms, camera interactions, and demo character animations. The software-development AI agents and photorealistic character models are **not yet implemented**.
+## What's new in 1.3.0
 
-### Download / Install
+- A completely redesigned interface: petrol-green, terracotta orange, cream, deliberate typography, and one consistent icon family.
+- Professional local Sign In / Sign Up for Windows and a guest preview.
+- A real dashboard for managing a project and task list.
+- Create, edit, delete, search and progress tasks; edit your project brief.
+- Seven role profiles, with clear labels that these are planned AI-agent personas.
+- A new interactive procedural 3D studio — the rendered scene is still a prototype rather than cinematic final art.
+- A clear separation between real working features and future AI functions.
 
-Download the current Windows installer from [GitHub Releases](https://github.com/ENG-mohammed-fares/AgentOffice/releases/latest).
+Local account credentials are stored in the desktop app using salted scrypt hashes. The app does not offer cloud login, email recovery, account sync or hosted AI execution.
 
-The installed app checks for new public GitHub Releases automatically. When an update finishes downloading, use **Restart & install** to upgrade the same application without uninstalling it. Windows may cache the old shortcut icon until the desktop/Explorer refreshes.
+## Download and install
 
-**v1.2.0 workspace access:** adds professional sign-in and sign-up screens, custom orange-and-petrol brand identity, password visibility controls, form validation, a demo guest option, and account sign-out. Local Windows accounts use a salted scrypt password hash. These are **device-local accounts**, not a production cloud identity service: there is no email verification, account recovery, cross-device sync or remote storage yet. The 3D office remains a technical prototype.
+**[Download the latest Windows installer](https://github.com/ENG-mohammed-fares/AgentOffice/releases/latest)**
 
-**v1.1.1 branding update:** adopted the approved orange robot icon.
+AgentOffice checks GitHub Releases for updates. In an installed release, restart the app when an update has downloaded to install it. The executable is currently unsigned and Windows SmartScreen may display a warning.
 
-### Release pipeline
+## Source and build
 
-- `AgentOffice-Source.zip` is the original desktop source baseline.
-- `assets/agentoffice-icon.webp.b64` contains the approved icon artwork.
-- `release-version.txt` controls the release version (currently 1.2.0).
-- `scripts/apply-branding.py` applies the approved icon, sidebar logo, favicon and version **after** extracting the source baseline.
-- `assets/auth-overlay-v1.2.0.tgz.b64` and `scripts/apply-auth.py` layer the v1.2.0 authentication implementation on the baseline source. Future baselines with auth already included skip the overlay.
-- [`.github/workflows/windows-release.yml`](.github/workflows/windows-release.yml) builds Windows x64 NSIS with Electron Builder and publishes one release with the installer, `latest.yml`, and `.blockmap` metadata.
+The complete baseline source is available as [AgentOffice-Source.zip](AgentOffice-Source.zip). The release pipeline extracts that ZIP, adds the approved brand icon from `assets/agentoffice-icon.webp.b64` via `scripts/apply-branding.py`, and packages the app using Electron Builder.
 
-To make a later release, update the baseline ZIP or branding script as needed, bump `release-version.txt`, and trigger the workflow using the updated source ZIP or workflow file. Never publish another installer under the same version. A new commit to the release inputs triggers a GitHub Actions build.
+To run locally, extract the source and run:
 
-### Developer usage
-
-For local development, extract the baseline ZIP and run:
-
-```bash
+```sh
 npm install
 npm run dev
 ```
 
-The branding applied by CI is available in `scripts/apply-branding.py`. Windows builds are not currently code-signed; Microsoft SmartScreen may warn until the application is signed and builds trust.
+To build a Windows installer:
 
-Tech stack: Electron, Vite, Three.js, electron-updater, electron-builder, GitHub Actions.
+```sh
+npm run package:win
+```
 
-License: MIT (see [LICENSE](LICENSE)).
+The codebase uses Vite, Three.js, Electron and electron-updater.
+
+## Design principles
+
+The design aims to feel like a crafted tool, not a generated landing page. It avoids purple gradients, all-caps shouting, placeholder testimonials, stock product photos, random emoji icons, unnecessary fade-ins, and generic 3-card layouts. Colors and fonts are defined in `src/tokens.css` in the source package.
+
+## Roadmap
+
+The next major work is dedicated to real 3D production assets, animation and character modeling, then a secure agent runtime with distinct roles, tools, task assignments and reviews. Current role previews must not be mistaken for independently working AI employees.
+
+MIT License — see [LICENSE](LICENSE).

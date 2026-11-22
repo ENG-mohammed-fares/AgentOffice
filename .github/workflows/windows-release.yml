@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'AgentOffice-Source.zip'
+      - 'assets/auth-overlay-v1.2.0.tgz.b64'
+      - '.github/workflows/windows-release.yml'
   workflow_dispatch:
 
 permissions:
@@ -50,6 +52,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not generate AgentOffice icons.' }
           if (-not (Test-Path './app/build/icon.ico')) { throw 'Missing icon.ico' }
           if (-not (Test-Path './app/public/icon.png')) { throw 'Missing app icon.png' }
+
+      - name: Apply Sign In and Sign Up implementation
+        shell: pwsh
+        run: |
+          python scripts/apply-auth.py
+          if ($LASTEXITCODE -ne 0) { throw 'Could not prepare local authentication UI.' }
 
       - name: Read and validate version
         id: app

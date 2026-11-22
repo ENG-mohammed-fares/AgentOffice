@@ -1,0 +1,77 @@
+name: Build AgentOffice Windows EXE and publish updates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'AgentOffice-Source.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agentoffice-windows-release
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Extract AgentOffice source
+        shell: pwsh
+        run: |
+          if (-not (Test-Path './AgentOffice-Source.zip')) { throw 'Missing AgentOffice-Source.zip in repository root.' }
+          New-Item -ItemType Directory -Path './app' -Force | Out-Null
+          Expand-Archive -LiteralPath './AgentOffice-Source.zip' -DestinationPath './app' -Force
+          if (-not (Test-Path './app/package.json')) { throw 'Source ZIP must contain package.json at its root.' }
+          if (-not (Test-Path './app/electron/main.cjs')) { throw 'Source ZIP does not include Electron main entry.' }
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Read and validate version
+        id: app
+        shell: pwsh
+        run: |
+          $version = node -p "require('./app/package.json').version"
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid release version: $version" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Building AgentOffice version $version"
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm install --no-audit --no-fund
+
+      - name: Build Windows NSIS installer and publish GitHub Release
+        working-directory: app
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run release:win
+
+      - name: Verify release exists
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = 'v${{ steps.app.outputs.version }}'
+          gh release view $tag --repo $env:GITHUB_REPOSITORY
+          Write-Host "Release: https://github.com/$env:GITHUB_REPOSITORY/releases/tag/$tag"
+
+      - name: Save installer and update metadata as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AgentOffice-Windows
+          path: |
+            app/release/*.exe
+            app/release/latest.yml
+            app/release/*.blockmap
+          if-no-files-found: warn

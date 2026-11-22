@@ -2,32 +2,39 @@
 
 **A living 3D software company where autonomous AI agents collaborate, code, test, and ship real projects.**
 
-## Windows Desktop — v1.1.0
+## AgentOffice Desktop — v1.1.1
 
-This repository builds a Windows x64 installer for an early **3D office prototype**. It features seven themed office rooms, interactive camera controls and demo character interactions. **AI agents and photorealistic character models are not yet implemented.**
+AgentOffice is an early Windows 3D office prototype with seven rooms, camera interactions, and demo character animations. The software-development AI agents and photorealistic character models are **not yet implemented**.
 
-### Build the installer using GitHub Actions
+### Download / Install
 
-1. Download `AgentOffice-Source.zip` from the project handoff and upload it to the **root of this repository**, retaining that exact filename.
-2. Commit the ZIP to the `main` branch. The workflow at [`.github/workflows/windows-release.yml`](.github/workflows/windows-release.yml) starts automatically.
-3. Open **Actions** and inspect the Windows build result.
-4. If the workflow succeeds, open **Releases** and install `AgentOffice-Setup-1.1.0-x64.exe`.
+Download the current Windows installer from [GitHub Releases](https://github.com/ENG-mohammed-fares/AgentOffice/releases/latest).
 
-The installed application checks **public GitHub Releases** for newer versions. Updates are downloaded and applied on restart. Keep this repo **Public** for unauthenticated update downloads.
+The installed app checks for new public GitHub Releases automatically. When an update finishes downloading, use **Restart & install** to upgrade the same application without uninstalling it. Windows may cache the old shortcut icon until the desktop/Explorer refreshes.
 
-**To publish a future version:** increase the version inside the source ZIP's `package.json`, replace `AgentOffice-Source.zip` in `main`, and allow the workflow to publish a new release. Do not reuse an existing version number. Never upload API keys or secrets.
+**v1.1.1 branding update:** adopts the approved orange robot logo with white face/collar and petrol-blue tie as the Windows executable, desktop shortcut, window and in-app icon. Main 3D features are unchanged.
 
-The installer is currently unsigned and may show a Windows SmartScreen warning. Release packaging and auto-update functionality remain unverified until a successful Windows Actions build and installation test.
+### Release pipeline
 
-### Local source development
+- `AgentOffice-Source.zip` is the original desktop source baseline.
+- `assets/agentoffice-icon.webp.b64` contains the approved icon artwork.
+- `release-version.txt` controls the release version.
+- `scripts/apply-branding.py` applies the approved icon, sidebar logo, favicon and version **after** extracting the source baseline.
+- [`.github/workflows/windows-release.yml`](.github/workflows/windows-release.yml) builds Windows x64 NSIS with Electron Builder and publishes one release with the installer, `latest.yml`, and `.blockmap` metadata.
 
-Unzip `AgentOffice-Source.zip`, install Node.js 22 or later and run:
+To make a later release, update the baseline ZIP or branding script as needed and bump `release-version.txt`. Never publish another installer under the same version. A new commit to the release inputs triggers a GitHub Actions build.
+
+### Developer usage
+
+For local development, extract the baseline ZIP and run:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Tech stack: Electron, Vite, Three.js, electron-builder, electron-updater, GitHub Actions.
+The branding applied by CI is available in `scripts/apply-branding.py`. Windows builds are not currently code-signed; Microsoft SmartScreen may warn until the application is signed and builds trust.
+
+Tech stack: Electron, Vite, Three.js, electron-updater, electron-builder, GitHub Actions.
 
 License: MIT (see [LICENSE](LICENSE)).

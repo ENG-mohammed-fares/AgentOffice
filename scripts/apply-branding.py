@@ -34,14 +34,15 @@ package_path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + '\n'
 main = APP / 'src' / 'main.js'
 text = main.read_text(encoding='utf-8')
 original = '<div class="brand-icon">A</div>'
-assert original in text or 'alt="AgentOffice logo"' in text, 'Sidebar branding anchor not found'
+if not (original in text or 'alt="AgentOffice logo"' in text or 'src="./icon.png"' in text):
+    raise RuntimeError('App branding anchor not found')
 text = text.replace(original, '<div class="brand-icon"><img src="./icon.png" alt="AgentOffice logo"></div>')
 text = text.replace('3D Desktop v1.1.0', '3D Desktop v' + VERSION)
 main.write_text(text, encoding='utf-8')
 
 css = APP / 'src' / 'style.css'
 style = css.read_text(encoding='utf-8')
-if '/* AgentOffice approved orange brand icon */' not in style:
+if '/* AgentOffice approved orange brand icon */' not in style and '.shell-brand' not in style:
     style += '\n/* AgentOffice approved orange brand icon */\n.brand-icon{background:transparent!important;color:inherit!important;overflow:hidden}.brand-icon img{display:block;width:100%;height:100%;object-fit:contain}\n'
 css.write_text(style, encoding='utf-8')
 

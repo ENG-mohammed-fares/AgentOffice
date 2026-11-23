@@ -1,8 +1,10 @@
 $ErrorActionPreference = "Stop"
 
 $phaseRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repoRoot = Split-Path -Parent $phaseRoot
 $runner = Join-Path $phaseRoot "runner\agent.py"
 $brief = Join-Path $phaseRoot "brief.txt"
+$fixtureManifest = Join-Path $phaseRoot "fixture.sha256"
 $model = "qwen2.5-coder:7b"
 
 $python = Get-Command py -ErrorAction SilentlyContinue
@@ -20,6 +22,31 @@ if ($python) {
 
 if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
     throw "Ollama was not found in PATH."
+}
+
+foreach ($line in Get-Content -LiteralPath $fixtureManifest) {
+    if ($line -notmatch "^([0-9a-f]{64})  (.+)$") {
+        throw "Malformed fixture hash line: $line"
+    }
+    $expectedHash = $Matches[1]
+    $relativePath = $Matches[2]
+    $fixturePath = Join-Path $repoRoot $relativePath
+    $actualHash = (Get-FileHash -LiteralPath $fixturePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actualHash -ne $expectedHash) {
+        throw "Fixture hash mismatch: $relativePath"
+    }
+}
+Write-Host "Fixture hashes verified."
+
+$runnerTests = Join-Path $phaseRoot "runner"
+$testArgs = @(
+    "-m", "unittest", "discover",
+    "-s", $runnerTests,
+    "-v"
+)
+& $pythonExe @pythonPrefix @testArgs
+if ($LASTEXITCODE -ne 0) {
+    throw "Runner self-tests failed."
 }
 
 ollama show $model | Out-Null

@@ -70,19 +70,14 @@ class AgentLoopTests(unittest.TestCase):
                 {
                     "message": {
                         "role": "assistant",
-                        "content": "",
-                        "tool_calls": [
+                        "content": json.dumps(
                             {
-                                "type": "function",
-                                "function": {
-                                    "name": "write_file",
-                                    "arguments": {
-                                        "path": "invoice_total.py",
-                                        "content": "print(0)\n",
-                                    },
-                                },
+                                "action": "write_file",
+                                "path": "invoice_total.py",
+                                "content": "print(0)\n",
+                                "summary": "",
                             }
-                        ],
+                        ),
                     },
                     "done_reason": "stop",
                     "eval_count": 4,
@@ -90,18 +85,14 @@ class AgentLoopTests(unittest.TestCase):
                 {
                     "message": {
                         "role": "assistant",
-                        "content": "",
-                        "tool_calls": [
+                        "content": json.dumps(
                             {
-                                "type": "function",
-                                "function": {
-                                    "name": "finish",
-                                    "arguments": {
-                                        "summary": "Candidate created; tests not run."
-                                    },
-                                },
+                                "action": "finish",
+                                "path": "",
+                                "content": "",
+                                "summary": "Candidate created; tests not run.",
                             }
-                        ],
+                        ),
                     },
                     "done_reason": "stop",
                     "eval_count": 3,
@@ -148,9 +139,19 @@ class AgentLoopTests(unittest.TestCase):
             )
             trace = json.loads((evidence / "trace.json").read_text())
             self.assertEqual(
-                trace[0]["tool_calls"][0]["arguments"]["content"]["bytes"],
+                trace[0]["action"]["content"]["bytes"],
                 9,
             )
+
+    def test_action_schema_rejects_extra_or_missing_fields(self):
+        invalid = [
+            "{}",
+            '{"action":"finish","path":"","content":"","summary":"","extra":1}',
+            '{"action":"shell","path":"","content":"","summary":""}',
+        ]
+        for content in invalid:
+            with self.subTest(content=content), self.assertRaises(RuntimeError):
+                agent.parse_action(content)
 
 
 if __name__ == "__main__":

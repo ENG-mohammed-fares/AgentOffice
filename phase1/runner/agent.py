@@ -26,79 +26,32 @@ DEFAULT_MODEL = "qwen2.5-coder:7b"
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
 
 SYSTEM_PROMPT = """You are the first bounded AgentOFF software employee.
-You are in an agent loop and can make multiple tool calls.
-Create the requested project from scratch using only the supplied file tools.
-The workspace starts empty. Do not merely print code in chat.
-You cannot execute commands or tests in this stage. Do not claim that tests ran.
-Create all mandatory implementation, test, and README files.
-Inspect your final file list, then call finish exactly once with an honest summary.
+You are in a multi-turn agent loop. Return exactly one JSON action per turn.
+Allowed actions are list_files, read_file, write_file, and finish.
+For list_files, set path, content, and summary to empty strings.
+For read_file, set path and leave content and summary empty.
+For write_file, provide a relative POSIX path and the complete UTF-8 file content.
+For finish, provide an honest summary and leave path and content empty.
+Create the requested project from scratch. The workspace starts empty.
+You cannot execute commands or tests. Never claim that tests ran.
+Create the implementation, runnable tests, and README requested by the user.
+List and inspect the final project before finishing.
 Do not access or mention files outside the project workspace."""
 
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "list_files",
-            "description": "List every regular project file currently in the workspace.",
-            "parameters": {"type": "object", "properties": {}},
+ACTION_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "action": {
+            "type": "string",
+            "enum": ["list_files", "read_file", "write_file", "finish"],
         },
+        "path": {"type": "string"},
+        "content": {"type": "string"},
+        "summary": {"type": "string"},
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "Read one UTF-8 project file from the workspace.",
-            "parameters": {
-                "type": "object",
-                "required": ["path"],
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Relative POSIX project path",
-                    }
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_file",
-            "description": "Create or replace one UTF-8 project file in the workspace.",
-            "parameters": {
-                "type": "object",
-                "required": ["path", "content"],
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Relative POSIX project path",
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "Complete UTF-8 file content",
-                    },
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "finish",
-            "description": "Declare that all requested project files are ready for independent review.",
-            "parameters": {
-                "type": "object",
-                "required": ["summary"],
-                "properties": {
-                    "summary": {
-                        "type": "string",
-                        "description": "Short honest description of delivered files and unverified status",
-                    }
-                },
-            },
-        },
-    },
-]
+    "required": ["action", "path", "content", "summary"],
+}
 
 
 def utc_now() -> str:
@@ -250,6 +203,11 @@ def post_json(
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             result = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"Ollama request failed at {endpoint}: HTTP {exc.code}: {body}"
+        ) from exc
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Ollama request failed at {endpoint}: {exc}") from exc
     if not isinstance(result, dict):
@@ -286,25 +244,51 @@ def model_record(base_url: str, model: str, timeout: float) -> dict[str, Any]:
     raise RuntimeError(f"required local model is missing: {model}")
 
 
-def compact_call(call: dict[str, Any]) -> dict[str, Any]:
-    function = call.get("function", {})
-    arguments = function.get("arguments", {})
-    result: dict[str, Any] = {"name": function.get("name")}
-    if isinstance(arguments, dict):
-        result["arguments"] = {
-            key: (
-                {
-                    "bytes": len(value.encode("utf-8")),
-                    "sha256": sha256_bytes(value.encode("utf-8")),
-                }
-                if key == "content" and isinstance(value, str)
-                else value
-            )
-            for key, value in arguments.items()
-        }
-    else:
-        result["arguments"] = arguments
+def parse_action(content: Any) -> dict[str, str]:
+    if not isinstance(content, str):
+        raise RuntimeError("model response content is not text")
+    try:
+        action = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"model response is not valid JSON: {exc}") from exc
+    if not isinstance(action, dict) or set(action) != {
+        "action",
+        "path",
+        "content",
+        "summary",
+    }:
+        raise RuntimeError("model response does not match the action schema")
+    if action["action"] not in {
+        "list_files",
+        "read_file",
+        "write_file",
+        "finish",
+    }:
+        raise RuntimeError("model selected an unknown action")
+    if not all(isinstance(action[key], str) for key in action):
+        raise RuntimeError("every action field must be a string")
+    return action
+
+
+def compact_action(action: dict[str, str]) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "action": action["action"],
+        "path": action["path"],
+        "summary": action["summary"],
+    }
+    content = action["content"].encode("utf-8")
+    result["content"] = {
+        "bytes": len(content),
+        "sha256": sha256_bytes(content),
+    }
     return result
+
+
+def write_trace(evidence: Path, trace: list[dict[str, Any]]) -> None:
+    (evidence / "trace.json").write_text(
+        json.dumps(trace, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def run_agent(
@@ -326,19 +310,21 @@ def run_agent(
     started = time.monotonic()
 
     for turn in range(1, max_turns + 1):
+        print(f"Turn {turn}: waiting for the local model...", flush=True)
         response = post_json(
             base_url,
             "/api/chat",
             {
                 "model": model,
                 "messages": messages,
-                "tools": TOOLS,
+                "format": ACTION_SCHEMA,
                 "stream": False,
                 "keep_alive": "10m",
                 "options": {
-                    "temperature": 0.1,
+                    "temperature": 0,
                     "seed": 42,
                     "num_ctx": 8192,
+                    "num_predict": 2048,
                 },
             },
             request_timeout,
@@ -347,15 +333,24 @@ def run_agent(
         if not isinstance(message, dict):
             raise RuntimeError("Ollama response omitted the assistant message")
         messages.append(message)
-        calls = message.get("tool_calls") or []
+        action = parse_action(message.get("content"))
+        print(
+            f"Turn {turn}: {action['action']}"
+            + (f" {action['path']}" if action["path"] else ""),
+            flush=True,
+        )
+        try:
+            result = tools.invoke(action["action"], action)
+            action_result = {"ok": True, "result": result}
+        except (ValueError, OSError, UnicodeError) as exc:
+            action_result = {"ok": False, "error": str(exc)}
+
         trace.append(
             {
                 "turn": turn,
                 "at": utc_now(),
-                "content": message.get("content", ""),
-                "tool_calls": [
-                    compact_call(call) for call in calls if isinstance(call, dict)
-                ],
+                "action": compact_action(action),
+                "result": action_result,
                 "metrics": {
                     key: response.get(key)
                     for key in (
@@ -370,32 +365,21 @@ def run_agent(
                 },
             }
         )
-
-        if not calls:
-            raise RuntimeError("model stopped without calling finish")
-
-        for call in calls:
-            if not isinstance(call, dict) or not isinstance(
-                call.get("function"), dict
-            ):
-                raise RuntimeError("model emitted a malformed tool call")
-            function = call["function"]
-            name = function.get("name")
-            try:
-                result = tools.invoke(name, function.get("arguments", {}))
-                tool_content = json.dumps(
-                    {"ok": True, "result": result}, ensure_ascii=False
-                )
-            except (ValueError, OSError, UnicodeError) as exc:
-                tool_content = json.dumps(
-                    {"ok": False, "error": str(exc)}, ensure_ascii=False
-                )
-            messages.append(
-                {"role": "tool", "tool_name": name, "content": tool_content}
-            )
+        write_trace(evidence, trace)
 
         if tools.finished:
             break
+
+        messages.append(
+            {
+                "role": "user",
+                "content": (
+                    "ACTION RESULT\n"
+                    + json.dumps(action_result, ensure_ascii=False)
+                    + "\nContinue with exactly one JSON action."
+                ),
+            }
+        )
     else:
         raise RuntimeError("agent exceeded the turn limit")
 
@@ -405,7 +389,13 @@ def run_agent(
         "finished_at": utc_now(),
         "elapsed_seconds": round(time.monotonic() - started, 3),
         "model": model_record(base_url, model, request_timeout),
-        "inference": {"temperature": 0.1, "seed": 42, "num_ctx": 8192},
+        "protocol": "structured_json_actions_v1",
+        "inference": {
+            "temperature": 0,
+            "seed": 42,
+            "num_ctx": 8192,
+            "num_predict": 2048,
+        },
         "empty_directory_sha256": sha256_bytes(b""),
         "platform": {
             "python": sys.version,
@@ -415,10 +405,6 @@ def run_agent(
         "summary": tools.summary,
         "files": file_manifest(workspace),
     }
-    (evidence / "trace.json").write_text(
-        json.dumps(trace, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
     (evidence / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
@@ -442,12 +428,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--ollama-url", default=DEFAULT_OLLAMA_URL)
     parser.add_argument("--max-turns", type=int, default=20)
-    parser.add_argument("--request-timeout", type=float, default=600)
+    parser.add_argument("--request-timeout", type=float, default=360)
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    evidence: Path | None = None
     try:
         workspace = prepare_directory(args.workspace, "workspace")
         evidence = prepare_directory(args.evidence, "evidence directory")
@@ -469,6 +456,23 @@ def main() -> int:
             request_timeout=args.request_timeout,
         )
     except (ValueError, OSError, UnicodeError, RuntimeError) as exc:
+        if evidence is not None:
+            try:
+                (evidence / "failure.json").write_text(
+                    json.dumps(
+                        {
+                            "failed_at": utc_now(),
+                            "error_type": type(exc).__name__,
+                            "error": str(exc),
+                        },
+                        indent=2,
+                        ensure_ascii=False,
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+            except OSError:
+                pass
         print(f"FAILED: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(manifest, indent=2, ensure_ascii=False))

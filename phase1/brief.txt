@@ -1,0 +1,1 @@
+Create invoice_total.py. Read one UTF-8 JSON array from stdin. For each line multiply integer quantity by integer unit_cents. Print the integer total and newline. Empty arrays total zero. For malformed JSON or a missing, Boolean, fractional or negative field, emit INVALID plus newline on stderr, no stdout, and exit 2. Valid input exits 0. Include runnable tests and a README.

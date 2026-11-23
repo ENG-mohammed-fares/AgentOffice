@@ -1,0 +1,121 @@
+[
+  {
+    "id": "mixed",
+    "stdin": "[{\"quantity\": 2, \"unit_cents\": 125}, {\"quantity\": 0, \"unit_cents\": 999}, {\"quantity\": 3, \"unit_cents\": 10}]",
+    "stdout": "280\n",
+    "stderr": "",
+    "exit": 0
+  },
+  {
+    "id": "empty",
+    "stdin": "[]",
+    "stdout": "0\n",
+    "stderr": "",
+    "exit": 0
+  },
+  {
+    "id": "zero-quantity",
+    "stdin": "[{\"quantity\": 0, \"unit_cents\": 175}]",
+    "stdout": "0\n",
+    "stderr": "",
+    "exit": 0
+  },
+  {
+    "id": "zero-price",
+    "stdin": "[{\"quantity\": 1, \"unit_cents\": 0}]",
+    "stdout": "0\n",
+    "stderr": "",
+    "exit": 0
+  },
+  {
+    "id": "malformed",
+    "stdin": "[",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  },
+  {
+    "id": "object",
+    "stdin": "{}",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  },
+  {
+    "id": "missing-quantity",
+    "stdin": "[{\"unit_cents\": 1}]",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  },
+  {
+    "id": "boolean-quantity",
+    "stdin": "[{\"quantity\": true, \"unit_cents\": 1}]",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  },
+  {
+    "id": "fraction-quantity",
+    "stdin": "[{\"quantity\": 0.5, \"unit_cents\": 1}]",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  },
+  {
+    "id": "negative-quantity",
+    "stdin": "[{\"quantity\": -1, \"unit_cents\": 1}]",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  },
+  {
+    "id": "missing-unit_cents",
+    "stdin": "[{\"quantity\": 1}]",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  },
+  {
+    "id": "boolean-unit_cents",
+    "stdin": "[{\"quantity\": 1, \"unit_cents\": true}]",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  },
+  {
+    "id": "fraction-unit_cents",
+    "stdin": "[{\"quantity\": 1, \"unit_cents\": 0.5}]",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  },
+  {
+    "id": "negative-unit_cents",
+    "stdin": "[{\"quantity\": 1, \"unit_cents\": -1}]",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  },
+  {
+    "id": "held-multiple",
+    "stdin": "[{\"quantity\": 17, \"unit_cents\": 31}, {\"quantity\": 23, \"unit_cents\": 5}]",
+    "stdout": "642\n",
+    "stderr": "",
+    "exit": 0
+  },
+  {
+    "id": "held-late-invalid",
+    "stdin": "[{\"quantity\": 6, \"unit_cents\": 3}, {\"quantity\": false, \"unit_cents\": 7}]",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  },
+  {
+    "id": "held-non-record",
+    "stdin": "[null]",
+    "stdout": "",
+    "stderr": "INVALID\n",
+    "exit": 2
+  }
+]

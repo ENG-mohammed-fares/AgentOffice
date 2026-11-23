@@ -4,7 +4,9 @@ Baseline 3ee976b858f34fa547896a5c6062bc723668658f. The v2 branch omits the inher
 
 ## Execution environment observed on 2026-11-23
 
-Linux x86_64 kernel 6.18.57, Python 3.12.14, about 17 GiB disk available. No exposed /dev/kvm, /dev/dri, /dev/dxg or NVIDIA device observed. No Windows session identified. pytest absent in the active Python. No qemu-system-x86_64, virsh, VBoxManage or ollama on PATH. Windows OS/driver, usable GPU memory, virtualization rights, local model and license remain unverified. S2 is blocked before guest launch. No containment pass, model generation, timing, or renderer comparison is claimed.
+The development runner is Linux x86_64 kernel 6.18.57 with Python 3.12.14 and about 17 GiB disk available. It exposes no /dev/kvm, /dev/dri, /dev/dxg or NVIDIA device. pytest, qemu-system-x86_64, virsh, VBoxManage and ollama are absent there.
+
+The owner supplied screenshots from the intended physical target. They identify an HP Victus 16-d0xxx running Windows 11 Pro 25H2 build 26200.9974, an Intel Core i7-11800H, 16 GB RAM at 3200 MT/s, 477 GB NVMe storage with about 260 GB free, integrated Intel graphics and a discrete NVIDIA GeForce RTX adapter with 4.0 GB dedicated GPU memory and 7.8 GB shared memory. The exact RTX model and driver remain unrecorded. Ollama 0.40.17 was installed successfully on the target and its CLI version command completed. Windows Sandbox launch, virtualization status, local model identity/digest, inference behavior and license are still unverified. S2 remains blocked before guest qualification. No containment pass, model generation, timing, or renderer comparison is claimed.
 
 ## Frozen evidence contract
 

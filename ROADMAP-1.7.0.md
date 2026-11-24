@@ -5,12 +5,12 @@ Budget: $0. Release integration branch: release/v1.7.0. No automatic public rele
 ## Phase 0 — baseline
 - [x] Isolate next-release development from public release delivery.
 - [x] Add initial Node V8 unit coverage report to CI (existing identity/update-policy suite only; no project-wide coverage claim).
-- [ ] Record measured line/branch/function percentages and uncovered modules.
+- [x] Baseline recorded: identity 85.85/77.78/65.22; startup-update 100/92.59/100; update-policy 100/100/100 (lines/branches/functions). Prior aggregate included test source; exclude it in new measurement.
 - [ ] Diagnose and repair failing 1.6.5 startup crossfade smoke test (run 45430606664: timed out waiting for loaded login behind fading intro). Preserve the successful 1.6.4 release until verification.
 
 ## Phase 1 — testing architecture
 - [ ] Inspect current source, define unit boundaries, dependency injection and mock contracts.
-- [ ] Expand tests for authentication, storage, update paths, and failure handling. Evaluate Vitest only if it provides concrete value over the existing Node runner.
+- [x] Add first legacy-account IPC and identity error unit suites with isolated fixture, fake clock and deferred OAuth. Fix stale OAuth session and token-exchange concurrency. CI validation pending. Evaluate Vitest only if it provides concrete value over the existing Node runner.
 - [ ] Add integration/Electron tests and actionable coverage reports. Establish enforceable thresholds on explicitly defined production code scope; provisional goals 85% lines/functions/statements, 80% branches, 95% critical logic with a defined denominator. No exclusion of critical code just to inflate metrics.
 
 ## Phase 2 — persistent data

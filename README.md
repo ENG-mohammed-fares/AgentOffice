@@ -4,6 +4,10 @@
 
 AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
 
+## What's new in 1.6.8
+
+The approved Warm Industrial Light palette improves the visibility of the robot scene, rings, grid, input borders and text in light mode. The original layout, dark theme, startup animation, Windows application icon, language detection and circular theme transition remain unchanged.
+
 ## What's new in 1.6.7
 
 The approved startup splash uses the original embedded PNG at 98×98 and the original door animation. Login follows the device language (English, Arabic, French, German, Spanish or Hebrew; English fallback), with an English/device toggle. Appearance defaults to the system theme; the theme button uses a synchronized 550 ms circular reveal across both panels and Shift-click or right-click returns to System. Reduced motion is respected. Existing production authentication remains in place.

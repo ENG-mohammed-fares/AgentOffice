@@ -20,6 +20,7 @@ def pattern(text, regex, new):
 path = app / 'src' / 'auth-screen.html'
 html = path.read_text(encoding='utf-8')
 html = once(html, '</head><body>', '<style id="auth-preferences-style">'+read('preferences.css')+'</style></head><body>')
+html = once(html, '</head><body>', '<style id="warm-industrial-light">'+read('warm-industrial-light.css')+'</style></head><body>')
 html = pattern(html, r'<button id="theme"[^>]*>.*?</button>', read('theme-button.html'))
 html = once(html, "let lang=saved('agentoffice:auth-language')==='ar'?'ar':'en';\nlet theme=saved('agentoffice:auth-theme')==='light'?'light':'dark';", read('preferences.js'))
 html = once(html, "document.documentElement.dir=lang==='ar'?'rtl':'ltr';", "document.documentElement.dir=rtlLanguages.has(lang)?'rtl':'ltr';")
@@ -49,10 +50,23 @@ old = """  assert.equal(await run('return el("installedVersionLabel").textConten
 new = """  const deviceLang=await run('return d.documentElement.lang');
   assert.equal(await run('return el("theme").dataset.mode'),'system','default follows device theme');
   const initialTheme=await run('return d.documentElement.dataset.theme');
+  const assertPalette=async mode=>{
+    const palette=await run('return {bg:d.defaultView.getComputedStyle(d.documentElement).getPropertyValue("--bg").trim().toUpperCase(),border:d.defaultView.getComputedStyle(d.documentElement).getPropertyValue("--border").trim().toUpperCase(),light:d.documentElement.classList.contains("light")}');
+    assert.equal(palette.light,mode==='light','light class must match effective theme');
+    if(mode==='light'){
+      assert.equal(palette.bg,'#F4EFE8','approved warm light background');
+      assert.equal(palette.border,'#8C7D6D','approved warm input border');
+    }else{
+      assert.notEqual(palette.bg,'#F4EFE8','warm palette must not leak into dark mode');
+      assert.notEqual(palette.border,'#8C7D6D','warm borders must not leak into dark mode');
+    }
+  };
+  await assertPalette(initialTheme);
   const oppositeTheme=initialTheme==='dark'?'light':'dark';
   await run('el("theme").click()');
   await until('document.querySelector("iframe")?.contentDocument?.documentElement.dataset.theme === '+JSON.stringify(oppositeTheme)+' && !document.querySelector("iframe")?.contentDocument?.documentElement.classList.contains("theme-switching")','synchronized theme transition');
   assert.equal(await run('return el("theme").dataset.mode'),oppositeTheme);
+  await assertPalette(oppositeTheme);
   await run('el("theme").dispatchEvent(new d.defaultView.MouseEvent("click",{shiftKey:true,bubbles:true}))');
   await until('document.querySelector("iframe")?.contentDocument?.getElementById("theme")?.dataset.mode === "system" && !document.querySelector("iframe")?.contentDocument?.documentElement.classList.contains("theme-switching")','return to system theme');
   await run('Object.defineProperty(d.defaultView.navigator,"language",{value:"ar",configurable:true});d.defaultView.dispatchEvent(new d.defaultView.Event("languagechange"))');

@@ -1,0 +1,42 @@
+
+/* Warm Industrial Light — preview. Light theme only; layout and motion unchanged. */
+:root[data-theme='light'] {
+  --bg:#F4EFE8; --panel:#E7DED2; --line:#C1B3A3;
+  --muted:#62574C; --text:#292521; --orange:#A44722; --deep:#B45028;
+  --surface:#FFFFFF; --surface-focus:#FFFDFA; --chrome:#E7DED2;
+  --outer:#DDD2C4; --border:#8C7D6D; --subtle:#75695C; --on-orange:#211A15;
+}
+.light .brand {
+  background:radial-gradient(ellipse at var(--spot-x) var(--spot-y),#D98B4F25,transparent 52%),
+    radial-gradient(ellipse at 49% 46%,#D9AA7E 0%,#E3C8AA 37%,#E7DED2 78%);
+}
+.light .brand::before {
+  background-image:linear-gradient(#805B3D24 1px,transparent 1px),linear-gradient(90deg,#805B3D24 1px,transparent 1px);
+  mask-image:radial-gradient(ellipse,#000 0%,#000b 54%,transparent 91%);
+}
+.light .brand::after {opacity:.085}
+.light .brand-top,.light .brand-bottom {color:#655343}
+.light .status-dot {background:#B65327;box-shadow:0 0 12px #C36C3E80}
+.light .ring {border-color:#A55F36A6}
+.light .ring.r2 {border-color:#9D694C99}
+.light .ring.r3 {border-color:#B5764CA6}
+.light .orbit-dot::before {background:#A44722;box-shadow:0 0 8px #BA663B75}
+.light:not(.motion-playing) .scene .robot {filter:drop-shadow(0 18px 20px #65432150)}
+.light .role-chip {background:#FFF9F1EA;color:#67452F;border-color:#AD896D;box-shadow:0 4px 14px #6943271A}
+.light .speech {background:#FFF9F1;color:#67452F;border-color:#AD896D}
+.light .brand-copy h1 span {color:#A44722}
+.light .role-caption {color:#62574C;opacity:1}
+.light .auth {background:radial-gradient(ellipse at var(--card-x) var(--card-y),#D99D6620,transparent 65%),var(--bg)}
+.light .form::after {background:transparent;box-shadow:none;backdrop-filter:none}
+.light .inputbox {background:var(--surface);border-color:var(--border);box-shadow:0 1px 2px #3A2D1F13}
+.light .inputbox>svg,.light .inputbox button svg {stroke:#75695C}
+.light .inputbox:focus-within {background:var(--surface-focus);border-color:#A44722;box-shadow:0 0 0 2px #A4472229,0 5px 14px #6B422219}
+.light .inputbox:focus-within>svg {stroke:#A44722}
+.light .inputbox.invalid {border-color:#A53B2B}
+.light .inputbox .valid-mark {stroke:#386A4B}
+.light .primary {border-color:#A9552F}
+.light .providers button {background:#FFFCF7;border-color:#8C7D6D;color:#4D4238}
+.light .providers button:disabled {opacity:.65}
+.light .title-tools button {color:#62574C}
+.light .titlebar,.light .bottom {border-color:#C1B3A3}
+.light .bottom .local i {background:#4C7954}

@@ -4,7 +4,11 @@
 
 AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
 
-## What's new in 1.6.0
+## What's new in 1.6.1
+
+The installed Windows app automatically checks for updates on launch, every 30 minutes, and after system resume. Downloads are automatic. A downloaded update silently installs and relaunches at the unauthenticated idle login screen (at least two minutes of system inactivity and no active authentication or recovery flow). An active workspace is never automatically restarted; the downloaded update installs on normal exit instead. Manual checking and restart remain optional.
+
+## Previously in 1.6.0
 
 The bundled Supabase project configuration enables the client-side OAuth integration for Google and GitHub. Both use system-browser PKCE with provider-specific local workspaces. Erica One is bundled for English authentication headings and the brand wordmark; the readable Noto fonts remain for form text and Arabic. Live sign-in depends on provider dashboard configuration and must be verified using real accounts. Email-code delivery requires the email configuration in [AUTH-SETUP.md](AUTH-SETUP.md).
 
@@ -32,7 +36,7 @@ Local account credentials are stored in the desktop app using salted scrypt hash
 
 **[Download the latest Windows installer](https://github.com/ENG-mohammed-fares/AgentOffice/releases/latest)**
 
-AgentOffice checks GitHub Releases for updates. In an installed release, restart the app when an update has downloaded to install it. The executable is currently unsigned and Windows SmartScreen may display a warning.
+AgentOffice checks GitHub Releases for updates. In 1.6.1 and later, installation is automatic at a safe idle sign-in screen or on ordinary exit. Earlier releases install downloaded updates on ordinary exit. The executable is currently unsigned and Windows SmartScreen may display a warning.
 
 ## Source and build
 

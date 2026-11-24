@@ -12,7 +12,7 @@ Updated 2026-11-24. Budget $0; no paid service or subscription without explicit 
 ## Engineering — defer until the trigger
 | Item | Trigger / reason |
 | --- | --- |
-| Full Playwright browser/Electron E2E suite | Existing Electron smoke tests cover critical paths now; expand when workflows stabilize. Critical auth/data/update E2E remains active. |
+| Full Playwright browser/Electron E2E suite | Existing Electron smoke tests cover critical paths now; expand when workflows stabilize. Critical auth/update E2E remains active; cloud data E2E is deferred with PostgreSQL. |
 | Prettier repository-wide formatting | After tracked-source migration; avoid unrelated large diffs now. |
 | CycloneDX SBOM and release attestations | Before larger public distribution or customer compliance needs; dependency audit remains mandatory now. |
 | Sentry / hosted observability | Once privacy policy, scrubbed telemetry and opt-in decisions are settled; basic local/redacted diagnostics now. |
@@ -29,7 +29,11 @@ Updated 2026-11-24. Budget $0; no paid service or subscription without explicit 
 - Review zero-cost private-repository security alternatives, release credentials, CI/CD and automatic updater migration before changing visibility; verify existing users can update safely.
 - Assess proprietary licensing, disable distributed production source maps, and consider obfuscation and server-side isolation of sensitive logic. No guarantee against reverse engineering or copies made while public.
 
+## Supabase PostgreSQL — owner-approved deferral
+- Defer cloud application-data schema, migration, RLS, tenant isolation, dev/prod separation and database integration/restore tests until a dedicated data phase. Do not treat these features as delivered or as v1.7.0 release requirements.
+- Preserve existing authentication scope and test supported flows; do not introduce a new local database as canonical user storage or expose unverified cloud data features. Before enabling cloud data for users, verify authorization, RLS and cross-user isolation with live test accounts.
+
 ## Active, not deferred
-Current release: GitHub protections, CodeQL, Dependabot, secrets safeguards, source migration, ESLint, Sonar quality gates, coverage/testing, Supabase Cloud and RLS, essential reliability, basic recovery, robot login transition, free signing feasibility, final batch QA. No local database as the primary user data store. No standalone feature releases. Production remains v1.6.4 until the verified batch is promoted.
+Current release: GitHub protections, CodeQL, Dependabot, secrets safeguards, source migration, ESLint, Sonar quality gates, coverage/testing, essential reliability, basic recovery, robot login transition, free signing feasibility, final batch QA. No local database as the primary user data store. No standalone feature releases. Production remains v1.6.4 until the verified batch is promoted.
 
 No capacity, availability, external service approval or deadline is guaranteed by this backlog. Record actual evidence and review trade-offs at each phase.

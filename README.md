@@ -4,7 +4,11 @@
 
 AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
 
-## What's new in 1.6.5
+## What's new in 1.6.6
+
+The existing intro and Windows application icon now use the approved borderless robot logo. The original intro scene, timing and authentication layout remain unchanged. The 480 ms crossfade waits for the local login screen to render without blocking on optional identity status; a bounded readiness fallback and reduced-motion behavior are retained.
+
+## Previously in 1.6.5
 
 The original three-second intro now crossfades into the prepared login screen over 480 ms at startup, logout and password reset. The login remains non-interactive until the fade finishes; reduced-motion mode skips the fade. A bounded readiness fallback preserves access if loading stalls. The sign-in-to-workspace sequence is unchanged.
 

@@ -4,16 +4,19 @@ on:
   push:
   pull_request:
   workflow_dispatch:
-  workflow_call:
 
 permissions:
   contents: read
+
+concurrency:
+  group: agentoffice-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   windows-validation:
     name: Windows build and tests
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -59,12 +62,25 @@ jobs:
         working-directory: app
         shell: pwsh
         run: |
+          if (Test-Path '../package-lock.json') {
+            Copy-Item ../package-lock.json ./package-lock.json -Force
+          }
           if (Test-Path './package-lock.json') {
+            'true' | Set-Content -Encoding ascii ../ci-lock-present.txt
             npm ci --no-audit --no-fund
           } else {
+            'false' | Set-Content -Encoding ascii ../ci-lock-present.txt
             npm install --no-audit --no-fund
           }
           if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
+
+      - name: Upload resolved dependency lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentoffice-dependency-lock
+          path: app/package-lock.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Unit tests - identity and update policy
         working-directory: app
@@ -78,15 +94,32 @@ jobs:
         working-directory: app
         run: npx --no-install electron scripts/auth-smoke.cjs
 
-      - name: Dependency security audit (advisory)
+      - name: Package tested Windows build (no publishing)
         working-directory: app
-        continue-on-error: true
-        run: npm audit --audit-level=high
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: npx --no-install electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never
 
-      - name: Upload validated web build
+      - name: Prepare candidate manifest and verify update metadata
+        shell: pwsh
+        run: python scripts/release-candidate.py create
+
+      - name: Upload Windows candidate for QA
         uses: actions/upload-artifact@v4
         with:
-          name: agentoffice-ci-dist
-          path: app/dist/
+          name: agentoffice-windows-candidate
+          path: candidate/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
+
+      - name: Dependency security audit (blocking high and critical)
+        working-directory: app
+        run: npm audit --audit-level=high
+
+      - name: Require committed dependency lock for release eligibility
+        shell: pwsh
+        run: |
+          if ((Get-Content ./ci-lock-present.txt -Raw).Trim() -ne 'true') {
+            throw 'Commit the reviewed package-lock.json from the dependency-lock artifact before release.'
+          }

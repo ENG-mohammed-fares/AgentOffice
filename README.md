@@ -57,9 +57,9 @@ npm run package:win
 
 The codebase uses Vite, Three.js, Electron and electron-updater.
 
-## Continuous integration (CI)
+## CI/CD — approval-controlled delivery
 
-[AgentOffice CI runs](https://github.com/ENG-mohammed-fares/AgentOffice/actions/workflows/ci.yml) validate pushes and pull requests, with manual execution also available. The Windows job validates the ZIP and version, checks JavaScript syntax, installs dependencies, runs the identity and update policy tests, builds the Vite production bundle, and runs Electron authentication smoke tests using fixtures. The dependency audit is advisory; the validated web bundle is retained for seven days. CI uses read-only repository access and never publishes a release. The Windows release workflow requires the same CI to succeed before packaging and publishing. Real Google/GitHub authentication, SMTP delivery and installed-app update behavior still require separate live testing. The existing source archive has no committed npm lockfile, so CI uses npm install until one is included.
+[AgentOffice CI](https://github.com/ENG-mohammed-fares/AgentOffice/actions/workflows/ci.yml) runs on pushes and pull requests, validates source and dependencies, tests the application, and packages Windows QA candidates as Actions artifacts. High and critical dependency findings and a missing committed lockfile block release eligibility. No push publishes a GitHub Release. A manually dispatched delivery workflow prepares only an unpublished draft from an exact successful CI run; the release owner must explicitly publish the reviewed draft. The installed auto-updater continues to track stable published releases. See [release policy and QA checklist](RELEASE-POLICY.md).
 
 ## Design principles
 

@@ -1,0 +1,32 @@
+name: Inspect authentication baseline
+on: [push]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Inspect patch anchors
+        run: |
+          python scripts/ci-prepare.py
+          python - <<'PY'
+          import json, pathlib, difflib
+          patches=json.loads(pathlib.Path('assets/phone-auth/patches.json').read_text())
+          for name, replacements in patches.items():
+              src=(pathlib.Path('app')/name).read_text()
+              print('FILE',name)
+              for old,new in replacements:
+                  if src.count(old)==1:
+                      src=src.replace(old,new,1)
+                      continue
+                  print('MISSING',repr(old))
+                  lines=src.splitlines()
+                  needle=old.splitlines()
+                  n=len(needle)
+                  candidates=sorted(((difflib.SequenceMatcher(None,old,'\n'.join(lines[i:i+n]),autojunk=False).ratio(),i) for i in range(len(lines)) if len(lines[i])<1000),reverse=True)[:2]
+                  for score,i in candidates:
+                      print('NEAR',score,repr('\n'.join(lines[max(0,i-2):i+n+2])[:2500]))
+          PY

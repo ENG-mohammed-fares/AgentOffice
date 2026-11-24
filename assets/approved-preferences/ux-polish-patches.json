@@ -1,0 +1,30 @@
+[
+  [
+    "<button type=\"button\" id=\"google\" class=\"google-action\">",
+    "<div class=\"auth-divider\" aria-hidden=\"true\"><span data-i=\"or\">or</span></div><button type=\"button\" id=\"google\" class=\"google-action\">"
+  ],
+  [
+    "<button type=\"button\" id=\"guest\" class=\"guest-button\" data-i=\"guest\">Explore as a guest</button>",
+    "<button type=\"button\" id=\"guest\" class=\"guest-button\" data-i=\"guest\" aria-describedby=\"guestNote\">Explore as a guest</button><p class=\"guest-note\" id=\"guestNote\" data-i=\"guestNote\">No account required.</p>"
+  ],
+  [
+    "let creating=false, busy=false, session=null, statusKey='', error=false;",
+    "let creating=false, busy=false, session=null, statusKey='', error=false;\nconst uxWords={en:['or','No account required.'],ar:['أو','بدون الحاجة إلى حساب.'],fr:['ou','Aucun compte requis.'],es:['o','No necesitas una cuenta.'],de:['oder','Kein Konto erforderlich.'],he:['או','אין צורך בחשבון.']};\nfor(const [locale,values] of Object.entries(uxWords))Object.assign(words[locale],{or:values[0],guestNote:values[1]});\nObject.assign(words.fr,{github:'Continuer avec GitHub'});Object.assign(words.de,{github:'Mit GitHub fortfahren'});Object.assign(words.es,{github:'Continuar con GitHub'});Object.assign(words.he,{github:'המשך עם GitHub'});"
+  ],
+  [
+    "  status();render();\n}\nfunction fail(input,key) {\n  status(key,true);input.setAttribute('aria-invalid','true');\n  input.closest('.inputbox').classList.add('invalid');input.focus();\n}",
+    "  fieldErrorOwner=null;status();render();\n}\nlet fieldErrorOwner=null;\nfunction fieldIssue(input){\n  if(input===fullName)return creating&&fullName.value.trim().length<2?'invalidName':'';\n  if(input===email)return !email.validity.valid||!/^\\S+@[^\\s@]+\\.[^\\s@]+$/.test(email.value.trim())?'invalidEmail':'';\n  if(input===password)return !password.value?'invalidPassword':creating&&password.value.length<10?'short':'';\n  if(input===confirmPassword)return creating&&confirmPassword.value!==password.value?'mismatch':'';\n  return '';\n}\nfunction markField(input,key){\n  if(key)input.setAttribute('aria-invalid','true');else input.removeAttribute('aria-invalid');\n  input.closest('.inputbox').classList.toggle('invalid',!!key);\n}\nfunction fail(input,key,focus=true) {\n  fieldErrorOwner=input;status(key,true);markField(input,key);if(focus)input.focus();\n}\nfunction validateBlur(input){\n  if(busy||step||input.closest('[inert]'))return;\n  const key=fieldIssue(input);\n  if(key)fail(input,key,false);\n  else {markField(input,'');if(fieldErrorOwner===input){fieldErrorOwner=null;status()}}\n}"
+  ],
+  [
+    "for(const input of [fullName,email,password,confirmPassword]){\n  syncField(input);input.oninput=()=>{\n    status();input.removeAttribute('aria-invalid');input.closest('.inputbox').classList.remove('invalid');syncField(input);strength();\n  };\n}",
+    "for(const input of [fullName,email,password,confirmPassword]){\n  syncField(input);input.oninput=()=>{\n    if(!fieldErrorOwner||fieldErrorOwner===input){fieldErrorOwner=null;status()}\n    markField(input,'');syncField(input);strength();\n  };\n  input.addEventListener('blur',()=>validateBlur(input));\n}"
+  ],
+  [
+    "  step=next;resetNotice=notice;resetError=false;",
+    "  step=next;resetNotice=notice;resetError=false;resetErrorOwner=null;resetInputs.forEach(id=>byId(id).removeAttribute('aria-invalid'));"
+  ],
+  [
+    "function report(key,id){\n  resetNotice=key;resetError=true;renderRecovery();if(id)byId(id).focus();\n}",
+    "let resetErrorOwner=null;\nfunction report(key,id,focus=true){\n  resetNotice=key;resetError=true;resetErrorOwner=id||null;renderRecovery();\n  if(id){byId(id).setAttribute('aria-invalid','true');if(focus)byId(id).focus();}\n}\nfunction recoveryIssue(id){\n  const input=byId(id);\n  if(id==='resetAddress')return step===1&&(!input.validity.valid||!/^\\S+@[^\\s@]+\\.[^\\s@]+$/.test(input.value.trim()))?'invalidEmail':'';\n  if(id==='resetCode')return step===2&&!/^\\d{6,10}$/.test(input.value.trim().replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x660)))?'expired':'';\n  if(id==='resetNew')return step===3&&input.value.length<10?'short':'';\n  if(id==='resetConfirm')return step===3&&input.value!==byId('resetNew').value?'mismatch':'';\n  return '';\n}\nfor(const id of resetInputs){\n  const input=byId(id);\n  input.setAttribute('aria-describedby','resetStatus');\n  input.addEventListener('input',()=>{input.removeAttribute('aria-invalid');if(resetErrorOwner===id){resetErrorOwner=null;resetNotice='';resetError=false;renderRecovery()}});\n  input.addEventListener('blur',()=>{if(busy||!step||input.closest('[hidden]'))return;const key=recoveryIssue(id);if(key)report(key,id,false);else {input.removeAttribute('aria-invalid');if(resetErrorOwner===id){resetErrorOwner=null;resetNotice='';resetError=false;renderRecovery()}}});\n}"
+  ]
+]

@@ -4,7 +4,11 @@
 
 AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
 
-## What's new in 1.6.3
+## What's new in 1.6.4
+
+The sign-in footer displays the actual installed app version from Electron's runtime version API, including after language changes and logout. It never substitutes the latest remote release number for the installed version.
+
+## Previously in 1.6.3
 
 All explicit update installations use the silent NSIS path; startup and safe idle updates relaunch automatically. The normal-exit updater remains enabled. Initial installation can still show the Windows setup wizard. Real installed-upgrade QA remains necessary.
 

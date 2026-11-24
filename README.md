@@ -4,7 +4,11 @@
 
 AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
 
-## What's new in 1.4.0
+## What's new in 1.5.0
+
+Sign-in uses bundled Noto Kufi Arabic and Noto Sans fonts. The desktop client supports email-code recovery for local accounts on this device and a Google workspace through a configured Supabase Auth project. The public build currently ships without a project configuration. [Configure email and Google sign-in](AUTH-SETUP.md).
+
+## Previously in 1.4.0
 
 The desktop sign-in screen includes the interactive AgentOffice mascot, Arabic and English layouts, light and dark themes, and a guest entry to the workspace. Language, appearance and the optional remembered email are kept on the device.
 
@@ -18,7 +22,7 @@ The desktop sign-in screen includes the interactive AgentOffice mascot, Arabic a
 - A new interactive procedural 3D studio — the rendered scene is still a prototype rather than cinematic final art.
 - A clear separation between real working features and future AI functions.
 
-Local account credentials are stored in the desktop app using salted scrypt hashes. The app does not offer cloud login, email recovery, account sync or hosted AI execution.
+Local account credentials are stored in the desktop app using salted scrypt hashes. Workspace data stays on this computer.
 
 ## Download and install
 

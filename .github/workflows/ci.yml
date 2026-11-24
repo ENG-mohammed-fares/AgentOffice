@@ -120,43 +120,7 @@ jobs:
           $ready = $env:TRUSTED_RUN -eq 'true' -and $env:SONAR_TOKEN -and $env:SONAR_ORGANIZATION -and $env:SONAR_PROJECT_KEY
           if ($ready) {
             foreach ($key in @($env:SONAR_ORGANIZATION,$env:SONAR_PROJECT_KEY)) {
-              if ($key -notmatch '^[A-Za-z0-9_.:-]+        working-directory: app
-        run: npm run build --ignore-scripts
-
-      - name: Electron authentication smoke tests
-        working-directory: app
-        run: npx --no-install electron scripts/auth-smoke.cjs
-
-      - name: Package tested Windows build (no publishing)
-        working-directory: app
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: npx --no-install electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never
-
-      - name: Prepare candidate manifest and verify update metadata
-        shell: pwsh
-        run: python scripts/release-candidate.py create
-
-      - name: Upload Windows candidate for QA
-        uses: actions/upload-artifact@v6
-        with:
-          name: agentoffice-windows-candidate
-          path: candidate/
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Dependency security audit (blocking high and critical)
-        working-directory: app
-        run: npm audit --audit-level=high
-
-      - name: Require committed dependency lock for release eligibility
-        shell: pwsh
-        run: |
-          if ((Get-Content ./ci-lock-present.txt -Raw).Trim() -ne 'true') {
-            throw 'Commit the reviewed package-lock.json from the dependency-lock artifact before release.'
-          }
-) { throw 'Invalid SonarCloud key.' }
+              if ($key -notmatch '^[A-Za-z0-9_.:-]+$') { throw 'Invalid SonarCloud key.' }
             }
             if (!(Test-Path lcov.info) -or !(Select-String -Path lcov.info -Pattern '^SF:' -Quiet)) { throw 'Missing LCOV source records.' }
             'enabled=true' >> $env:GITHUB_OUTPUT

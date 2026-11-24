@@ -13,6 +13,9 @@ Budget: $0. Release integration branch: release/v1.7.0. No automatic public rele
 - [x] Add first legacy-account IPC and identity error unit suites with isolated fixture, fake clock and deferred OAuth. Fix stale OAuth session and token-exchange concurrency. CI validation pending. Evaluate Vitest only if it provides concrete value over the existing Node runner.
 - [ ] Add integration/Electron tests and actionable coverage reports. Establish enforceable thresholds on explicitly defined production code scope; provisional goals 85% lines/functions/statements, 80% branches, 95% critical logic with a defined denominator. No exclusion of critical code just to inflate metrics.
 
+- [x] Prepare SonarCloud CI integration and LCOV output; owner account binding and first scan pending.
+- [ ] Review Sonar findings, scope and quality gate; enable blocking after baseline validation.
+
 ## Phase 2 — persistent data
 - [ ] Choose authenticated account identity model; define migration, schema, ownership, RLS and offline/conflict behavior.
 - [ ] Use free Supabase PostgreSQL within limits; isolate local/guest data; no service-role secrets in renderer or repo.

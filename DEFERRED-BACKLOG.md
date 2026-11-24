@@ -24,6 +24,11 @@ Updated 2026-11-24. Budget $0; no paid service or subscription without explicit 
 | Advanced DAST, penetration testing, compliance certifications | Before enterprise customers or risk warrants. Baseline threat model, access tests, static checks and secure configuration now. |
 | Paid signing, paid cloud tiers, premium services, paid assets | Explicit owner approval only. Free signing application remains active in v1.7.0; no assurance of acceptance or SmartScreen suppression. |
 
+## Proprietary source and distribution — owner-approved deferral
+- After the current security and quality foundation, move the canonical source and history to a private repository and distribute installers, release notes and update metadata through a separate public repository with no source history.
+- Review zero-cost private-repository security alternatives, release credentials, CI/CD and automatic updater migration before changing visibility; verify existing users can update safely.
+- Assess proprietary licensing, disable distributed production source maps, and consider obfuscation and server-side isolation of sensitive logic. No guarantee against reverse engineering or copies made while public.
+
 ## Active, not deferred
 Current release: GitHub protections, CodeQL, Dependabot, secrets safeguards, source migration, ESLint, Sonar quality gates, coverage/testing, Supabase Cloud and RLS, essential reliability, basic recovery, robot login transition, free signing feasibility, final batch QA. No local database as the primary user data store. No standalone feature releases. Production remains v1.6.4 until the verified batch is promoted.
 

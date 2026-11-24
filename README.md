@@ -4,6 +4,10 @@
 
 AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
 
+## What's new in 1.6.12
+
+Moves phone sign-in to a compact link beside the email field. The option is always discoverable; SMS actions remain disabled with an explicit explanation until the provider is configured. Google and GitHub retain their existing positions.
+
 ## What's new in 1.6.11
 
 Adds phone OTP support behind an opt-in environment flag and server provider check. SMS delivery remains disabled by default pending provider setup, CAPTCHA and cost controls. GitHub sign-in detects a disabled identity provider before opening the browser.

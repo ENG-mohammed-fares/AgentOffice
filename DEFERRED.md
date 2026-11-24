@@ -15,3 +15,13 @@ Status: deferred on 2026-11-25; disabled in v1.6.13.
 - Re-enable only after actual international SMS end-to-end tests and approval.
 
 Existing phone patch definitions, UI assets and fixture tests are retained under `assets/phone-auth/`. Production phone UI is omitted and the provider defaults to disabled; explicit enablement exists only for isolated tests. Existing email, Google, GitHub and guest flows are unaffected.
+
+## Windows code signing
+
+Status: deferred on 2026-11-25; no application submitted.
+
+- Keep the current proprietary license and future private-source repository plan. Do not relicense the project merely to qualify for free signing.
+- SignPath Foundation (https://signpath.org/apply) was evaluated; current proprietary licensing does not meet its open-source eligibility requirements, and the project has limited established reputation. Revisit only if eligibility genuinely changes.
+- Research legitimate free or affordable Authenticode signing options that accept proprietary software; verify certificate trust, timestamping, CI/CD integration, renewal, and total cost. No paid commitment without approval.
+- Prepare a truthful privacy policy, signing policy, and project/release documentation before any eligible application. Do not claim SignPath sponsorship or signing until approved and actually implemented.
+- Integrate signing into the existing GitHub Actions release pipeline, protect signing credentials, verify signatures on installers, and test updater compatibility before public distribution.

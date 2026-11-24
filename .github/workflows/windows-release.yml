@@ -6,19 +6,31 @@ on:
     paths:
       - 'AgentOffice-Source.zip'
       - 'assets/auth-overlay-v1.2.0.tgz.b64'
-      - '.github/workflows/windows-release.yml'
+      - 'release-version.txt'
+      - 'assets/agentoffice-icon.webp.b64'
+      - 'scripts/apply-branding.py'
+      - 'scripts/apply-auth.py'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: agentoffice-windows-release
   cancel-in-progress: false
 
 jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   build-and-release:
+    needs: verify
+    permissions:
+      contents: write
     runs-on: windows-latest
+    timeout-minutes: 35
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

@@ -57,6 +57,10 @@ npm run package:win
 
 The codebase uses Vite, Three.js, Electron and electron-updater.
 
+## Continuous integration (CI)
+
+[AgentOffice CI runs](https://github.com/ENG-mohammed-fares/AgentOffice/actions/workflows/ci.yml) validate pushes and pull requests, with manual execution also available. The Windows job validates the ZIP and version, checks JavaScript syntax, installs dependencies, runs the identity and update policy tests, builds the Vite production bundle, and runs Electron authentication smoke tests using fixtures. The dependency audit is advisory; the validated web bundle is retained for seven days. CI uses read-only repository access and never publishes a release. The Windows release workflow requires the same CI to succeed before packaging and publishing. Real Google/GitHub authentication, SMTP delivery and installed-app update behavior still require separate live testing. The existing source archive has no committed npm lockfile, so CI uses npm install until one is included.
+
 ## Design principles
 
 The design aims to feel like a crafted tool, not a generated landing page. It avoids purple gradients, all-caps shouting, placeholder testimonials, stock product photos, random emoji icons, unnecessary fade-ins, and generic 3-card layouts. Colors and fonts are defined in `src/tokens.css` in the source package.

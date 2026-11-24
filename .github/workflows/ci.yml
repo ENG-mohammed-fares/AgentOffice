@@ -1,0 +1,92 @@
+name: AgentOffice CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-validation:
+    name: Windows build and tests
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate and extract source archive
+        shell: pwsh
+        run: |
+          python scripts/ci-prepare.py
+          if ($LASTEXITCODE -ne 0) { throw 'Source archive validation failed.' }
+
+      - name: Apply branding and authentication source
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "Pillow>=11,<13"
+          if ($LASTEXITCODE -ne 0) { throw 'Pillow install failed.' }
+          python scripts/apply-branding.py
+          if ($LASTEXITCODE -ne 0) { throw 'Branding failed.' }
+          python scripts/apply-auth.py
+          if ($LASTEXITCODE -ne 0) { throw 'Authentication preparation failed.' }
+
+      - name: Check JavaScript syntax
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem ./app/src, ./app/electron, ./app/scripts -Recurse -File | Where-Object { $_.Extension -in '.js', '.cjs', '.mjs' }
+          foreach ($file in $files) {
+            node --check $file.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Syntax check failed: $($file.FullName)" }
+          }
+
+      - name: Install dependencies
+        working-directory: app
+        shell: pwsh
+        run: |
+          if (Test-Path './package-lock.json') {
+            npm ci --no-audit --no-fund
+          } else {
+            npm install --no-audit --no-fund
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
+
+      - name: Unit tests - identity and update policy
+        working-directory: app
+        run: node --test scripts/identity.test.cjs
+
+      - name: Production Vite build
+        working-directory: app
+        run: npm run build --ignore-scripts
+
+      - name: Electron authentication smoke tests
+        working-directory: app
+        run: npx --no-install electron scripts/auth-smoke.cjs
+
+      - name: Dependency security audit (advisory)
+        working-directory: app
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+      - name: Upload validated web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentoffice-ci-dist
+          path: app/dist/
+          if-no-files-found: error
+          retention-days: 7

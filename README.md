@@ -4,7 +4,11 @@
 
 AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
 
-## What's new in 1.3.0
+## What's new in 1.4.0
+
+The desktop sign-in screen includes the interactive AgentOffice mascot, Arabic and English layouts, light and dark themes, and a guest entry to the workspace. Language, appearance and the optional remembered email are kept on the device.
+
+## Previously in 1.3.0
 
 - A completely redesigned interface: petrol-green, terracotta orange, cream, deliberate typography, and one consistent icon family.
 - Professional local Sign In / Sign Up for Windows and a guest preview.

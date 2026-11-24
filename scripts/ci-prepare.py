@@ -1,45 +1,27 @@
-"""Validate the versioned ZIP baseline before extracting it for CI."""
-from pathlib import Path, PurePosixPath
+"""Validate canonical tracked application source before the CI build."""
+from pathlib import Path
 import json
 import re
-import stat
-import zipfile
+import subprocess
 
 root = Path(__file__).resolve().parents[1]
-source = root / "AgentOffice-Source.zip"
-target = root / "app"
+app = root / "app"
 version = (root / "release-version.txt").read_text(encoding="utf-8").strip()
 if not re.fullmatch(r"\d+\.\d+\.\d+", version):
     raise RuntimeError("Invalid release version")
-if target.exists():
-    raise RuntimeError("CI extraction target already exists")
-with zipfile.ZipFile(source) as archive:
-    seen = set()
-    for item in archive.infolist():
-        name = item.filename
-        path = PurePosixPath(name)
-        if not name or path.is_absolute() or ".." in path.parts or "\\" in name or ":" in name:
-            raise RuntimeError(f"Unsafe archive path: {name}")
-        normalized = str(path).casefold()
-        if normalized in seen:
-            raise RuntimeError(f"Duplicate archive path: {name}")
-        seen.add(normalized)
-        if stat.S_ISLNK(item.external_attr >> 16):
-            raise RuntimeError(f"Unexpected archive symlink: {name}")
-    corrupt = archive.testzip()
-    if corrupt:
-        raise RuntimeError(f"Archive CRC mismatch: {corrupt}")
-    required = {
-        "package.json", "electron/main.cjs", "electron/auth.cjs",
-        "electron/identity.cjs", "electron/update-policy.cjs",
-        "src/auth-screen.html", "scripts/identity.test.cjs",
-        "scripts/auth-smoke.cjs", "electron-builder.config.cjs"
-    }
-    missing = required - set(archive.namelist())
-    if missing:
-        raise RuntimeError(f"Missing source files: {sorted(missing)}")
-    pkg = json.loads(archive.read("package.json"))
-    if pkg.get("version") != version:
-        raise RuntimeError("Source package version differs from release-version.txt")
-    archive.extractall(target)
-print(f"Validated and extracted AgentOffice {version}")
+required = (
+    "package.json", "package-lock.json", "electron/main.cjs",
+    "electron/auth.cjs", "electron/identity.cjs", "electron/update-policy.cjs",
+    "src/auth-screen.html", "scripts/identity.test.cjs",
+    "scripts/auth-smoke.cjs", "electron-builder.config.cjs",
+)
+for name in required:
+    path = app / name
+    if not path.is_file() or path.is_symlink():
+        raise RuntimeError(f"Missing or invalid source file: {name}")
+    subprocess.run(["git", "ls-files", "--error-unmatch", f"app/{name}"], cwd=root, check=True, stdout=subprocess.DEVNULL)
+pkg = json.loads((app / "package.json").read_text(encoding="utf-8"))
+lock = json.loads((app / "package-lock.json").read_text(encoding="utf-8"))
+if pkg.get("version") != version or lock.get("version") != version or lock["packages"][""].get("version") != version:
+    raise RuntimeError("Source package or dependency lock version differs from release-version.txt")
+print(f"Validated tracked AgentOffice {version} source and committed lock")

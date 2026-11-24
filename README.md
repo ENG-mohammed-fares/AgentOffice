@@ -52,12 +52,16 @@ AgentOffice checks GitHub Releases for updates. In 1.6.1 and later, installation
 
 ## Source and build
 
-The complete baseline source is available as [AgentOffice-Source.zip](AgentOffice-Source.zip). The release pipeline extracts that ZIP, adds the approved brand icon from `assets/agentoffice-icon.webp.b64` via `scripts/apply-branding.py`, and packages the app using Electron Builder.
+The canonical source is tracked directly in [app/](app/). The build validates the committed package and lock, generates approved branding with `scripts/apply-branding.py`, and packages the app using Electron Builder. Historical source ZIPs remain available in Git history.
 
-To run locally, extract the source and run:
+To run locally from the repository root with Node 22 and Python installed:
 
 ```sh
-npm install
+python -m pip install 'Pillow>=11,<13'
+python scripts/ci-prepare.py
+python scripts/apply-branding.py
+cd app
+npm ci
 npm run dev
 ```
 

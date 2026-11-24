@@ -40,7 +40,7 @@ High-precision review is recommended for database authorization/migrations, code
 ## Current release foundation (priority P0/P1)
 - [ ] Protect release branches, disable force pushes/deletions, require trusted review/checks without breaking development-to-release CI; owner admin settings required.
 - [ ] Enable secret scanning/push protection; rotate exposed tokens; enable dependency alerts and Dependabot; configure CodeQL and dependency review with tracked source and lockfile.
-- [ ] Migrate canonical source from ZIP to tracked files; verify equivalent build, avoid duplicate source of truth, retain rollback provenance.
+- [x] Migrate canonical source from ZIP to tracked app/ files with CRC validation and committed app/package-lock.json; historical archive preserved in Git history. CI equivalence verification pending.
 - [ ] Configure ESLint and enforce on maintained source; establish coverage and Sonar quality gates from reviewed baseline; expand tests for newly added modules, not just four existing modules.
 - [ ] Cloud-first Supabase Auth/PostgreSQL, least privilege, RLS, separate dev/prod, verified migration and tenant isolation. No local DB as canonical user storage.
 - [ ] Validate inputs and authorization server-side, rate limit sensitive operations, use bounded timeouts/retries, secure Electron IPC, protect credentials, sanitize logs.

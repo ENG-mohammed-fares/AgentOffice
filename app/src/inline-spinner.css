@@ -1,0 +1,10 @@
+/* AgentOffice Orbit — compact in-place activity indicator. */
+.ao-inline-spinner{display:inline-grid;place-items:center;width:24px;height:24px;flex:0 0 24px;vertical-align:middle;margin-inline-start:6px}
+.ao-inline-spinner svg{width:100%;height:100%;overflow:visible}
+.ao-spinner-track{fill:none;stroke:#d77940;stroke-opacity:.19;stroke-width:2.8}
+.ao-spinner-orbit{transform-origin:20px 20px;animation:ao-orbit .95s linear infinite}
+.ao-spinner-arc{fill:none;stroke:#e58a51;stroke-width:2.8;stroke-linecap:round;stroke-dasharray:50 14}
+.ao-spinner-tip{fill:#ffd9b3}
+.ao-spinner-core{fill:none;stroke:#cf805a;stroke-width:1.6}
+@keyframes ao-orbit{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.ao-spinner-orbit{animation:none}}

@@ -1,0 +1,36 @@
+{
+  "name": "agentoffice-desktop",
+  "productName": "AgentOffice",
+  "version": "1.6.5",
+  "description": "A thoughtfully designed 3D virtual office and local workspace for future AI agents",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ENG-mohammed-fares/AgentOffice.git"
+  },
+  "main": "electron/main.cjs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:web\" \"npm:dev:electron\"",
+    "dev:web": "vite --host 127.0.0.1",
+    "dev:electron": "wait-on http://127.0.0.1:5173 && cross-env AGENTOFFICE_DEV_URL=http://127.0.0.1:5173 electron .",
+    "dev:browser": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "postbuild": "node scripts/verify-release.cjs",
+    "preview": "vite preview --host 127.0.0.1",
+    "package:win": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "release:win": "npm run build && electron-builder --win nsis --x64 --publish always"
+  },
+  "dependencies": {
+    "three": "0.180.0",
+    "electron-updater": "6.8.11"
+  },
+  "devDependencies": {
+    "vite": "7.3.8",
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0",
+    "concurrently": "9.2.5",
+    "wait-on": "8.0.4",
+    "cross-env": "7.0.3"
+  }
+}

@@ -39,11 +39,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Validate and extract source archive
+      - name: Validate tracked source
         shell: pwsh
         run: |
           python scripts/ci-prepare.py
-          if ($LASTEXITCODE -ne 0) { throw 'Source archive validation failed.' }
+          if ($LASTEXITCODE -ne 0) { throw 'Tracked source validation failed.' }
 
       - name: Apply branding and authentication source
         shell: pwsh
@@ -68,16 +68,9 @@ jobs:
         working-directory: app
         shell: pwsh
         run: |
-          if (Test-Path '../package-lock.json') {
-            Copy-Item ../package-lock.json ./package-lock.json -Force
-          }
-          if (Test-Path './package-lock.json') {
-            'true' | Set-Content -Encoding ascii ../ci-lock-present.txt
-            npm ci --no-audit --no-fund
-          } else {
-            'false' | Set-Content -Encoding ascii ../ci-lock-present.txt
-            npm install --no-audit --no-fund
-          }
+          if (!(Test-Path './package-lock.json')) { throw 'Committed app/package-lock.json is required.' }
+          'true' | Set-Content -Encoding ascii ../ci-lock-present.txt
+          npm ci --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
 
       - name: Upload resolved dependency lock

@@ -1,0 +1,26 @@
+/* AgentOffice design system • v1.3 */
+:root {
+  --ao-ink:#18352f;
+  --ao-ink-deep:#102b2a;
+  --ao-ink-soft:#35615c;
+  --ao-terracotta:#d6734e;
+  --ao-terracotta-hover:#c56140;
+  --ao-teal:#14767a;
+  --ao-teal-pale:#dfece7;
+  --ao-cream:#f6f5f0;
+  --ao-paper:#fffefa;
+  --ao-sand:#ebe9e1;
+  --ao-line:#e0e2d9;
+  --ao-text-muted:#72837e;
+  --ao-text-subtle:#9aa69f;
+  --ao-success:#287b65;
+  --ao-warning:#a9703d;
+  --ao-error:#ae4f42;
+  --ao-radius-sm:10px;
+  --ao-radius-md:16px;
+  --ao-radius-lg:22px;
+  --ao-shadow:0 14px 40px rgb(20 48 40 / 7%);
+  --ao-font:'Segoe UI Variable','Aptos','Segoe UI',Arial,sans-serif;
+  --ao-display:'Segoe UI Variable Display','Aptos Display','Segoe UI',Arial,sans-serif;
+  --ao-editorial:Georgia,'Times New Roman',serif;
+}

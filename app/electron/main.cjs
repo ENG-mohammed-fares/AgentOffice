@@ -4,6 +4,10 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { autoUpdater } = require('electron-updater');
 const { registerAuth } = require('./auth.cjs');
+const {isTrustedPage,trustedIpc,workspaceUrl}=require('./ipc-security.cjs');
+const devUrl=!app.isPackaged&&process.env.AGENTOFFICE_DEV_URL;
+const workspaceIndex=path.join(__dirname,'..','dist','index.html');
+const expectedWorkspaceUrl=workspaceUrl(workspaceIndex,devUrl);
 const { mayAutoRestart, installSilently } = require('./update-policy.cjs');
 const { createStartupGate } = require('./startup-update.cjs');
 const primaryInstance=app.requestSingleInstanceLock();
@@ -161,28 +165,26 @@ function createWindow() {
   });
   Menu.setApplicationMenu(null);
   mainWindow.once('ready-to-show', () => mainWindow.show());
-  const devUrl = !app.isPackaged && process.env.AGENTOFFICE_DEV_URL;
-  if (devUrl) mainWindow.loadURL(devUrl);
-  else mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+  if (devUrl) mainWindow.loadURL(expectedWorkspaceUrl);
+  else mainWindow.loadFile(workspaceIndex);
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) shell.openExternal(url).catch(() => {});
     return { action: 'deny' };
   });
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const allowedDev = Boolean(devUrl && url.startsWith(devUrl));
-    const allowedLocal = !devUrl && url.startsWith('file://');
-    if (!allowedDev && !allowedLocal) event.preventDefault();
+    if (!isTrustedPage(url,expectedWorkspaceUrl)) event.preventDefault();
   });
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
 if(primaryInstance) app.whenReady().then(() => {
   app.setAppUserModelId('com.agentoffice.desktop');
-  authSafety = registerAuth(ipcMain);
-  ipcMain.handle('agentoffice:version', () => ({ version: app.getVersion(), configured: updatesConfigured(), packaged: app.isPackaged }));
-  ipcMain.handle('agentoffice:update-status', () => state);
-  ipcMain.handle('agentoffice:check-updates', () => checkUpdates().then(() => state));
-  ipcMain.handle('agentoffice:install-update', () => {
+  const safeIpc=trustedIpc(ipcMain,()=>mainWindow,expectedWorkspaceUrl);
+  authSafety = registerAuth(safeIpc);
+  safeIpc.handle('agentoffice:version', () => ({ version: app.getVersion(), configured: updatesConfigured(), packaged: app.isPackaged }));
+  safeIpc.handle('agentoffice:update-status', () => state);
+  safeIpc.handle('agentoffice:check-updates', () => checkUpdates().then(() => state));
+  safeIpc.handle('agentoffice:install-update', () => {
     if (state.state !== 'ready' || !updatesConfigured()) return false;
     setImmediate(() => installDownloaded());
     return true;

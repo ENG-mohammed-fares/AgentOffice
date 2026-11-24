@@ -24,18 +24,18 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Check out source
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '22'
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
 
@@ -74,7 +74,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
 
       - name: Upload resolved dependency lock
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: agentoffice-dependency-lock
           path: app/package-lock.json
@@ -84,14 +84,18 @@ jobs:
       - name: Unit tests and production-module V8 coverage
         shell: pwsh
         run: |
-          node --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=lcov.info --experimental-test-coverage --test-coverage-include='**/electron/auth.cjs' --test-coverage-include='**/electron/identity.cjs' --test-coverage-include='**/electron/startup-update.cjs' --test-coverage-include='**/electron/update-policy.cjs' --test app/scripts/identity.test.cjs tests/unit/auth.test.cjs tests/unit/identity-errors.test.cjs | Tee-Object -FilePath unit-coverage.txt
+          node --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=lcov.info --experimental-test-coverage --test-coverage-include='**/electron/auth.cjs' --test-coverage-include='**/electron/identity.cjs' --test-coverage-include='**/electron/startup-update.cjs' --test-coverage-include='**/electron/update-policy.cjs' --test-coverage-include='**/electron/ipc-security.cjs' --test app/scripts/identity.test.cjs tests/unit/auth.test.cjs tests/unit/identity-errors.test.cjs tests/unit/ipc-security.test.cjs | Tee-Object -FilePath unit-coverage.txt
           $exitCode = $LASTEXITCODE
           if (Test-Path unit-coverage.txt) { Get-Content unit-coverage.txt | Add-Content -Path $env:GITHUB_STEP_SUMMARY }
           if ($exitCode -ne 0) { throw 'Unit tests failed.' }
 
+      - name: Enforce initial production-module coverage floor
+        shell: pwsh
+        run: python scripts/check-coverage.py lcov.info
+
       - name: Upload unit test coverage baseline
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: agentoffice-unit-coverage
           path: |
@@ -125,7 +129,7 @@ jobs:
 
       - name: SonarCloud static analysis and coverage
         if: steps.sonar-config.outputs.enabled == 'true'
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
@@ -154,7 +158,7 @@ jobs:
         run: python scripts/release-candidate.py create
 
       - name: Upload Windows candidate for QA
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: agentoffice-windows-candidate
           path: candidate/

@@ -9,6 +9,12 @@ const scrypt = promisify(crypto.scrypt);
 function registerAuth(ipcMain, provider=require('./identity.cjs').createProvider(), {accountFile,now=Date.now}={}) {
 let session = null;
 const attempts = new Map();
+const recoveryCooldowns=new Map();
+const WINDOW_MS=120000, MAX_TRACKED=512;
+function prune(map,time){for(const [key,record] of map)if(record.expires<=time)map.delete(key)}
+function limitKey(map,key,time){prune(map,time);if(!map.has(key)&&map.size>=MAX_TRACKED)throw Error('Too many attempts. Try again in a few minutes.')}
+let requestWindow={count:0,expires:0};
+function limitRequests(){const time=now();if(time>=requestWindow.expires)requestWindow={count:0,expires:time+WINDOW_MS};if(requestWindow.count>=30)throw Error('Too many attempts. Try again in a few minutes.');requestWindow.count++}
 const FILE = () => accountFile || path.join(require('electron').app.getPath('userData'), 'local-accounts.json');
 let authGeneration=0,authenticationPending=null;
 const authenticate=async fn=>{
@@ -44,19 +50,20 @@ async function saveAccounts(data) {
   finally { await fs.rm(temp, { force: true }).catch(() => {}); }
 }
 function blockCheck(email) {
+  limitKey(attempts,email,now());
   const record = attempts.get(email);
   if (!record) return;
   if (record.until > now()) throw new Error('Too many attempts. Try again in a few minutes.');
   if (record.until) attempts.delete(email);
 }
 function recordFailure(email) {
-  const state = attempts.get(email) || { count: 0, until: 0 };
+  const state = attempts.get(email) || { count: 0, until: 0, expires:now()+WINDOW_MS };
   state.count += 1;
-  if (state.count >= 7) { state.count = 0; state.until = now() + 120000; }
+  if (state.count >= 7) { state.count = 0; state.until = now() + WINDOW_MS; state.expires=state.until; }
   attempts.set(email, state);
 }
 async function signUp(payload) {
-  const name = String(payload?.name || '').trim();
+  const name = typeof payload?.name==='string' ? payload.name.trim() : '';
   const email = normalEmail(payload?.email);
   const password = payload?.password;
   if (name.length < 2 || name.length > 80) throw new Error('Name must be between 2 and 80 characters.');
@@ -75,6 +82,7 @@ async function signIn(payload) {
   const email = normalEmail(payload?.email);
   const password = payload?.password;
   if (!validEmail(email) || !passwordRule(password)) throw new Error('Incorrect email or password.');
+  limitRequests();
   blockCheck(email);
   const db = await readAccounts();
   const account = db.accounts.find(a => a.email === email);
@@ -106,20 +114,24 @@ async function signIn(payload) {
     if(!provider.configured)throw Error('Identity not configured');
     const email=normalEmail(payload?.email);
     if(!validEmail(email))throw Error('Enter a valid email address');
-    if(recovery?.email===email && now()<recovery.sent+60000)throw Error('Too many attempts');
+    limitRequests();
+    limitKey(recoveryCooldowns,email,now());
+    if(recoveryCooldowns.has(email))throw Error('Too many attempts');
+    const reservation={expires:now()+60000};
+    recoveryCooldowns.set(email,reservation);
     const flow={email,sent:now(),tries:0,checking:false,ready:false};
     recovery=flow;
     try {
       const account=(await readAccounts()).accounts.find(a=>a.email===email);
       if(account){flow.accountId=account.id;flow.digest=account.digest;await provider.sendCode(email)}
       if(recovery===flow)flow.ready=true;
-    }catch(err){if(recovery===flow)recovery=null;throw err}
+    }catch(err){if(recovery===flow)recovery=null;if(recoveryCooldowns.get(email)===reservation)recoveryCooldowns.delete(email);throw err}
     return true;
   });
   channels('verify-code',async payload=>{
     const flow=recovery,token=payload?.code;
     if(!flow?.ready||flow.grant||flow.checking||flow.tries>=5||now()-flow.sent>=600000||
-       normalEmail(payload?.email)!==flow.email||!/^\d{6,10}$/.test(String(token)))throw Error('Invalid or expired code');
+       normalEmail(payload?.email)!==flow.email||(typeof token!=='string'||!/^\d{6,10}$/.test(token)))throw Error('Invalid or expired code');
     flow.tries++;flow.checking=true;
     try {
       if(!flow.accountId)throw Error('Invalid or expired code');

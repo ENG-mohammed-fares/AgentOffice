@@ -95,3 +95,23 @@ test('guest choice wins over late OAuth; cancellation invalidates a late result'
 test('corrupt account data fails closed instead of replacing user data',async t=>{
  const f=await authFixture(t);await fs.writeFile(f.file,'{"accounts":null}');await assert.rejects(f.invoke('signup',credentials),/invalid/);assert.equal(await fs.readFile(f.file,'utf8'),'{"accounts":null}');
 });
+
+test('recovery cooldown persists when switching addresses',async t=>{
+ const f=await authFixture(t);await f.invoke('signup',credentials);await f.invoke('logout');
+ await f.invoke('request-code',{email:credentials.email});
+ await f.invoke('request-code',{email:'unknown@example.test'});
+ await assert.rejects(f.invoke('request-code',{email:credentials.email}),/Too many/);
+ f.advance(60001);await f.invoke('request-code',{email:credentials.email});
+ assert.equal(f.calls.filter(c=>c[0]==='send').length,2);
+ await assert.rejects(f.invoke('verify-code',{email:credentials.email,code:123456}),/Invalid/);
+});
+test('cross-address recovery requests have an overall bounded rate',async t=>{
+ const f=await authFixture(t);
+ for(let i=0;i<30;i++)await f.invoke('request-code',{email:'unknown'+i+'@example.test'});
+ await assert.rejects(f.invoke('request-code',{email:'another@example.test'}),/Too many/);
+ f.advance(120001);assert.equal(await f.invoke('request-code',{email:'another@example.test'}),true);
+});
+test('non-string names are rejected without coercion',async t=>{
+ const f=await authFixture(t);
+ await assert.rejects(f.invoke('signup',{...credentials,name:{value:'name'}}),/Name/);
+});

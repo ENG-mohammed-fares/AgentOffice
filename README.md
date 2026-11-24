@@ -4,7 +4,11 @@
 
 AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
 
-## What's new in 1.6.1
+## What's new in 1.6.3
+
+All explicit update installations use the silent NSIS path; startup and safe idle updates relaunch automatically. The normal-exit updater remains enabled. Initial installation can still show the Windows setup wizard. Real installed-upgrade QA remains necessary.
+
+## Previously in 1.6.1
 
 The installed Windows app automatically checks for updates on launch, every 30 minutes, and after system resume. Downloads are automatic. A downloaded update silently installs and relaunches at the unauthenticated idle login screen (at least two minutes of system inactivity and no active authentication or recovery flow). An active workspace is never automatically restarted; the downloaded update installs on normal exit instead. Manual checking and restart remain optional.
 

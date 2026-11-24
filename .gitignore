@@ -1,0 +1,12 @@
+app/node_modules/
+app/dist/
+app/release/
+app/build/icon.*
+app/public/icon.png
+candidate/
+ci-lock-present.txt
+lcov.info
+unit-coverage.txt
+.env
+.env.*
+!.env.example

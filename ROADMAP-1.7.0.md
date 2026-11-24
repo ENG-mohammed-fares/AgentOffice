@@ -47,3 +47,7 @@ High-precision review is recommended for database authorization/migrations, code
 - [ ] Basic error logging, privacy-safe diagnostics, backup/export and tested restore within free-tier limits; test modest authorized load and record baseline before claiming capacity.
 - [ ] Finish previously agreed robot sign-in motion, pursue free trusted code signing, and real Windows + live authentication/database QA. Signing provider approval and SMTP are external dependencies, not completed features.
 - [ ] Do not introduce paid plans, claim unlimited availability or publish this release before batch review. See [DEFERRED-BACKLOG.md](DEFERRED-BACKLOG.md) for explicit deferrals and future proposals.
+
+## Security tools preparation
+- [x] CodeQL advanced workflow and Dependabot configuration prepared on the batch branch; first CodeQL scan and default-branch activation pending.
+- [ ] Owner enables GitHub branch rulesets, secrets/push protection and Dependabot security alerts; see SECURITY-SETUP.md.

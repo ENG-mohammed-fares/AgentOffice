@@ -1,0 +1,13 @@
+name: AgentOffice production source
+queries:
+  - uses: security-extended
+paths:
+  - app
+  - scripts
+  - .github/workflows
+paths-ignore:
+  - '**/node_modules/**'
+  - '**/dist/**'
+  - '**/release/**'
+  - '**/*.test.cjs'
+  - '**/auth-smoke.cjs'

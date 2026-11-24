@@ -47,3 +47,5 @@ import runpy
 runpy.run_path(str(repo / 'scripts' / 'apply-exact-intro.py'), run_name='__main__')
 
 runpy.run_path(str(repo / 'scripts' / 'apply-preferences.py'), run_name='__main__')
+
+runpy.run_path(str(repo / 'scripts' / 'apply-nonstartup-intro.py'), run_name='__main__')

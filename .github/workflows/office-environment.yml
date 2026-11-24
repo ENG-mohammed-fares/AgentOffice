@@ -1,0 +1,47 @@
+name: Office 3D environment smoke
+on:
+  push:
+    branches: [lab/office-3d-environment]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  blender:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Download and verify Blender 4.5 LTS
+        shell: bash
+        run: |
+          set -euo pipefail
+          url=https://download.blender.org/release/Blender4.5
+          file=blender-4.5.3-linux-x64.tar.xz
+          curl -fL --retry 2 --connect-timeout 20 "$url/$file" -o "$RUNNER_TEMP/$file"
+          curl -fL --retry 2 "$url/blender-4.5.3.sha256" -o "$RUNNER_TEMP/checksums"
+          cd "$RUNNER_TEMP"
+          grep -E ' [*]?blender-4[.]5[.]3-linux-x64[.]tar[.]xz$' checksums | sha256sum -c -
+          tar xf "$file"
+          "$RUNNER_TEMP/blender-4.5.3-linux-x64/blender" --version
+      - name: Render and round-trip GLB
+        shell: bash
+        run: |
+          mkdir -p output
+          "$RUNNER_TEMP/blender-4.5.3-linux-x64/blender" -b --factory-startup --python-exit-code 1 --python office-lab/smoke.py
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Check pinned renderer dependencies
+        working-directory: office-lab
+        run: |
+          npm install --no-audit --no-fund
+          node --input-type=module -e "import * as THREE from 'three'; import gsapPkg from 'gsap/dist/gsap.js'; if (THREE.REVISION !== '180' || typeof gsapPkg.gsap.to !== 'function') process.exit(1); console.log('Three.js',THREE.REVISION,'GSAP',gsapPkg.gsap.version)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: office-environment-smoke
+          path: |
+            output/
+            office-lab/package-lock.json
+          if-no-files-found: error

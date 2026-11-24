@@ -6,14 +6,14 @@ Budget: $0. Release integration branch: release/v1.7.0. No automatic public rele
 - [x] Isolate next-release development from public release delivery.
 - [x] Add initial Node V8 unit coverage report to CI (existing identity/update-policy suite only; no project-wide coverage claim).
 - [x] Baseline recorded: identity 85.85/77.78/65.22; startup-update 100/92.59/100; update-policy 100/100/100 (lines/branches/functions). Prior aggregate included test source; exclude it in new measurement.
-- [ ] Diagnose and repair failing 1.6.5 startup crossfade smoke test (run 45430606664: timed out waiting for loaded login behind fading intro). Preserve the successful 1.6.4 release until verification.
+- [x] Startup crossfade smoke regression repaired; CI run 45439347229 succeeded. Real Windows visual QA remains.
 
 ## Phase 1 — testing architecture
 - [ ] Inspect current source, define unit boundaries, dependency injection and mock contracts.
-- [x] Add first legacy-account IPC and identity error unit suites with isolated fixture, fake clock and deferred OAuth. Fix stale OAuth session and token-exchange concurrency. CI validation pending. Evaluate Vitest only if it provides concrete value over the existing Node runner.
+- [x] Add first legacy-account IPC and identity error unit suites with isolated fixture, fake clock and deferred OAuth. Fix stale OAuth session and token-exchange concurrency. CI validated in run 45439347229. Evaluate Vitest only if it provides concrete value over the existing Node runner.
 - [ ] Add integration/Electron tests and actionable coverage reports. Establish enforceable thresholds on explicitly defined production code scope; provisional goals 85% lines/functions/statements, 80% branches, 95% critical logic with a defined denominator. No exclusion of critical code just to inflate metrics.
 
-- [x] Prepare SonarCloud CI integration and LCOV output; owner account binding and first scan pending.
+- [x] SonarCloud configuration, account binding and first CI scan succeeded in run 45456896926. Quality Gate enforcement and findings review remain.
 - [ ] Review Sonar findings, scope and quality gate; enable blocking after baseline validation.
 
 ## Phase 2 — persistent data
@@ -36,3 +36,14 @@ Budget: $0. Release integration branch: release/v1.7.0. No automatic public rele
 - [ ] Promote tested batch to development for automatic CI/CD; verify published release and installed version.
 
 High-precision review is recommended for database authorization/migrations, code-signing trust chain, and animation visual QA. Do not claim actual execution by another model without user switching to it.
+
+## Current release foundation (priority P0/P1)
+- [ ] Protect release branches, disable force pushes/deletions, require trusted review/checks without breaking development-to-release CI; owner admin settings required.
+- [ ] Enable secret scanning/push protection; rotate exposed tokens; enable dependency alerts and Dependabot; configure CodeQL and dependency review with tracked source and lockfile.
+- [ ] Migrate canonical source from ZIP to tracked files; verify equivalent build, avoid duplicate source of truth, retain rollback provenance.
+- [ ] Configure ESLint and enforce on maintained source; establish coverage and Sonar quality gates from reviewed baseline; expand tests for newly added modules, not just four existing modules.
+- [ ] Cloud-first Supabase Auth/PostgreSQL, least privilege, RLS, separate dev/prod, verified migration and tenant isolation. No local DB as canonical user storage.
+- [ ] Validate inputs and authorization server-side, rate limit sensitive operations, use bounded timeouts/retries, secure Electron IPC, protect credentials, sanitize logs.
+- [ ] Basic error logging, privacy-safe diagnostics, backup/export and tested restore within free-tier limits; test modest authorized load and record baseline before claiming capacity.
+- [ ] Finish previously agreed robot sign-in motion, pursue free trusted code signing, and real Windows + live authentication/database QA. Signing provider approval and SMTP are external dependencies, not completed features.
+- [ ] Do not introduce paid plans, claim unlimited availability or publish this release before batch review. See [DEFERRED-BACKLOG.md](DEFERRED-BACKLOG.md) for explicit deferrals and future proposals.

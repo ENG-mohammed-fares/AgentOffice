@@ -84,9 +84,21 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Unit tests - identity and update policy
+      - name: Unit tests and initial V8 coverage baseline
         working-directory: app
-        run: node --test scripts/identity.test.cjs
+        shell: pwsh
+        run: |
+          node --experimental-test-coverage --test scripts/identity.test.cjs | Tee-Object -FilePath ../unit-coverage.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed.' }
+
+      - name: Upload unit test coverage baseline
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: agentoffice-unit-coverage
+          path: unit-coverage.txt
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Production Vite build
         working-directory: app

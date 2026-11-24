@@ -60,9 +60,9 @@ def verify():
     if expected_version != VERSION or manifest.get("version") != VERSION:
         raise RuntimeError("Candidate version mismatch")
     if manifest.get("commit") != os.environ["GITHUB_SHA"] or str(manifest.get("run_id")) != os.environ["EXPECTED_RUN_ID"]:
-        raise RuntimeError("Candidate is not from the selected current main CI run")
-    if manifest.get("ref") != "refs/heads/main" or manifest.get("locked") is not True:
-        raise RuntimeError("Candidate requires main and committed dependency lock")
+        raise RuntimeError("Candidate is not from the selected development CI run")
+    if manifest.get("ref") != "refs/heads/development" or manifest.get("locked") is not True:
+        raise RuntimeError("Candidate requires development and committed dependency lock")
     names = assets(DEST, VERSION)
     if set(manifest.get("sha256", {})) != set(names):
         raise RuntimeError("Manifest asset list mismatch")

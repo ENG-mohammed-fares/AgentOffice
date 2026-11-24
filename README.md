@@ -57,9 +57,9 @@ npm run package:win
 
 The codebase uses Vite, Three.js, Electron and electron-updater.
 
-## CI/CD — approval-controlled delivery
+## CI/CD — development to stable releases
 
-[AgentOffice CI](https://github.com/ENG-mohammed-fares/AgentOffice/actions/workflows/ci.yml) runs on pushes and pull requests, validates source and dependencies, tests the application, and packages Windows QA candidates as Actions artifacts. High and critical dependency findings and a missing committed lockfile block release eligibility. No push publishes a GitHub Release. A manually dispatched delivery workflow prepares only an unpublished draft from an exact successful CI run; the release owner must explicitly publish the reviewed draft. The installed auto-updater continues to track stable published releases. See [release policy and QA checklist](RELEASE-POLICY.md).
+The `development` branch runs the full CI/CD pipeline and automatically publishes higher versions after tests, security audit and integrity checks pass. Other branches and PRs run CI only. See [release policy](RELEASE-POLICY.md).
 
 ## Design principles
 

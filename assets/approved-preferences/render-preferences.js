@@ -1,0 +1,11 @@
+  const device=deviceLanguage(),target=lang==='en'?device:'en';
+  byId('language').textContent=target==='en'?'EN':languageName(target);
+  byId('language').disabled=device==='en';
+  byId('language').title=device==='en'?'English (device language or fallback)':languageName(target);
+  byId('language').setAttribute('aria-label',languageName(target));
+  byId('theme').dataset.mode=themeMode;
+  byId('theme').dataset.effective=theme;
+  const labels=themeLabels[lang]||themeLabels.en;
+  const label=labels[['system','light','dark'].indexOf(themeMode)];
+  byId('theme').setAttribute('aria-label',label+' · '+t(theme==='dark'?'light':'dark'));
+  byId('theme').title=label+' · '+t(theme==='dark'?'light':'dark');

@@ -1,0 +1,64 @@
+{
+  "electron/identity.cjs": [
+    [
+      "function createProvider(config=configuration(), openBrowser=url=>require('electron').shell.openExternal(url)) {",
+      "function createProvider(config=configuration(), openBrowser=url=>require('electron').shell.openExternal(url), {phoneEnabled=process.env.AGENTOFFICE_ENABLE_PHONE_OTP==='1'}={}) {"
+    ],
+    [
+      "  let activeOAuth=null;",
+      "  let activeOAuth=null;\n  const validPhone=p=>typeof p==='string'&&/^\\+[1-9]\\d{6,14}$/.test(p);\n  async function phoneStatus(){if(!config||!phoneEnabled)return false;try{return (await api(config,'/settings')).external?.phone===true}catch{return false}}\n  async function requirePhone(){if(!await phoneStatus())throw Error('Phone sign-in not configured')}"
+    ],
+    [
+      "      try {\n      const verifier=",
+      "      try {\n      if(provider==='github'){\n        const settings=await api(config,'/settings');ensureActive();\n        if(settings.external?.github===false)throw Error('GitHub provider disabled');\n      }\n      const verifier="
+    ],
+    [
+      "    configured:Boolean(config),",
+      "    configured:Boolean(config),\n    phoneStatus,\n    async sendPhoneCode(phone){\n      if(!validPhone(phone))throw Error('Invalid phone number');\n      await requirePhone();\n      await api(config,'/otp',{body:{phone,channel:'sms',create_user:true}});\n    },\n    async verifyPhoneCode(phone,token){\n      if(!validPhone(phone)||typeof token!=='string'||!/^\\d{6}$/.test(token))throw Error('Invalid or expired code');\n      await requirePhone();\n      const result=await api(config,'/verify',{body:{phone,token,type:'sms'}});\n      const user=result.user;\n      if(!result.access_token||!user?.phone_confirmed_at||typeof user.id!=='string'||!user.id||typeof user.phone!=='string'||user.phone.replace(/^\\+/,'')!==phone.slice(1))throw Error('Invalid or expired code');\n      return {id:'phone:'+crypto.createHash('sha256').update(config.origin+'|'+user.id).digest('hex'),name:'Phone user',email:null,guest:false};\n    },"
+    ]
+  ],
+  "electron/auth.cjs": [
+    [
+      "const recoveryCooldowns=new Map();",
+      "const recoveryCooldowns=new Map();\nconst phoneCooldowns=new Map();let phoneFlow=null;"
+    ],
+    [
+      "function invalidateAuth(){authGeneration++;authenticationPending=null;provider.cancelGoogle?.()}",
+      "function invalidateAuth(){authGeneration++;authenticationPending=null;phoneFlow=null;provider.cancelGoogle?.()}"
+    ],
+    [
+      "  channels('github',()=>authenticate(()=>provider.github()));",
+      "  channels('github',()=>authenticate(()=>provider.github()));\n  channels('phone-status',()=>provider.phoneStatus?.()??false);\n  channels('phone-request',async payload=>{\n    if(session||authenticationPending)throw Error('Sign-in already open');\n    const phone=payload?.phone;\n    if(typeof phone!=='string'||!/^\\+[1-9]\\d{6,14}$/.test(phone))throw Error('Invalid phone number');\n    limitRequests();limitKey(phoneCooldowns,phone,now());\n    if(phoneCooldowns.has(phone))throw Error('Too many attempts');\n    phoneCooldowns.set(phone,{expires:now()+60000});\n    const flow={phone,sent:now(),tries:0,ready:false,generation:authGeneration};phoneFlow=flow;\n    try{await provider.sendPhoneCode(phone);if(phoneFlow!==flow||flow.generation!==authGeneration)throw Error('Authentication superseded');flow.ready=true;return true}\n    catch(err){if(phoneFlow===flow)phoneFlow=null;throw err}\n  });\n  channels('phone-verify',payload=>authenticate(async()=>{\n    const flow=phoneFlow;\n    if(session||!flow?.ready||flow.generation!==authGeneration||flow.tries>=5||now()-flow.sent>=600000||payload?.phone!==flow.phone||typeof payload?.code!=='string'||!/^\\d{6}$/.test(payload.code))throw Error('Invalid or expired code');\n    limitRequests();flow.tries++;\n    const user=await provider.verifyPhoneCode(flow.phone,payload.code);\n    if(phoneFlow!==flow||flow.generation!==authGeneration||now()-flow.sent>=600000)throw Error('Invalid or expired code');\n    phoneFlow=null;return user;\n  }));\n  channels('phone-cancel',()=>{phoneFlow=null;return true});"
+    ],
+    [
+      "(!recovery || now()-recovery.sent >= 600000)",
+      "(!recovery || now()-recovery.sent >= 600000) && (!phoneFlow || now()-phoneFlow.sent >= 600000)"
+    ]
+  ],
+  "electron/preload.cjs": [
+    [
+      "    github: () => ipcRenderer.invoke('agentoffice:auth:github'),",
+      "    github: () => ipcRenderer.invoke('agentoffice:auth:github'),\n    phoneStatus: () => ipcRenderer.invoke('agentoffice:auth:phone-status'),\n    phoneRequest: phone => ipcRenderer.invoke('agentoffice:auth:phone-request',{phone}),\n    phoneVerify: (phone,code) => ipcRenderer.invoke('agentoffice:auth:phone-verify',{phone,code}),\n    phoneCancel: () => ipcRenderer.invoke('agentoffice:auth:phone-cancel'),"
+    ]
+  ],
+  "src/auth-screen.html": [
+    [
+      "<button type=\"button\" class=\"back-link\" id=\"googleCancel\"",
+      "<button type=\"button\" id=\"phoneLogin\" class=\"google-action\" hidden><svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"><rect x=\"6\" y=\"2\" width=\"12\" height=\"20\" rx=\"3\"/><path d=\"M11 18h2\"/></svg><span data-i=\"phoneLogin\">Continue with phone</span></button>\n<button type=\"button\" class=\"back-link\" id=\"googleCancel\""
+    ],
+    [
+      "</section>\n</div></section></main><footer class=\"bottom\">",
+      "</section>\n<section id=\"phonePanel\" hidden aria-labelledby=\"phoneTitle\">\n<button type=\"button\" class=\"back-link\" id=\"phoneBack\" data-i=\"back\">Back to sign in</button>\n<h2 id=\"phoneTitle\" data-i=\"phoneLogin\">Continue with phone</h2>\n<p data-i=\"phoneHelp\">Enter your international phone number.</p>\n<form id=\"phoneForm\" novalidate>\n<div class=\"field\"><label for=\"phoneNumber\" data-i=\"phoneNumber\">Phone number</label><input id=\"phoneNumber\" class=\"entry\" type=\"tel\" dir=\"ltr\" autocomplete=\"tel\" maxlength=\"20\" placeholder=\"+970…\" aria-describedby=\"phoneNotice\"></div>\n<div class=\"field\" id=\"phoneCodeRow\" hidden><label for=\"phoneCode\" data-i=\"codeLabel\">Verification code</label><input id=\"phoneCode\" class=\"entry code\" dir=\"ltr\" inputmode=\"numeric\" maxlength=\"6\" autocomplete=\"one-time-code\" aria-describedby=\"phoneNotice\"></div>\n<button id=\"phoneNext\" class=\"primary\" type=\"submit\" data-i=\"phoneSend\">Send code</button>\n<button id=\"phoneResend\" class=\"back-link\" type=\"button\" data-i=\"resend\" hidden>Send another code</button>\n<p id=\"phoneNotice\" class=\"form-status\" role=\"status\"></p></form></section>\n</div></section></main><footer class=\"bottom\">"
+    ],
+    [
+      "  const msg=String(err?.message||'');\n  if(msg.includes('Too many'))return 'limit';",
+      "  const msg=String(err?.message||'');\n  if(msg.includes('GitHub provider disabled'))return 'githubDisabled';\n  if(msg.includes('Too many'))return 'limit';"
+    ]
+  ],
+  "scripts/identity.test.cjs": [
+    [
+      "  const realFetch=global.fetch;let challenge='';\n  t.mock.method(global,'fetch',async(url,opts)=>{\n    if(url.endsWith('/token?grant_type=pkce')){\n      const {auth_code,code_verifier}=JSON.parse(opts.body);\n      assert.equal(auth_code,'github-code');",
+      "  const realFetch=global.fetch;let challenge='';\n  t.mock.method(global,'fetch',async(url,opts)=>{\n    if(url.endsWith('/settings'))return reply({external:{github:true}});\n    if(url.endsWith('/token?grant_type=pkce')){\n      const {auth_code,code_verifier}=JSON.parse(opts.body);\n      assert.equal(auth_code,'github-code');"
+    ]
+  ]
+}

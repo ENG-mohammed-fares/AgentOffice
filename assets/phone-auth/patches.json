@@ -2,7 +2,7 @@
   "electron/identity.cjs": [
     [
       "function createProvider(config=configuration(), openBrowser=url=>require('electron').shell.openExternal(url)) {",
-      "function createProvider(config=configuration(), openBrowser=url=>require('electron').shell.openExternal(url), {phoneEnabled=process.env.AGENTOFFICE_ENABLE_PHONE_OTP==='1'}={}) {"
+      "function createProvider(config=configuration(), openBrowser=url=>require('electron').shell.openExternal(url), {phoneEnabled=false}={}) {"
     ],
     [
       "  let cancelOAuth=null;",

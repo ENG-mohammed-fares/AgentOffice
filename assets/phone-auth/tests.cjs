@@ -14,8 +14,8 @@ test('phone OTP disabled by default and confirms matching phone',async t=>{
     assert.equal(body.type,'sms');
     return reply({access_token:'fixture',user:{id:'fixture-user',phone:body.token==='123456'?'970599123456':'970599123457',phone_confirmed_at:'2026-01-01'}});
   });
-  const disabled=createProvider(config,undefined,{phoneEnabled:false});
-  await assert.rejects(disabled.sendPhoneCode('+970599123456'),/not configured/);assert.equal(requests,0);
+  const disabled=createProvider(config);
+  await assert.rejects(disabled.sendPhoneCode('+970599123456'),/not configured/);assert.equal(requests,0);assert.equal(await disabled.phoneStatus(),false);
   const enabled=createProvider(config,undefined,{phoneEnabled:true});
   await enabled.sendPhoneCode('+970599123456');
   const user=await enabled.verifyPhoneCode('+970599123456','123456');assert.match(user.id,/^phone:[a-f0-9]{64}$/);assert.equal(user.email,null);

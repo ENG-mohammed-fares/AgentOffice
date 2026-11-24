@@ -39,7 +39,7 @@ with zipfile.ZipFile(source) as archive:
     if missing:
         raise RuntimeError(f"Missing source files: {sorted(missing)}")
     pkg = json.loads(archive.read("package.json"))
-    if pkg.get("version") != "1.6.6" or version != "1.6.12":
+    if pkg.get("version") != "1.6.6" or version != "1.6.13":
         raise RuntimeError("Unexpected immutable ZIP baseline or target version")
     archive.extractall(target)
 print(f"Validated immutable AgentOffice 1.6.6 baseline for {version}; branding sets the target package version")

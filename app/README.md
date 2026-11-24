@@ -46,4 +46,4 @@ UI interactions are implemented and tested, but the 3D visual fidelity needs a d
 
 ## Project status
 
-Version `1.3.0` — interface redesign, real local tasks and a fresh procedural office scene. MIT license inherited from the repository.
+Version `1.3.0` — interface redesign, real local tasks and a fresh procedural office scene. Proprietary software; see the repository LICENSE. Previously granted MIT rights and third-party licenses are preserved.

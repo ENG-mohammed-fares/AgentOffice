@@ -9,6 +9,7 @@
   },
   "main": "electron/main.cjs",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:web\" \"npm:dev:electron\"",

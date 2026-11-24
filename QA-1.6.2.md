@@ -1,0 +1,5 @@
+# AgentOffice 1.6.2 QA candidate
+
+Startup now checks the stable published GitHub update feed before creating the login/workspace window. A small startup window reports the check and download. The verified installer is applied silently and the app relaunches before showing the workspace. A 20-second check timeout, five-minute download timeout or update error opens the installed version to preserve offline access. Downloads finishing later use the existing safe idle/exit installation policy. A single-instance lock prevents concurrent startup update processes. Development builds skip this check.
+
+QA: verify no-update startup, offline startup, slow download, failed install, startup progress, second launch during updating, and a real update from an installed 1.6.2 build to a newer approved stable release. Unit tests simulate the startup decision logic; they do not prove real installer relaunch behavior. No production publishing is authorized by this change.

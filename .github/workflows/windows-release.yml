@@ -35,10 +35,10 @@ jobs:
       EXPECTED_RUN_ID: ${{ inputs.ci_run_id }}
       EXPECTED_VERSION: ${{ inputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Verify CI provenance and version
@@ -60,7 +60,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not download tested candidate.' }
           python scripts/release-candidate.py verify
           if ($LASTEXITCODE -ne 0) { throw 'Candidate validation failed.' }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: verified-release-candidate
           path: candidate/
@@ -79,7 +79,7 @@ jobs:
       EXPECTED_RUN_ID: ${{ inputs.ci_run_id }}
       EXPECTED_VERSION: ${{ inputs.version }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: verified-release-candidate
           path: candidate

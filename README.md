@@ -85,4 +85,4 @@ The design aims to feel like a crafted tool, not a generated landing page. It av
 
 The next major work is dedicated to real 3D production assets, animation and character modeling, then a secure agent runtime with distinct roles, tools, task assignments and reviews. Current role previews must not be mistaken for independently working AI employees.
 
-MIT License — see [LICENSE](LICENSE).
+**License:** Proprietary — see [LICENSE](LICENSE). Previously granted MIT rights and third-party licenses are preserved; see [historical MIT notice](docs/legacy-mit-notice.txt). Public GitHub viewing and forking remain subject to GitHub's terms. Source availability does not grant additional rights to newly proprietary code.

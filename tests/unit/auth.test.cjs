@@ -18,15 +18,21 @@ test('local account validates input, normalizes email and stores a salted hash o
 });
 test('parallel duplicate signups are serialized and cannot corrupt accounts',async t=>{
  const f=await authFixture(t);const results=await Promise.allSettled([f.invoke('signup',credentials),f.invoke('signup',credentials)]);
- assert.ok(results.some(r=>r.status==='rejected' && /already exists/.test(r.reason.message)));
- // The superseded first request may be rejected even though its account was persisted.
+ assert.equal(results[0].status,'fulfilled');assert.equal(results[1].status,'rejected');assert.match(results[1].reason.message,/already open/);
+ await assert.rejects(f.invoke('signup',credentials),/already exists/);
  assert.equal(JSON.parse(await fs.readFile(f.file,'utf8')).accounts.length,1);
 });
-test('different concurrent signups preserve both records and latest intent',async t=>{
- const f=await authFixture(t);const results=await Promise.allSettled([f.invoke('signup',credentials),f.invoke('signup',{...credentials,email:'second@example.test'})]);
- assert.equal(results[1].status,'fulfilled');assert.equal(results[0].status,'rejected');
+test('duplicate authentication requests cannot supersede a valid in-flight attempt',async t=>{
+ const p=deferred(),started=deferred();
+ const f=await authFixture(t,{google:()=>{started.resolve();return p.promise}});
+ const login=f.invoke('google');await started.promise;
+ await assert.rejects(f.invoke('github'),/already open/);
+ await assert.rejects(f.invoke('signup',credentials),/already open/);
+ p.resolve({id:'google:first',guest:false});assert.equal((await login).id,'google:first');
+ assert.equal((await f.invoke('current')).id,'google:first');
+ await f.invoke('logout');await f.invoke('signup',credentials);await f.invoke('logout');
+ await f.invoke('signup',{...credentials,email:'second@example.test'});
  assert.equal(JSON.parse(await fs.readFile(f.file,'utf8')).accounts.length,2);
- assert.equal((await f.invoke('current')).email,'second@example.test');
 });
 test('invalid and unknown login do not establish session; rate limit expires',async t=>{
  const f=await authFixture(t);await f.invoke('signup',credentials);await f.invoke('logout');

@@ -112,8 +112,8 @@ jobs:
         shell: pwsh
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
-          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_ORGANIZATION: eng-mohammed-fares
+          SONAR_PROJECT_KEY: ENG-mohammed-fares_AgentOffice
           SONAR_REQUIRED: ${{ vars.SONAR_REQUIRED }}
           TRUSTED_RUN: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
@@ -138,8 +138,6 @@ jobs:
         with:
           args: >
             -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
-            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
             -Dsonar.qualitygate.wait=${{ vars.SONAR_REQUIRED == 'true' }}
             -Dsonar.qualitygate.timeout=300
 

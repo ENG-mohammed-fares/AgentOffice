@@ -4,8 +4,7 @@ Zero-cost integration. Import the public AgentOffice repository into SonarQube C
 
 Configure GitHub repository Settings > Secrets and variables > Actions:
 - Secret SONAR_TOKEN: a Sonar analysis token with the minimum available permissions. Never commit or paste it in chat.
-- Variable SONAR_ORGANIZATION: exact organization key shown by SonarCloud.
-- Variable SONAR_PROJECT_KEY: exact project key shown by SonarCloud.
+- Organization and project keys are committed in sonar-project.properties (non-secret); no separate GitHub variables needed.
 - Variable SONAR_REQUIRED: leave unset initially; set to true only after first successful scan and baseline review. Then the CI waits for and enforces the Quality Gate, and missing credentials block trusted runs.
 
 Run CI on release/v1.7.0 after configuration (push or rerun). Free plan limitations may require an OSS plan or analyzing the main Sonar branch only. Do not pay to unlock branches. Fork PRs do not receive tokens. The reusable release CI explicitly receives the Sonar token when promoted to development.

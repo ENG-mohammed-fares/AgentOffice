@@ -27,6 +27,13 @@ Run 45707480635 failed the refactoring gate with `Unexpected dynamic import` aft
 used a type-only import expression. It did not reach Sonar. Run 45706992854 succeeded on
 the natural-motion branch; that does not establish development or PR Sonar success.
 
+GitHub's Sonar check at PR #20 head `803cf525a446a9487d1a51f9a13e2dd7140bce48`
+reports PASS: 89.6% new-code coverage, 0.0% new duplication, zero new issues/hotspots.
+PR #21 head `c9ab2d9f416c0429d5ad02b2305013d78bf1760e` reports FAIL:
+56.9% new-code coverage (required 80%) and security rating C (required A).
+Do not attribute the PR #22 architecture failure to Sonar or assume #20's pass covers #21.
+The exact security rule/location and uncovered paths still require inspection.
+
 ## Definition of Ready and Done
 
 Ready: owner requirement, canonical source, acceptance scenario, dependencies and risk identified.

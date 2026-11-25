@@ -13,6 +13,9 @@ function Assert-AgentOfficeSignature {
     if ([string]$Signature.Status -ne 'Valid') {
         throw "Authenticode signature is not valid: $($Signature.Status)"
     }
+    if ([string]$Signature.SignatureType -ne 'Authenticode') {
+        throw 'An embedded Authenticode signature is required.'
+    }
     if ($null -eq $Signature.SignerCertificate) {
         throw 'Missing signer certificate.'
     }

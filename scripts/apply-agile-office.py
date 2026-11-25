@@ -42,6 +42,12 @@ new=old+'''
     assert.equal(await read('Boolean(document.querySelector("#agile-office"))'),true,'new office opens after intro');
     assert.equal(await read('Boolean(document.querySelector(".dashboard-grid, .rail, #content"))'),false,'legacy dashboard removed');
     await until('document.querySelector("#office-poster")?.complete && document.querySelector("#office-poster")?.naturalWidth > 0','packaged office render available');
+    await read('document.querySelector("#office-diagnostics-toggle").click()');
+    assert.equal(await read('document.querySelector("#office-diagnostics").hidden'),false);
+    await read('document.querySelector("#office-metrics-refresh").click()');
+    assert.ok(await read('document.querySelector("#office-metrics").textContent.length > 0'));
+    await read('document.querySelector("#office-graphics").value="performance"; document.querySelector("#office-graphics").dispatchEvent(new Event("change"))');
+    await read('document.querySelector("#office-graphics").value="balanced"; document.querySelector("#office-graphics").dispatchEvent(new Event("change")); document.querySelector("#office-diagnostics-toggle").click()');
     await read('document.querySelector("#office-meeting").click()');
     assert.equal(await read('document.querySelector("#office-title").textContent'),'Meeting Room');
     await read('document.querySelector("#office-workspace").click()');

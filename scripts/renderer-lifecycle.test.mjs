@@ -8,7 +8,7 @@ import * as performancePolicy from '../src/office-performance.mjs';
 import * as batching from '../src/office-batching.mjs';
 const source=fileURLToPath(new URL('../src/agile-renderer.js',import.meta.url));
 async function fixture({fallback=false,noGL=false,failParse=false,cancelled=false,reduced=false,hidden=false}={}){
-  let now=0,sequence=0,lost=0,renders=0,disposed=0,decoderDisposed=0;
+  let now=0,sequence=0,lost=0,renders=0,disposed=0,decoderDisposed=0,compiled=0;
   const frames=new Map(),events=new Map(),canvasEvents=new Map(),requests=[];
   const canvas={getContext:()=>noGL?null:{},addEventListener:(key,fn)=>canvasEvents.set(key,fn),
     removeEventListener:key=>canvasEvents.delete(key),setPointerCapture:()=>{},remove(){this.removed=true}};
@@ -17,7 +17,7 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
   const host={dataset:{},clientWidth:800,clientHeight:450,replaceChildren:()=>{}};
   class Renderer{
     constructor(){this.shadowMap={};this.info={render:{calls:2,triangles:24}};this.capabilities={getMaxAnisotropy:()=>16}}
-    setPixelRatio(value){this.ratio=value} setSize(){} render(){renders++} dispose(){disposed++}
+    setDrawingBufferSize(w,h,ratio){this.ratio=ratio;canvas.width=w*ratio;canvas.height=h*ratio;} async compileAsync(){compiled++;} render(){assert.ok(compiled,'compile before render');renders++} dispose(){disposed++}
   }
   const texture=new THREE.Texture(),material=new THREE.MeshStandardMaterial({map:texture});
   const model=new THREE.Group();
@@ -68,19 +68,21 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
   const tick=time=>{now=time;const pending=[...frames.values()];frames.clear();for(const fn of pending)fn(time)};
   return {mount,host,canvas,canvasEvents,events,document,frames,tick,requests,box,glass,texture,
     get lost(){return lost},get renders(){return renders},get disposed(){return disposed},
-    get decoderDisposed(){return decoderDisposed}};
+    get decoderDisposed(){return decoderDisposed},get compiled(){return compiled}};
 }
 test('renderer controls camera/drag, pauses hidden work, and disposes real scene resources',async()=>{
   const f=await fixture(),renderer=await f.mount();
   assert.equal(f.host.dataset.textureFormat,'ktx2');
   assert.equal(f.decoderDisposed,1);assert.equal(f.texture.anisotropy,8);
   assert.equal(f.glass.castShadow,false);assert.equal(f.box.castShadow,true);
-  assert.equal(renderer.metrics().triangles,24);
+  assert.equal(renderer.metrics().triangles,24);assert.equal(f.compiled,1);
+  assert.equal(renderer.metrics().preset,'balanced');renderer.setGraphicsPreset('invalid');assert.equal(renderer.metrics().preset,'balanced');
+  renderer.setGraphicsPreset('performance');assert.equal(renderer.metrics().pixelRatio,1);renderer.setGraphicsPreset('performance');
   f.tick(1);const idle=f.renders;f.tick(2);assert.equal(f.renders,idle);
   renderer.go(999);renderer.go(2);f.tick(1500);f.tick(4000);f.tick(5000);
   f.canvasEvents.get('pointerdown')({clientX:10,clientY:10,pointerId:1});
   f.canvasEvents.get('pointermove')({clientX:35,clientY:22});
-  f.tick(5020);f.canvasEvents.get('pointerup')();f.tick(5040);
+  f.tick(5020);f.tick(5050);assert.equal(renderer.metrics().frameTimeMs,30);f.canvasEvents.get('pointerup')();f.tick(5070);
   f.document.hidden=true;f.events.get('visibilitychange')();assert.equal(f.frames.size,0);
   f.document.hidden=false;f.events.get('visibilitychange')();f.tick(6000);
   let prevented=false;f.canvasEvents.get('webglcontextlost')({preventDefault:()=>{prevented=true}});

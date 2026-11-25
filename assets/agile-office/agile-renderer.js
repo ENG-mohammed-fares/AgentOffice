@@ -3,7 +3,7 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {RectAreaLightUniformsLib} from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import layout from './agile-layout.json';
-import {makeFrameScheduler,makeResolutionController} from './office-performance.mjs';
+import {makeFrameScheduler,makeResolutionController,graphicsPixelRatio,makeFrameMetrics} from './office-performance.mjs';
 import {optimizeStaticMeshes} from './office-batching.mjs';
 import {KTX2Loader} from 'three/addons/loaders/KTX2Loader.js';
 
@@ -52,25 +52,31 @@ async function loadOfficeModel(renderer,url,isCancelled){
   return {gltf:await new GLTFLoader().parseAsync(raw,new URL('./',url).href),format:'original'};
 }
 
-export async function mountAgileRenderer(host,url,{onLost,isCancelled}){
+export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitialIndex=()=>0,preset='balanced'}){
   const canvas=document.createElement('canvas'),gl=canvas.getContext('webgl2',{alpha:false,antialias:true,powerPreference:'high-performance'});
   if(!gl)throw Error('WebGL2 unavailable');
   let renderer,scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,1,.045,130),environment,pmrem,model,observer,disposed=false,move=null,drag=null,frameScheduler,resolution,stats,lastFrame=0,settleFrames=0,frames=0;
-  const baseDpr=Math.min(devicePixelRatio||1,1.75);
+  const started=performance.now(),motionMetrics=makeFrameMetrics();
+  let contextLost=false,assetLoadMs=0,readyMs=0,selectedPreset=preset;
+  const maxRatio=()=>graphicsPixelRatio(selectedPreset,devicePixelRatio,host.clientWidth,host.clientHeight);
+  const gpuExtension=gl.getExtension?.('WEBGL_debug_renderer_info');
+  const gpuRenderer=gl.getParameter?.(gpuExtension?.UNMASKED_RENDERER_WEBGL??gl.RENDERER)||'Unavailable';
+  const softwareRendering=/swiftshader|llvmpipe|software rasterizer|microsoft basic render/i.test(gpuRenderer);
+  const direction=new THREE.Vector3(),spherical=new THREE.Spherical();
   const target=new THREE.Vector3();
   const disposeScene=()=>{
     const geometries=new Set(),materials=new Set(),textures=new Set();
     scene.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);for(const t of Object.values(m))if(t?.isTexture)textures.add(t);}});
     textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());
   };
-  const lost=e=>{e.preventDefault();onLost?.();};
+  const lost=e=>{e.preventDefault();contextLost=true;onLost?.();};
   const dispose=()=>{if(disposed)return;disposed=true;frameScheduler?.dispose();document.removeEventListener('visibilitychange',visibility);observer?.disconnect();canvas.removeEventListener('webglcontextlost',lost);disposeScene();environment?.dispose();pmrem?.dispose();renderer?.dispose();canvas.remove();};
   function visibility(){if(document.hidden){frameScheduler?.pause();lastFrame=0;}else{lastFrame=0;frameScheduler?.resume();}}
   try{
     renderer=new THREE.WebGLRenderer({canvas,context:gl,antialias:true});
-    renderer.setPixelRatio(baseDpr);resolution=makeResolutionController(baseDpr);
+    resolution=makeResolutionController(maxRatio(),{stable:true});
     frameScheduler=makeFrameScheduler(requestAnimationFrame,cancelAnimationFrame,draw);
-    document.addEventListener('visibilitychange',visibility);
+    canvas.addEventListener('webglcontextlost',lost);
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
     renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -90,17 +96,29 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled}){
     for(const [x,z] of [[-2.6,0],[5.6,0]]){
       const l=new THREE.SpotLight(0xffddb6,32,13,Math.PI/3,.8,2);l.position.set(x,3.05,z);l.target.position.set(x,.2,z);l.castShadow=true;l.shadow.mapSize.set(1024,1024);l.shadow.bias=-.00015;l.shadow.normalBias=.02;scene.add(l,l.target);
     }
-    const {gltf,format}=await loadOfficeModel(renderer,url,isCancelled);
+    const loading=performance.now();
+    const {gltf,format}=await loadOfficeModel(renderer,url,()=>isCancelled()||contextLost);
+    assetLoadMs=performance.now()-loading;
     model=gltf.scene;scene.add(model);host.dataset.textureFormat=format;
-    if(isCancelled())throw Error('Office cancelled');
+    if(isCancelled()||contextLost)throw Error('Office cancelled');
     model.traverse(o=>{if(!o.isMesh)return;o.receiveShadow=true;o.castShadow=!o.name.toLowerCase().includes('glass')&&!o.name.toLowerCase().includes('sky');if(o.material?.map)o.material.map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());});
     stats=optimizeStaticMeshes(model);
     const report=()=>{host.dataset.frames=String(++frames);host.dataset.drawCalls=String(renderer.info.render.calls);host.dataset.triangles=String(renderer.info.render.triangles);host.dataset.pixelRatio=resolution.ratio.toFixed(2);host.dataset.batchesBefore=String(stats.before);host.dataset.batchesAfter=String(stats.after);host.dataset.instances=String(stats.instances);};
-    const resize=()=>{const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();frameScheduler.request();};
-    function refreshQuality(){renderer.setPixelRatio(resolution.ratio);resize();}
+    let qualityCap=maxRatio();
+    const sizeToHost=()=>{const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);renderer.setDrawingBufferSize(w,h,resolution.ratio);camera.aspect=w/h;camera.updateProjectionMatrix();};
+    const resize=()=>{
+      const cap=maxRatio();
+      if(Math.abs(cap-qualityCap)>.01){qualityCap=cap;resolution=makeResolutionController(cap,{stable:true});}
+      sizeToHost();frameScheduler.request();
+    };
+    function setGraphicsPreset(value){
+      if(!['high','balanced','performance'].includes(value)||value===selectedPreset)return;
+      selectedPreset=value;qualityCap=maxRatio();resolution=makeResolutionController(qualityCap,{stable:true});sizeToHost();frameScheduler.request();
+    }
+    function setCamera(c){camera.position.copy(c.position);target.copy(c.target);camera.fov=c.fov;camera.updateProjectionMatrix();camera.lookAt(target);}
     function go(i,instant=false){
       const c=cameras[i];if(!c)return;
-      if(instant||reduced()){camera.position.copy(c.position);target.copy(c.target);camera.fov=c.fov;camera.updateProjectionMatrix();camera.lookAt(target);move=null;}
+      if(instant||reduced()){setCamera(c);move=null;}
       else{
         // Avoid a straight flight through the glass partition. The actual doorway
         // is at x=3.05, y=-2.25 in the authored Z-up floor plan.
@@ -114,19 +132,30 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled}){
     function draw(now){
       if(disposed)return;
       const moving=!!move||!!drag;
-      if(moving&&lastFrame&&resolution.sample(now-lastFrame))refreshQuality();
+      if(moving&&lastFrame){
+        const elapsed=now-lastFrame;motionMetrics.record(elapsed);
+        if(resolution.sample(elapsed))sizeToHost();
+      }
       lastFrame=moving?now:0;
       if(move){const q=Math.min(1,(now-move.start)/move.duration),e=q*q*(3-2*q);camera.position.copy(move.path.getPointAt(e));target.lerpVectors(move.from,move.to,e);camera.fov=THREE.MathUtils.lerp(move.fov,move.endFov,e);camera.updateProjectionMatrix();camera.lookAt(target);if(q>=1)move=null;}
       renderer.render(scene,camera);report();
       if(move||drag){settleFrames=0;frameScheduler.request();}
-      else if(moving||settleFrames===1){if(settleFrames===0){settleFrames=1;frameScheduler.request();}else{settleFrames=0;if(resolution.restore())refreshQuality();}}
-      else if(resolution.restore())refreshQuality();
+      else if(moving||settleFrames===1){if(settleFrames===0){settleFrames=1;frameScheduler.request();}else settleFrames=0;}
     }
     canvas.addEventListener('pointerdown',e=>{if(move)return;drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);lastFrame=0;settleFrames=0;frameScheduler.request();});
-    canvas.addEventListener('pointermove',e=>{if(!drag||move)return;const d=target.clone().sub(camera.position),s=new THREE.Spherical().setFromVector3(d);s.theta-=(e.clientX-drag.x)*.003;s.phi=THREE.MathUtils.clamp(s.phi+(e.clientY-drag.y)*.003,.28,Math.PI-.28);target.copy(camera.position).add(new THREE.Vector3().setFromSpherical(s));camera.lookAt(target);drag={x:e.clientX,y:e.clientY};frameScheduler.request();});
+    canvas.addEventListener('pointermove',e=>{if(!drag||move)return;direction.copy(target).sub(camera.position);spherical.setFromVector3(direction);spherical.theta-=(e.clientX-drag.x)*.003;spherical.phi=THREE.MathUtils.clamp(spherical.phi+(e.clientY-drag.y)*.003,.28,Math.PI-.28);target.copy(camera.position).add(direction.setFromSpherical(spherical));camera.lookAt(target);drag.x=e.clientX;drag.y=e.clientY;frameScheduler.request();});
     const endDrag=()=>{drag=null;lastFrame=0;settleFrames=0;frameScheduler.request();};
     canvas.addEventListener('pointerup',endDrag);canvas.addEventListener('pointercancel',endDrag);canvas.addEventListener('lostpointercapture',endDrag);
-    canvas.addEventListener('webglcontextlost',lost);host.replaceChildren(canvas);observer=new ResizeObserver(resize);observer.observe(host);resize();go(0,true);if(document.hidden)frameScheduler.pause();else{renderer.render(scene,camera);report();}
-    return {go,dispose,metrics:()=>({...stats,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio})};
+    sizeToHost();setCamera(cameras[getInitialIndex()]||cameras[0]);
+    // Compile while the previous view is still visible. The initial render also
+    // uploads visible textures and builds the cached static shadow maps.
+    await renderer.compileAsync(scene,camera);
+    if(isCancelled()||contextLost)throw Error('Office cancelled');
+    setCamera(cameras[getInitialIndex()]||cameras[0]);
+    if(document.hidden)frameScheduler.pause();else{renderer.render(scene,camera);report();}
+    readyMs=performance.now()-started;
+    host.replaceChildren(canvas);observer=new ResizeObserver(resize);observer.observe(host);
+    document.addEventListener('visibilitychange',visibility);
+    return {go,dispose,setGraphicsPreset,metrics:()=>({...stats,...motionMetrics.snapshot(),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
   }catch(err){dispose();throw err;}
 }

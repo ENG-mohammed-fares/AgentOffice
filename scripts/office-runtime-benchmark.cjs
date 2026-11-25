@@ -37,7 +37,7 @@ const stage=value=>{if(characterReview)console.info('OFFICE_REVIEW_STAGE '+value
 const round=n=>Math.round(n*100)/100;
 const percentile=(a,p)=>a.length?round([...a].sort((x,y)=>x-y)[Math.ceil(a.length*p)-1]):null;
 async function waitCharacters(view){
-  const deadline=performance.now()+120000;
+  const deadline=performance.now()+240000;
   while(performance.now()<deadline){
     const m=view.metrics();
     if(m.characters===7)return;
@@ -47,12 +47,12 @@ async function waitCharacters(view){
   throw Error('Seven characters did not become ready');
 }
 async function waitFrame(previous){
-  const deadline=performance.now()+45000;
-  while(performance.now()<deadline){
+  const deadline=performance.now()+150000;
+  while(true){
     if(count()>previous+2)return;
+    if(performance.now()>=deadline)throw Error('Character review did not render three frames; observed '+(count()-previous));
     await sleep(50);
   }
-  throw Error('Character review did not render three frames');
 }
 async function quiet(previous){
   const deadline=performance.now()+20000;
@@ -106,7 +106,7 @@ window.benchmarkResult=(async()=>{
 })();
 </script>`;
 async function boundedResult(){
-  const timeoutMs=characterReview?240000:120000;
+  const timeoutMs=characterReview?420000:120000;
   let timer;
   const read=async()=>{
     while(!(await win.webContents.executeJavaScript('Boolean(window.benchmarkResult)')))await new Promise(r=>setTimeout(r,100));

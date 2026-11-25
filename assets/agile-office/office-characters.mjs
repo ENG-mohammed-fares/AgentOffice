@@ -109,6 +109,8 @@ export async function loadCharacterRoster({roster,stations,officeURL,isCancelled
       const animator=createAgentAnimator({root,clips:[...clips,...seatedClips(clips)],mixer:new THREE.AnimationMixer(root),loopRepeat:THREE.LoopRepeat,loopOnce:THREE.LoopOnce,fade:.65});
       const slot=roster.find(r=>r.role===entry.role).station;
       const motion=chairs?createSeatedMotion({plan:seats[slot],position:root.position,rotation:root.rotation,groundY:root.position.y,setPose:state=>animator.setState(state),setChair:(id,offset)=>chairs.get(id)?.position.set(offset.x,0,offset.z)}):null;
+      // Evaluate the initial seated pose before attaching to the rendered scene.
+      if(motion)animator.update(.1);
       records.set(entry.role,{animator,motion,reach:motion?keyboardReach(root,seats[slot].desk):null});onProgress('avatar-ready:'+entry.file);
     }
     if(chairs)queue=createMeetingQueue([...records.values()].map(r=>r.motion));

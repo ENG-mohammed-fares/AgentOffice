@@ -65,7 +65,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
   let renderer,scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,1,.045,130),environment,pmrem,model,observer,disposed=false,move=null,drag=null,frameScheduler,resolution,stats,lastFrame=0,settleFrames=0,frames=0;
   const started=performance.now(),motionMetrics=makeFrameMetrics();
   let contextLost=false,assetLoadMs=0,readyMs=0,selectedPreset=preset;
-  let characters=null,characterFrame=0,characterStatus=characterRoster.length?'loading':'not bundled';
+  let characters=null,pendingRoster=null,characterFrame=0,characterStatus=characterRoster.length?'loading':'not bundled';
   const activity=new Map();let meetingRequested=false;
   const maxRatio=()=>graphicsPixelRatio(selectedPreset,devicePixelRatio,host.clientWidth,host.clientHeight);
   const gpuExtension=gl.getExtension?.('WEBGL_debug_renderer_info');
@@ -79,7 +79,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());
   };
   const lost=e=>{e.preventDefault();contextLost=true;onLost?.();};
-  const dispose=()=>{if(disposed)return;disposed=true;characters?.dispose();characters=null;frameScheduler?.dispose();document.removeEventListener('visibilitychange',visibility);observer?.disconnect();canvas.removeEventListener('webglcontextlost',lost);disposeScene();environment?.dispose();pmrem?.dispose();renderer?.dispose();canvas.remove();};
+  const dispose=()=>{if(disposed)return;disposed=true;characters?.dispose();characters=null;pendingRoster?.dispose();pendingRoster=null;frameScheduler?.dispose();document.removeEventListener('visibilitychange',visibility);observer?.disconnect();canvas.removeEventListener('webglcontextlost',lost);disposeScene();environment?.dispose();pmrem?.dispose();renderer?.dispose();canvas.remove();};
   function visibility(){characterFrame=0;if(document.hidden){frameScheduler?.pause();lastFrame=0;}else{lastFrame=0;frameScheduler?.resume();}}
   try{
     renderer=new THREE.WebGLRenderer({canvas,context:gl,antialias:true});
@@ -171,7 +171,10 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
         if(!moving&&elapsed<33){frameScheduler.request();return;}
         characters.update(elapsed/1000);characterFrame=now;
       }
+      const firstCharacterFrame=characters&&characterStatus==='preview ready';
+      if(firstCharacterFrame)onProgress('avatar-first-render');
       renderer.render(scene,camera);report();
+      if(firstCharacterFrame){characterStatus='rendering';onProgress('avatar-first-render-complete');}
       if(characters||move||drag){settleFrames=0;frameScheduler.request();}
       else if(moving||settleFrames===1){if(settleFrames===0){settleFrames=1;frameScheduler.request();}else settleFrames=0;}
     }
@@ -195,8 +198,13 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     document.addEventListener('visibilitychange',visibility);
     if(characterRoster.length){
       // Load only after the first office frame; keep the office usable on failure.
-      loadCharacterRoster({roster:characterRoster,stations:layout.stations,officeURL:url,isCancelled:()=>disposed||contextLost||isCancelled(),onProgress,chairs:chairs.size===15?chairs:null}).then(roster=>{
+      loadCharacterRoster({roster:characterRoster,stations:layout.stations,officeURL:url,isCancelled:()=>disposed||contextLost||isCancelled(),onProgress,chairs:chairs.size===15?chairs:null}).then(async roster=>{
         if(disposed||contextLost||isCancelled()){roster.dispose();return;}
+        pendingRoster=roster;characterStatus='compiling characters';onProgress('avatar-shader-compile');
+        try{await renderer.compileAsync(roster.group,camera,scene);}
+        catch(error){if(pendingRoster===roster){pendingRoster=null;roster.dispose();}throw error;}
+        if(disposed||contextLost||isCancelled()){if(pendingRoster===roster){pendingRoster=null;roster.dispose();}return;}
+        pendingRoster=null;onProgress('avatar-shader-compiled');
         characters=roster;scene.add(roster.group);characterStatus='preview ready';onProgress('avatar-roster-attached');
         for(const [role,state] of activity)roster.setState(role,state);
         roster.setMeeting?.(meetingRequested);

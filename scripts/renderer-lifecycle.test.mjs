@@ -133,8 +133,8 @@ test('compressed baked benchmark reuses Basis decoding and never silently falls 
 
 test('character preview remains independent of the initial office and pauses when hidden',async()=>{
  const f=await fixture({characterRoster:[{}]});
- const renderer=await f.mount();await Promise.resolve();
- assert.equal(renderer.metrics().characters,7);
+ const renderer=await f.mount();for(let i=0;i<8;i++)await Promise.resolve();
+ assert.equal(renderer.metrics().characters,7);assert.equal(f.compiled,2);
  assert.equal(renderer.setAgentState('QA Engineer','working'),true);
  assert.deepEqual(f.characterStates.at(-1),['QA Engineer','working']);
  f.tick(100);f.tick(120);f.tick(140);
@@ -143,7 +143,7 @@ test('character preview remains independent of the initial office and pauses whe
  assert.equal(f.frames.size,0);
  renderer.dispose();renderer.dispose();assert.equal(f.characterDisposed,1);
  const bad=await fixture({characterRoster:[{}],characterFailure:true});
- const view=await bad.mount();await Promise.resolve();await Promise.resolve();
+ const view=await bad.mount();for(let i=0;i<8;i++)await Promise.resolve();
  assert.equal(view.metrics().characters,0);assert.equal(view.metrics().characterStatus,'preview unavailable');
  view.dispose();
 });

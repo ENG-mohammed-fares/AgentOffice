@@ -10,7 +10,10 @@ export function makeResolutionController(maxRatio){
   let ratio=max,ema=0,slow=0,fast=0,cooldown=0;
   const reset=()=>{ema=slow=fast=cooldown=0;};
   return {get ratio(){return ratio},sample(ms){
-    if(!Number.isFinite(ms)||ms<=0||ms>250){reset();return false;}
+    if(!Number.isFinite(ms)||ms<=0){reset();return false;}
+    // Severe GPU stalls are still valid performance samples, not a reason to
+    // reset the controller. Visibility / idle transitions reset separately.
+    ms=Math.min(ms,250);
     ema=ema?ema*.85+ms*.15:ms;
     if(cooldown>0){cooldown--;return false;}
     slow=ema>24?slow+1:0;fast=ema<15?fast+1:0;

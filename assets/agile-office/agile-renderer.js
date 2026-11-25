@@ -6,6 +6,7 @@ import layout from './agile-layout.json';
 import {makeFrameScheduler,makeResolutionController,graphicsPixelRatio,makeFrameMetrics} from './office-performance.mjs';
 import {optimizeStaticMeshes} from './office-batching.mjs';
 import {KTX2Loader} from 'three/addons/loaders/KTX2Loader.js';
+import {loadCharacterRoster} from './office-characters.mjs';
 
 const v=p=>new THREE.Vector3(p[0],p[2],-p[1]);
 const cameras=layout.cameras.map(c=>({position:v(c.pos),target:v(c.target),fov:2*Math.atan(Math.tan(c.fov*Math.PI/360)/(16/9))*180/Math.PI}));
@@ -180,7 +181,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     document.addEventListener('visibilitychange',visibility);
     if(characterRoster.length){
       // Load only after the first office frame; keep the office usable on failure.
-      import('./office-characters.mjs').then(mod=>mod.loadCharacterRoster({roster:characterRoster,stations:layout.stations,officeURL:url,isCancelled:()=>disposed||contextLost||isCancelled()})).then(roster=>{
+      loadCharacterRoster({roster:characterRoster,stations:layout.stations,officeURL:url,isCancelled:()=>disposed||contextLost||isCancelled()}).then(roster=>{
         if(disposed||contextLost||isCancelled()){roster.dispose();return;}
         characters=roster;scene.add(roster.group);characterStatus='preview ready';
         for(const [role,state] of activity)roster.setState(role,state);

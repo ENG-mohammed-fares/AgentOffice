@@ -7,9 +7,11 @@ import * as THREE from 'three';
 import * as performancePolicy from '../src/office-performance.mjs';
 import * as batching from '../src/office-batching.mjs';
 const source=fileURLToPath(new URL('../src/agile-renderer.js',import.meta.url));
-async function fixture({fallback=false,noGL=false,failParse=false,cancelled=false,reduced=false,hidden=false,bakedCandidate=false}={}){
+async function fixture({fallback=false,noGL=false,failParse=false,cancelled=false,reduced=false,hidden=false,bakedCandidate=false,characterRoster=[],characterFailure=false}={}){
   let now=0,sequence=0,lost=0,renders=0,disposed=0,decoderDisposed=0,compiled=0;
-  const frames=new Map(),events=new Map(),canvasEvents=new Map(),requests=[];
+  const frames=new Map(),events=new Map(),canvasEvents=new Map(),requests=[],characterStates=[],characterTicks=[];
+  let characterDisposed=0;
+  const characterLayer={group:new THREE.Group(),count:7,setState(role,state){characterStates.push([role,state]);return true},update(dt){characterTicks.push(dt)},dispose(){characterDisposed++;this.group.removeFromParent()}};
   const canvas={getContext:()=>noGL?null:{},addEventListener:(key,fn)=>canvasEvents.set(key,fn),
     removeEventListener:key=>canvasEvents.delete(key),setPointerCapture:()=>{},remove(){this.removed=true}};
   const document={hidden,createElement:()=>canvas,addEventListener:(key,fn)=>events.set(key,fn),
@@ -55,7 +57,8 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
     'three/addons/lights/RectAreaLightUniformsLib.js':{RectAreaLightUniformsLib:{init(){}}},
     'three/addons/environments/RoomEnvironment.js':{RoomEnvironment:class{dispose(){}}},
     './agile-layout.json':{default:JSON.parse(readFileSync(new URL('../src/agile-layout.json',import.meta.url),'utf8'))},
-    './office-performance.mjs':performancePolicy,'./office-batching.mjs':batching};
+    './office-performance.mjs':performancePolicy,'./office-batching.mjs':batching,
+    './office-characters.mjs':{async loadCharacterRoster(){if(characterFailure)throw Error('Invalid roster');return characterLayer}}};
   const module=new SourceTextModule(readFileSync(source,'utf8'),{context,identifier:source});
   await module.link(name=>{
     const namespace=namespaces[name];assert.ok(namespace,'Unexpected renderer import '+name);
@@ -65,9 +68,9 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
   });
   await module.evaluate();
   const mount=()=>module.namespace.mountAgileRenderer(host,'file:///fixture/office/office.glb',
-    {onLost:()=>{lost++},isCancelled:()=>cancelled,bakedCandidate});
+    {onLost:()=>{lost++},isCancelled:()=>cancelled,bakedCandidate,characterRoster});
   const tick=time=>{now=time;const pending=[...frames.values()];frames.clear();for(const fn of pending)fn(time)};
-  return {mount,host,canvas,canvasEvents,events,document,frames,tick,requests,box,glass,texture,
+  return {mount,host,canvas,canvasEvents,events,document,frames,tick,requests,box,glass,texture,characterStates,characterTicks,get characterDisposed(){return characterDisposed},
     get lost(){return lost},get renders(){return renders},get disposed(){return disposed},
     get decoderDisposed(){return decoderDisposed},get compiled(){return compiled}};
 }
@@ -126,4 +129,21 @@ test('compressed baked benchmark reuses Basis decoding and never silently falls 
  const bad=await fixture({bakedCandidate:'compressed',fallback:true});
  await assert.rejects(bad.mount(),/Office model unavailable/);
  assert.equal(bad.requests.length,1);
+});
+
+test('character preview remains independent of the initial office and pauses when hidden',async()=>{
+ const f=await fixture({characterRoster:[{}]});
+ const renderer=await f.mount();await Promise.resolve();
+ assert.equal(renderer.metrics().characters,7);
+ assert.equal(renderer.setAgentState('QA Engineer','working'),true);
+ assert.deepEqual(f.characterStates.at(-1),['QA Engineer','working']);
+ f.tick(100);f.tick(120);f.tick(140);
+ assert.ok(f.characterTicks.length>=1);
+ f.document.hidden=true;f.events.get('visibilitychange')();
+ assert.equal(f.frames.size,0);
+ renderer.dispose();renderer.dispose();assert.equal(f.characterDisposed,1);
+ const bad=await fixture({characterRoster:[{}],characterFailure:true});
+ const view=await bad.mount();await Promise.resolve();await Promise.resolve();
+ assert.equal(view.metrics().characters,0);assert.equal(view.metrics().characterStatus,'preview unavailable');
+ view.dispose();
 });

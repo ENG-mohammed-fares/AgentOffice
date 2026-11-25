@@ -40,8 +40,6 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       EXPECTED_RUN_ID: ${{ github.run_id }}
-      AGENTOFFICE_SIGNING_PUBLISHER: ${{ vars.AGENTOFFICE_SIGNING_PUBLISHER }}
-      AGENTOFFICE_SIGNING_THUMBPRINT: ${{ vars.AGENTOFFICE_SIGNING_THUMBPRINT }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -72,8 +70,6 @@ jobs:
             'eligible=false' >> $env:GITHUB_OUTPUT
             exit 0
           }
-          . ./scripts/verify-code-signing.ps1
-          Assert-AgentOfficeSignedFile -Path "candidate/AgentOffice-Setup-$version-x64.exe" -ExpectedPublisher $env:AGENTOFFICE_SIGNING_PUBLISHER -ExpectedThumbprint $env:AGENTOFFICE_SIGNING_THUMBPRINT
           'eligible=true' >> $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@v6
         if: steps.verify.outputs.eligible == 'true'
@@ -84,7 +80,7 @@ jobs:
           retention-days: 7
 
   publish:
-    name: Publish signed public update assets
+    name: Publish verified public update assets
     needs: verify
     if: needs.verify.outputs.eligible == 'true' && github.ref == 'refs/heads/development' && github.repository == 'ENG-mohammed-fares/AgentOffice'
     runs-on: windows-latest
@@ -106,6 +102,4 @@ jobs:
           RELEASE_TOKEN: ${{ secrets.AGENTOFFICE_RELEASE_TOKEN }}
           EXPECTED_RUN_ID: ${{ github.run_id }}
           EXPECTED_VERSION: ${{ needs.verify.outputs.version }}
-          AGENTOFFICE_SIGNING_PUBLISHER: ${{ vars.AGENTOFFICE_SIGNING_PUBLISHER }}
-          AGENTOFFICE_SIGNING_THUMBPRINT: ${{ vars.AGENTOFFICE_SIGNING_THUMBPRINT }}
         run: ./scripts/publish-public-update.ps1

@@ -3,6 +3,7 @@ import './agile-office.css';
 import {mountAuth} from './auth.js';
 import {mountLoadingIntro} from './loading-intro.js';
 import {mountTaskPanel} from './office-task-panel.mjs';
+import layout from './agile-layout.json';
 
 const desktop=window.agentOfficeDesktop;
 const url=name=>new URL('./office/'+name,document.baseURI).href;
@@ -20,7 +21,7 @@ function mountWorkspace(user){
   let index=0,renderer=null,disposed=false,signingOut=false;
   const initialView=()=>{poster.src=url('view-'+index+'.webp');poster.hidden=false;};
   initialView();app.replaceChildren(stage);
-  const disposeTasks=mountTaskPanel(stage,user);
+  const disposeTasks=mountTaskPanel(stage,user,{roles:layout.roles});
   const choose=i=>{
     index=i;el('office-title').textContent=views[i];
     el('office-workspace').setAttribute('aria-pressed',String(i!==2));

@@ -32,6 +32,7 @@ for src,dest in [('main.js','main.js'),('agile-renderer.js','agile-renderer.js')
     shutil.copyfile(assets/src,app/'src'/dest)
 shutil.copyfile(assets/'office-performance.test.mjs',app/'scripts'/'office-performance.test.mjs')
 shutil.copyfile(assets/'office-tasks.test.mjs',app/'scripts'/'office-tasks.test.mjs')
+shutil.copyfile(assets/'office-task-panel.test.mjs',app/'scripts'/'office-task-panel.test.mjs')
 # Keep original authentication fixture coverage; assert the new destination.
 path=app/'scripts'/'auth-smoke.cjs'
 text=path.read_text(encoding='utf-8')

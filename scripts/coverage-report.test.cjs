@@ -91,3 +91,29 @@ test('LCOV rejects absent, duplicate or nonnumeric counters and malformed source
   assert.equal(result.report.totals.lines.percent,null);
   assert.deepEqual(result.report.unmeasuredFiles,files);
 });
+
+const {canonicalize,writeCanonical}=require('./run-coverage.cjs');
+test('canonical mapping transfers only actual measurements from byte-identical overlays',t=>{
+  const f=setup(t),aliases={'app/src/office-performance.mjs':'assets/office-performance.mjs'};
+  f.write('assets/office-performance.mjs','// fixture');
+  const raw='SF:app/src/office-performance.mjs\nDA:1,2\nend_of_record\nSF:app/electron/identity.cjs\nDA:1,0\nend_of_record\n';
+  assert.equal(canonicalize(raw,f.rootDir,aliases),raw.replace('SF:app/src/office-performance.mjs','SF:assets/office-performance.mjs'));
+  assert.throws(()=>canonicalize(raw+'SF:assets/office-performance.mjs\n',f.rootDir,aliases),/Duplicate canonical/);
+  assert.throws(()=>canonicalize(raw,f.rootDir,{...aliases,'app/src/other.js':'assets/office-performance.mjs'}),/Duplicate overlay destination/);
+  f.write('assets/office-performance.mjs','different');
+  assert.throws(()=>canonicalize(raw,f.rootDir,aliases),/Overlay bytes differ/);
+  fs.rmSync(path.join(f.rootDir,'assets/office-performance.mjs'));
+  assert.throws(()=>canonicalize(raw,f.rootDir,aliases),/ENOENT/);
+});
+test('canonical writer rejects failed coverage and missing or low task module coverage',t=>{
+  const f=setup(t),file='coverage/summary.json',a='app/src/office-tasks.mjs',b='app/src/office-task-panel.mjs';
+  f.write(file,JSON.stringify({testExitCode:1}));assert.throws(()=>writeCanonical(f.rootDir),/failed test coverage/);
+  f.write(file,JSON.stringify({testExitCode:0,measuredFiles:{}}));assert.throws(()=>writeCanonical(f.rootDir),/below 80%/);
+  f.write(file,JSON.stringify({testExitCode:0,measuredFiles:{[a]:{lines:{total:10,hit:10}},[b]:{lines:{total:10,hit:7}}}}));assert.throws(()=>writeCanonical(f.rootDir),/below 80%/);
+  const mappings={'app/src/main.js':'assets/agile-office/main.js','app/src/agile-renderer.js':'assets/agile-office/agile-renderer.js','app/src/agile-office.css':'assets/agile-office/agile-office.css','app/src/office-performance.mjs':'assets/agile-office/office-performance.mjs','app/src/office-batching.mjs':'assets/agile-office/office-batching.mjs',[a]:'assets/agile-office/office-tasks.mjs',[b]:'assets/agile-office/office-task-panel.mjs','app/electron/crash-monitor.cjs':'assets/crash-monitor/crash-monitor.cjs'};
+  for(const [from,to] of Object.entries(mappings)){f.write(from,'identical');f.write(to,'identical')}
+  f.write(file,JSON.stringify({testExitCode:0,measuredFiles:{[a]:{lines:{total:10,hit:10}},[b]:{lines:{total:10,hit:8}}}}));
+  f.write('coverage/lcov.info','SF:'+a+'\nDA:1,3\nend_of_record\nSF:'+b+'\nDA:1,1\nend_of_record\n');
+  const result=writeCanonical(f.rootDir);assert.match(result,/SF:assets\/agile-office\/office-task-panel.mjs/);
+  assert.equal(fs.readFileSync(path.join(f.rootDir,'coverage/sonar-lcov.info'),'utf8'),result);
+});

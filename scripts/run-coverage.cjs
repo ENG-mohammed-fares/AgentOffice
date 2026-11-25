@@ -101,5 +101,44 @@ function main({rootDir=root,run=spawnSync,environment=process.env,log=console.lo
   assert.ok(report.totals.lines.total>0,'Empty coverage report');
   return report;
 }
-if(require.main===module)main();
-module.exports={collect,main};
+// Only byte-identical prepared overlays may transfer measured coverage to Git-tracked source.
+// The raw report and prepared-source inventory remain intact for independent QA.
+const overlays=Object.freeze({
+  'app/src/main.js':'assets/agile-office/main.js',
+  'app/src/agile-renderer.js':'assets/agile-office/agile-renderer.js',
+  'app/src/agile-office.css':'assets/agile-office/agile-office.css',
+  'app/src/office-performance.mjs':'assets/agile-office/office-performance.mjs',
+  'app/src/office-batching.mjs':'assets/agile-office/office-batching.mjs',
+  'app/src/office-tasks.mjs':'assets/agile-office/office-tasks.mjs',
+  'app/src/office-task-panel.mjs':'assets/agile-office/office-task-panel.mjs',
+  'app/electron/crash-monitor.cjs':'assets/crash-monitor/crash-monitor.cjs'
+});
+function canonicalize(lcov,rootDir=root,aliases=overlays){
+  const destination=new Set(Object.values(aliases));
+  assert.equal(destination.size,Object.keys(aliases).length,'Duplicate overlay destination');
+  for(const [from,to] of Object.entries(aliases)){
+    assert.ok(fs.readFileSync(path.join(rootDir,from)).equals(fs.readFileSync(path.join(rootDir,to))),'Overlay bytes differ: '+from+' -> '+to);
+  }
+  const seen=new Set();
+  return lcov.split(/\r?\n/).map(line=>{
+    if(!line.startsWith('SF:'))return line;
+    const name=line.slice(3),target=aliases[name]??name;
+    assert.ok(!seen.has(target),'Duplicate canonical coverage source: '+target);
+    seen.add(target);return 'SF:'+target;
+  }).join('\n');
+}
+function writeCanonical(rootDir=root){
+  const dir=path.join(rootDir,'coverage');
+  const report=JSON.parse(fs.readFileSync(path.join(dir,'summary.json'),'utf8'));
+  assert.equal(report.testExitCode,0,'Cannot map failed test coverage');
+  for(const file of ['app/src/office-tasks.mjs','app/src/office-task-panel.mjs']){
+    const measured=report.measuredFiles[file];
+    assert.ok(measured?.lines.total>0&&measured.lines.hit/measured.lines.total>=.8,'Task module line coverage below 80%: '+file);
+  }
+  const output=canonicalize(fs.readFileSync(path.join(dir,'lcov.info'),'utf8'),rootDir);
+  fs.writeFileSync(path.join(dir,'sonar-lcov.info'),output);
+  return output;
+}
+
+if(require.main===module){if(process.argv[2]==='--canonicalize')writeCanonical();else main()}
+module.exports={collect,main,canonicalize,writeCanonical};

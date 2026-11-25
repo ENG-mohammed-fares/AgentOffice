@@ -1,17 +1,15 @@
 import {createTaskStore,createActivityDemo,STATUSES} from './office-tasks.mjs';
-import layout from './agile-layout.json';
-
-export function mountTaskPanel(stage,user){
+export function mountTaskPanel(stage,user,{roles,getStorage=()=>globalThis.localStorage,setTimer,clearTimer}){
+  const document=stage.ownerDocument;
   const $=id=>stage.querySelector('#'+id);
   const panel=$('office-tasks'),toggle=$('office-tasks-toggle'),form=$('office-task-form'),title=$('office-task-title'),owner=$('office-task-owner'),list=$('office-task-list'),feedback=$('office-task-feedback'),demoButton=$('office-demo-toggle'),activity=$('office-demo-activity');
-  const roles=layout.roles;
   let storage;
-  try{storage=globalThis.localStorage}catch{storage=undefined}
+  try{storage=getStorage()}catch{storage=undefined}
   // Missing identity and guests are session-only; never share a persistent guest bucket.
   const store=createTaskStore({roles,accountId:user?.guest?null:user?.id,storage});
   const option=(value,label=value)=>{const el=document.createElement('option');el.value=value;el.textContent=label;return el};
   for(const role of roles)owner.append(option(role));
-  const demo=createActivityDemo({roles,emit:({role,activity:state})=>{activity.textContent='Demo: '+role+' · '+state}});
+  const demo=createActivityDemo({roles,setTimer,clearTimer,emit:({role,activity:state})=>{activity.textContent='Demo: '+role+' · '+state}});
   function render(){
     const fragment=document.createDocumentFragment();
     for(const task of store.get()){

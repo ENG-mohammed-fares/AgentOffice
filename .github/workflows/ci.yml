@@ -115,6 +115,9 @@ jobs:
           python -m coverage run --append --branch --source=scripts,assets/agile-office scripts/apply-auth.py
           if ($LASTEXITCODE -ne 0) { throw 'Authentication preparation failed.' }
 
+      - name: Test installed intro font readiness and cancellation
+        run: node --test scripts/intro-font-readiness.test.cjs
+
       - name: Build the authenticated office assets
         shell: pwsh
         run: |

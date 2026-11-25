@@ -32,7 +32,11 @@ def apply(root):
     replace("src/loading-intro.js",
             "event.data==='agentoffice:intro-complete')finish();",
             "event.data==='agentoffice:intro-complete')void finish();")
-    replace("src/loading-intro.html", "<html>", '<html lang="en">')
+    # The canonical non-startup intro now declares its own document language.
+    # Validate the installed artifact instead of patching a stale source anchor.
+    intro_markup = (app / "src/loading-intro.html").read_text(encoding="utf-8")
+    if len(re.findall(r"<html\b[^>]*>", intro_markup, re.IGNORECASE)) != 1 or '<html lang="en">' not in intro_markup:
+        raise RuntimeError("Installed loading intro must declare English document language")
     replace("src/auth-screen.html", '<label class="remember">',
             '<label class="remember" for="remember-email">')
     replace("src/auth-screen.html", '<input type="checkbox" >',

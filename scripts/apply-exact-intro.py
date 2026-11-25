@@ -28,7 +28,18 @@ motion = replace_once(motion, "let token=0, timer=0, fallback=0;", "let finishIn
 motion = replace_once(motion, "root.classList.remove('intro-wait');const start=performance.now();", "root.classList.remove('intro-wait');onReveal?.();const start=performance.now();")
 old = "$('motionReplay').textContent='↻ Replay intro';$('motionReplay').addEventListener('click',play);"
 motion = replace_once(motion, old, "")
-motion = replace_once(motion, "if(document.fonts?.ready)document.fonts.ready.then(play);else play();", "window.startApprovedIntro = reveal => new Promise(resolve=>{finishIntro=resolve;onReveal=reveal;if(document.fonts?.ready)document.fonts.ready.then(()=>{if(finishIntro)play()});else play()});window.cancelApprovedIntro=clean;")
+# Keep the preview and production font-readiness behavior aligned. The
+# captured completion callback also guards against late font settlement.
+motion = replace_once(
+    motion,
+    "const fontsReady=document.fonts?.ready;if(fontsReady === undefined)play();else void fontsReady.then(play,play);",
+    """window.startApprovedIntro = reveal => new Promise(resolve=>{
+      finishIntro=resolve;onReveal=reveal;
+      const begin=()=>{if(finishIntro===resolve)play();};
+      const fontsReady=document.fonts?.ready;
+      if(fontsReady===undefined)begin();else void fontsReady.then(begin,begin);
+    });window.cancelApprovedIntro=clean;""",
+)
 html = (app/'auth-screen.html').read_text(encoding='utf-8')
 html = replace_once(html, '</head><body>', '<style id="approved-intro-css">'+css+'</style></head><body>'+splash)
 html = replace_once(html, '<div class="scene" id="scene">', '<div class="scene" id="scene">'+door)

@@ -40,11 +40,31 @@ jobs:
           echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
 
       - name: Scan fetched Git history for secrets (redacted)
-        run: gitleaks git --log-opts=--all --redact=100 --no-banner --max-decode-depth=1 --timeout=180 .
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/gitleaks-history.json"
+          trap 'rm -f "$report"' EXIT
+          status=0
+          gitleaks git --log-opts=--all --redact=100 --no-banner --max-decode-depth=1 --timeout=180 --report-format=json --report-path="$report" . || status=$?
+          if [ -f "$report" ]; then
+            python3 -c 'import json,sys; rows=json.load(open(sys.argv[1],encoding="utf-8")) or []; print(json.dumps([{"rule":x.get("RuleID"),"file":x.get("File"),"line":x.get("StartLine"),"commit":x.get("Commit")} for x in rows],ensure_ascii=True))' "$report"
+          fi
+          exit "$status"
 
       - name: Scan checked-out files and nested archives (redacted)
         if: success() || failure()
-        run: gitleaks dir --redact=100 --no-banner --max-archive-depth=2 --max-decode-depth=1 --timeout=180 .
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/gitleaks-tree.json"
+          trap 'rm -f "$report"' EXIT
+          status=0
+          gitleaks dir --redact=100 --no-banner --max-archive-depth=2 --max-decode-depth=1 --timeout=180 --report-format=json --report-path="$report" . || status=$?
+          if [ -f "$report" ]; then
+            python3 -c 'import json,sys; rows=json.load(open(sys.argv[1],encoding="utf-8")) or []; print(json.dumps([{"rule":x.get("RuleID"),"file":x.get("File"),"line":x.get("StartLine"),"commit":x.get("Commit")} for x in rows],ensure_ascii=True))' "$report"
+          fi
+          exit "$status"
 
       - uses: actions/setup-python@v6
         if: success() || failure()
@@ -57,7 +77,7 @@ jobs:
 
       - name: Install pinned Semgrep Community Edition
         if: success() || failure()
-        run: python -m pip install --disable-pip-version-check semgrep==1.126.0
+        run: python -m pip install --disable-pip-version-check setuptools==80.9.0 semgrep==1.126.0
 
       - name: Scan source with local security rules
         if: success() || failure()

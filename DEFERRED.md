@@ -45,3 +45,9 @@ Status: deferred on 2026-11-25; no application submitted.
 - Complete integrated CI and review before adopting in development. Do not claim production release readiness while any applicable gate remains blocked.
 
 - Public-facing documentation exists in the separate distribution repository; complete release-specific privacy review and third-party license notices before public distribution.
+
+## Virtual office selective port — 2026-11-25
+
+- PR #11's incompatible procedural room and avatar coordinates must not replace the existing optimized GLB. Port spatial movement, camera map mode, bilingual member controls, audio and optional notifications only after explicit design and real-device testing; preserve the original feature commit for reference. Do not remap old generic member task identities without verification. The current task-panel candidate is not complete feature parity.
+- Owner approved temporary solo-developer PR review on 2026-11-25 (PR #10); defer independent human approval and native protection activation until an eligible reviewer and entitlement exist. Keep every automated gate.
+- Post-merge SonarCloud run 45600135124 failed with non-main branch access restriction and a failing branch summary; resolve legitimately without payment or lowering thresholds. PR #10's 83.6% is PR new-code coverage, not whole development coverage.

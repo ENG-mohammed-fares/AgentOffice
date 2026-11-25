@@ -83,10 +83,12 @@ function architecture(){
   enforceImports(read('app/src/office-batching.mjs'),three);
   enforceImports(read('app/src/agile-renderer.js'),s=>three(s)||['./agile-layout.json','./office-performance.mjs','./office-batching.mjs'].includes(s));
   const main=read('app/src/main.js');
-  enforceImports(main,s=>['./style.css','./agile-office.css','./auth.js','./loading-intro.js'].includes(s),{dynamic:true});
+  enforceImports(main,s=>['./style.css','./agile-office.css','./auth.js','./loading-intro.js','./office-task-panel.mjs','./agile-layout.json'].includes(s),{dynamic:true});
   const dynamic=[...main.matchAll(/\bimport\s*\(\s*(['"])([^'"]+)\1\s*\)/g)].map(m=>m[2]);
   assert.deepEqual(dynamic,['./agile-renderer.js']);
   assert.equal((main.match(/\bimport\s*\(/g)||[]).length,dynamic.length,'Computed renderer import is not allowed');
+  enforceImports(read('app/src/office-task-panel.mjs'),s=>s==='./office-tasks.mjs');
+  enforceImports(read('app/src/office-tasks.mjs'),()=>false);
   const crash=read('app/electron/crash-monitor.cjs');
   const deps=[...crash.matchAll(/\brequire\s*\(\s*(['"])([^'"]+)\1\s*\)/g)].map(m=>m[2]);
   assert.deepEqual([...new Set(deps)].sort(),['node:crypto','node:fs','node:path']);

@@ -28,9 +28,11 @@ with tempfile.TemporaryDirectory(prefix='agentoffice-model-') as tmp:
         assert image.startswith(b'RIFF') and image[8:12]==b'WEBP'
         (target/f'view-{i}.webp').write_bytes(image)
     (app/'src'/'agile-layout.json').write_text(json.dumps({k:scene[k] for k in ('lights','cameras','roles','stations')}),encoding='utf-8')
-for src,dest in [('main.js','main.js'),('agile-renderer.js','agile-renderer.js'),('agile-office.css','agile-office.css'),('office-performance.mjs','office-performance.mjs'),('office-batching.mjs','office-batching.mjs')]:
+for src,dest in [('main.js','main.js'),('agile-renderer.js','agile-renderer.js'),('agile-office.css','agile-office.css'),('office-performance.mjs','office-performance.mjs'),('office-batching.mjs','office-batching.mjs'),('office-tasks.mjs','office-tasks.mjs'),('office-task-panel.mjs','office-task-panel.mjs')]:
     shutil.copyfile(assets/src,app/'src'/dest)
 shutil.copyfile(assets/'office-performance.test.mjs',app/'scripts'/'office-performance.test.mjs')
+shutil.copyfile(assets/'office-tasks.test.mjs',app/'scripts'/'office-tasks.test.mjs')
+shutil.copyfile(assets/'office-task-panel.test.mjs',app/'scripts'/'office-task-panel.test.mjs')
 # Keep original authentication fixture coverage; assert the new destination.
 path=app/'scripts'/'auth-smoke.cjs'
 text=path.read_text(encoding='utf-8')
@@ -44,6 +46,13 @@ new=old+'''
     assert.equal(await read('document.querySelector("#office-title").textContent'),'Meeting Room');
     await read('document.querySelector("#office-workspace").click()');
     assert.equal(await read('document.querySelector("#office-title").textContent'),'Agile Workspace');
+    await read('document.querySelector("#office-tasks-toggle").click()');
+    assert.equal(await read('document.querySelector("#office-tasks").hidden'),false);
+    await read('document.querySelector("#office-task-title").value="QA smoke task"; document.querySelector("#office-task-form").requestSubmit()');
+    assert.equal(await read('document.querySelector("#office-task-list").textContent.includes("QA smoke task")'),true);
+    await read('document.querySelector("#office-demo-toggle").click()');
+    assert.equal(await read('document.querySelector("#office-demo-toggle").getAttribute("aria-pressed")'),'true');
+    await read('document.querySelector("#office-demo-toggle").click();document.querySelector("#office-task-close").click()');
 '''
 text=text.replace(old,new,1)
 assert text.count('.rail-person strong')==3

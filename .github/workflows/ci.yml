@@ -175,6 +175,9 @@ jobs:
       - name: Unit tests with production-source code coverage
         run: node scripts/run-coverage.cjs
 
+      - name: Verify canonical overlay provenance and map actual coverage
+        run: node scripts/run-coverage.cjs --canonicalize
+
       - name: Upload code coverage reports
         if: always()
         uses: actions/upload-artifact@v6
@@ -340,7 +343,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
             throw 'SONAR_TOKEN is required for development Quality Gate.'
           }
-          if (!(Test-Path coverage/lcov.info)) { throw 'Coverage report missing.' }
+          if (!(Test-Path coverage/sonar-lcov.info)) { throw 'Canonical coverage report missing.' }
 
       - name: SonarCloud analysis and blocking Quality Gate
         if: github.repository == 'ENG-mohammed-fares/AgentOffice' && (github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))

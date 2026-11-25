@@ -1,4 +1,10 @@
-# Mandatory code review
+# Code review policy
+
+## Active temporary solo-developer policy (owner-approved 2026-11-25)
+
+Until an eligible independent reviewer is available, the owner approved PR-only integration with passing automated quality/security checks and a documented review of the exact candidate revision. This is not independent human approval or native GitHub enforcement. Do not bypass existing branch rules or claim a review by the author or an AI is independent. Re-enable the independent approval requirement when a qualified reviewer joins and the required entitlement is available. Release gates, including trusted signing and physical-device QA, remain unchanged.
+
+
 
 Production changes enter development through a pull request, not a direct push. The existing automated release starts after an accepted merge and successful release CI. Review does not replace CI, coverage, SonarCloud or manual hardware QA.
 

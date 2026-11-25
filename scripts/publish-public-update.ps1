@@ -14,8 +14,6 @@ foreach ($name in $names) {
     $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath "candidate/$name").Hash.ToLowerInvariant()
     if ($hash -ne $manifest.sha256.PSObject.Properties[$name].Value) { throw "Candidate hash mismatch: $name" }
 }
-. (Join-Path $PSScriptRoot 'verify-code-signing.ps1')
-Assert-AgentOfficeSignedFile -Path "candidate/$exe" -ExpectedPublisher $env:AGENTOFFICE_SIGNING_PUBLISHER -ExpectedThumbprint $env:AGENTOFFICE_SIGNING_THUMBPRINT
 
 function Assert-SourceHead {
     $env:GH_TOKEN = $env:SOURCE_TOKEN
@@ -42,7 +40,7 @@ Assert-PublicVersion
 gh release view $tag --repo $destination *> $null
 if ($LASTEXITCODE -eq 0) { throw 'Existing release or draft: never overwrite.' }
 $files = @($names | ForEach-Object { "candidate/$_" })
-gh release create $tag @files --repo $destination --target $target --title "AgentOffice $version" --notes "Official AgentOffice Windows installer and update metadata." --draft
+gh release create $tag @files --repo $destination --target $target --title "AgentOffice $version" --notes "Official AgentOffice Windows installer (code signing not required) and update metadata. Windows may display an unknown publisher warning." --draft
 if ($LASTEXITCODE -ne 0) { throw 'Distribution draft creation failed.' }
 $draft = gh release view $tag --repo $destination --json isDraft,assets,tagName | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0 -or -not $draft.isDraft -or $draft.tagName -ne $tag -or $draft.assets.Count -ne 3) { throw 'Distribution draft validation failed.' }

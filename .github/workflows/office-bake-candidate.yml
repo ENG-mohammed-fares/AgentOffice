@@ -39,6 +39,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y blender
           blender --version
+      - name: Verify material classifier with Blender
+        run: |
+          blender --background --factory-startup --python-exit-code 1 --python-expr "import runpy; runpy.run_path('assets/agile-office/bake-office-candidate.py')['test_material_classification']()"
       - name: Bake static combined color atlas
         run: |
           mkdir -p office-candidates

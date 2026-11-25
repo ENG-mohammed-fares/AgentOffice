@@ -30,3 +30,7 @@ Remove-Item Env:AGENTOFFICE_BAKED_CANDIDATE
 ```
 
 This approach was adapted from the supplied Andrew Wan tutorial (combined baking and MeshBasicMaterial for static objects, with separate reflective materials). It does not replace the existing architecture or publish a release.
+
+### Material classification regression
+
+Blender 4.0.2 returned zero eligible targets under imported Principled socket checks. The classifier now reads the original glTF material factors, alpha modes and extensions, resolves exact imported mesh names, and emits material-selection.json even when selection fails. Synthetic regression fixtures protect matte, reflective, transparent and emissive classification. The workflow checks these before executing the expensive bake. This is a targeted correction, not a successful bake claim.

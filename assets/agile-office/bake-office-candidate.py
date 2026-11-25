@@ -117,42 +117,85 @@ def render_previews(scene, layout, output):
             raise RuntimeError("Missing native preview")
 
 
-def diffuse_target(obj):
-    if obj.type != "MESH" or not obj.data.polygons or not obj.data.uv_layers:
-        return False
-    if "glass" in obj.name.lower() or "sky" in obj.name.lower():
-        return False
-    for mat in obj.data.materials:
-        if mat is None or not mat.use_nodes:
-            return False
-        shader = next((n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
-        if shader is None:
-            return False
-        if shader.inputs["Alpha"].default_value < .999:
-            return False
-        if shader.inputs["Metallic"].default_value >= .95:
-            return False
-    return bool(obj.data.materials)
+def material_exclusion(material, combined):
+    """Use the canonical glTF material data, not importer socket defaults."""
+    pbr = material.get("pbrMetallicRoughness", {})
+    if material.get("alphaMode", "OPAQUE") != "OPAQUE":
+        return "transparent"
+    if pbr.get("baseColorFactor", [1, 1, 1, 1])[3] < .999:
+        return "transparent"
+    extensions = material.get("extensions", {})
+    if "KHR_materials_unlit" in extensions or "KHR_materials_transmission" in extensions:
+        return "special material"
+    metallic = pbr.get("metallicFactor", 1)
+    if metallic >= .95:
+        return "metallic"
+    if combined:
+        if metallic > .10 or pbr.get("roughnessFactor", 1) < .45:
+            return "reflective"
+        if "metallicRoughnessTexture" in pbr:
+            return "variable reflectivity"
+        if "emissiveTexture" in material or max(material.get("emissiveFactor", [0, 0, 0])) > .01:
+            return "emissive"
+    return None
 
 
-def combined_target(obj):
-    """Keep transparent, emissive and visibly reflective surfaces on PBR."""
-    if not diffuse_target(obj):
-        return False
-    if any(word in obj.name.lower() for word in ("screen", "display", "mirror")):
-        return False
-    for material in obj.data.materials:
-        shader = next(n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
-        if shader.inputs["Metallic"].default_value > .10:
-            return False
-        if shader.inputs["Roughness"].default_value < .45:
-            return False
-        emission = shader.inputs.get("Emission Color")
-        if emission and (emission.is_linked or max(emission.default_value[:3]) > .01):
-            return False
-        if any(shader.inputs[key].is_linked for key in ("Metallic", "Roughness", "Alpha")):
-            return False
-    return True
+def classify_nodes(doc, combined):
+    eligible, rejected = set(), {}
+    for node in doc["nodes"]:
+        if "mesh" not in node:
+            continue
+        name = node["name"]
+        blocked = ("glass", "sky", "screen", "display", "mirror") if combined else ("glass", "sky")
+        reason = next((word for word in blocked if word in name.lower()), None)
+        if reason is None:
+            for primitive in doc["meshes"][node["mesh"]]["primitives"]:
+                if "TEXCOORD_0" not in primitive["attributes"] or "material" not in primitive:
+                    reason = "missing UV0 or material"
+                else:
+                    reason = material_exclusion(doc["materials"][primitive["material"]], combined)
+                if reason:
+                    break
+        if reason:
+            rejected[name] = reason
+        else:
+            eligible.add(name)
+    return eligible, rejected
+
+
+def select_targets(scene, source, output, combined):
+    raw = source.read_bytes()
+    size = struct.unpack_from("<I", raw, 12)[0]
+    doc = json.loads(raw[20:20 + size])
+    eligible, rejected = classify_nodes(doc, combined)
+    meshes = {obj.name: obj for obj in scene.objects if obj.type == "MESH"}
+    missing = sorted(eligible - meshes.keys())
+    report = {"eligible": sorted(eligible), "rejected": rejected,
+              "missing_after_import": missing, "imported_meshes": sorted(meshes)}
+    (output / "material-selection.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(f"Canonical material classification: {len(eligible)} eligible; {len(rejected)} excluded", flush=True)
+    if not eligible or missing:
+        raise RuntimeError("No valid bake targets or glTF node names changed; see material-selection.json")
+    targets = [meshes[name] for name in sorted(eligible)]
+    for obj in targets:
+        if not obj.data.polygons or not obj.data.uv_layers or not obj.data.materials:
+            raise ValueError(f"Invalid imported bake mesh: {obj.name}")
+        if any(m is None or not m.use_nodes for m in obj.data.materials):
+            raise ValueError(f"Missing imported shader nodes: {obj.name}")
+    return targets
+
+
+def test_material_classification():
+    matte = {"pbrMetallicRoughness": {"metallicFactor": 0, "roughnessFactor": .8}}
+    assert material_exclusion(matte, True) is None
+    assert material_exclusion({**matte, "alphaMode": "BLEND"}, True) == "transparent"
+    assert material_exclusion({**matte, "emissiveFactor": [1, 0, 0]}, True) == "emissive"
+    assert material_exclusion({"pbrMetallicRoughness": {"metallicFactor": 0, "roughnessFactor": .2}}, True) == "reflective"
+    doc = {"nodes": [{"name": "Wall", "mesh": 0}, {"name": "Glass", "mesh": 0}],
+           "meshes": [{"primitives": [{"material": 0, "attributes": {"TEXCOORD_0": 1}}]}],
+           "materials": [matte]}
+    eligible, rejected = classify_nodes(doc, True)
+    assert eligible == {"Wall"} and rejected == {"Glass": "glass"}
 
 
 def unwrap_targets(targets):
@@ -292,10 +335,8 @@ def main():
     scene = setup_scene(source, layout, args.samples)
     if not args.combined:
         render_previews(scene, layout, output)
-    eligible = combined_target if args.combined else diffuse_target
-    targets = [obj for obj in scene.objects if eligible(obj)]
-    if not targets:
-        raise RuntimeError("No diffuse lightmap targets")
+    test_material_classification()
+    targets = select_targets(scene, source, output, args.combined)
     unwrap_targets(targets)
     bake_lightmap(scene, targets, output, args.atlas, args.combined)
     candidate = output / "office-bake-uv.glb"

@@ -24,7 +24,7 @@ function update(){
 const previousRecovery=renderRecovery;renderRecovery=function(){previousRecovery();update()};
 const previousConnect=window.connectAgentOffice;
 window.connectAgentOffice=async connection=>{await previousConnect(connection);try{available=await connection.auth?.phoneStatus?.()===true}catch{available=false}update()};
-function clear(){clearInterval(timer);opened=sent=false;number=notice='';bad=false;el('phoneNumber').value=el('phoneCode').value='';session?.auth?.phoneCancel?.().catch(()=>{});render()}
+function clear(){clearInterval(timer);opened=sent=false;number=notice='';bad=false;el('phoneNumber').value=el('phoneCode').value='';void session?.auth?.phoneCancel?.().catch(()=>{});render()}
 el('phoneLogin').onclick=()=>{if(busy)return;opened=true;notice='';bad=false;render();el('phoneNumber').focus()};
 el('phoneBack').onclick=()=>{if(!pending)clear()};
 async function send(){

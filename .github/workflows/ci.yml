@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: agentoffice-ci-${{ github.workflow }}-${{ github.ref }}
@@ -227,6 +228,51 @@ jobs:
           New-Item -ItemType Directory -Force public/basis | Out-Null
           Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.js public/basis/
           Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.wasm public/basis/
+
+      # Isolated review only: neither downloaded candidate nor captures are packaged.
+      - name: Retrieve exact reviewed hybrid candidate
+        if: github.ref == 'refs/heads/feat/1.6.17-character-integration'
+        uses: actions/download-artifact@v7
+        with:
+          name: office-hybrid-compressed-candidate
+          run-id: 45666174816
+          github-token: ${{ github.token }}
+          path: hybrid-review-input
+      - name: Verify and render all seven actual avatars in both office modes
+        if: github.ref == 'refs/heads/feat/1.6.17-character-integration'
+        working-directory: app
+        shell: pwsh
+        env:
+          AGENTOFFICE_CHARACTER_REVIEW: '1'
+          AGENTOFFICE_GRAPHICS_PRESET: 'balanced'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $inputDir = Join-Path $PWD '../hybrid-review-input'
+          $report = Get-Content (Join-Path $inputDir 'verification.json') -Raw | ConvertFrom-Json
+          if ($report.source_run -ne 45665153041 -or !$report.geometry_and_material_metadata_unchanged) { throw 'Unexpected candidate provenance' }
+          $model = Join-Path $inputDir 'office-baked-ktx2.glb'
+          if ((Get-FileHash $model -Algorithm SHA256).Hash.ToLowerInvariant() -ne $report.compressed_sha256) { throw 'Candidate hash mismatch' }
+          $destination = Join-Path $PWD 'public/office/office-baked-ktx2.glb'
+          try {
+            Copy-Item $model $destination
+            $env:AGENTOFFICE_PREVIEW_DIR = Join-Path $PWD '../character-review/pbr'
+            npx --no-install electron ../scripts/office-runtime-benchmark.cjs
+            if ($LASTEXITCODE -ne 0) { throw 'PBR character review failed' }
+            $env:AGENTOFFICE_BAKED_CANDIDATE = 'ktx2'
+            $env:AGENTOFFICE_PREVIEW_DIR = Join-Path $PWD '../character-review/hybrid'
+            npx --no-install electron ../scripts/office-runtime-benchmark.cjs
+            if ($LASTEXITCODE -ne 0) { throw 'Hybrid character review failed' }
+          } finally {
+            Remove-Item $destination -ErrorAction SilentlyContinue
+          }
+      - name: Upload actual office character comparison
+        if: always() && github.ref == 'refs/heads/feat/1.6.17-character-integration'
+        uses: actions/upload-artifact@v6
+        with:
+          name: office-character-visual-review
+          path: character-review/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Source-mapped execution coverage build
         working-directory: app

@@ -14,6 +14,8 @@ const reportPath = path.resolve(process.env.AGENTOFFICE_PERF_REPORT || path.join
 let server, win;
 const previewDir=process.env.AGENTOFFICE_PREVIEW_DIR;
 const previewMode=Boolean(previewDir);
+const characterReview=process.env.AGENTOFFICE_CHARACTER_REVIEW==='1';
+assert.ok(!characterReview||previewMode,'Character review requires a screenshot destination');
 const preset=process.env.AGENTOFFICE_GRAPHICS_PRESET||'balanced';
 const bakedMode=process.env.AGENTOFFICE_BAKED_CANDIDATE;
 assert.ok(!bakedMode||['1','ktx2'].includes(bakedMode),'Invalid baked candidate mode');
@@ -23,11 +25,31 @@ const page = `<!doctype html><meta charset="utf-8"><title>AgentOffice renderer b
 <style>html,body,#host{width:100%;height:100%;margin:0;overflow:hidden}canvas{display:block;width:100%;height:100%}</style>
 <div id="host"></div><script type="module">
 import {mountAgileRenderer} from '../src/agile-renderer.js';
+import layout from '../src/agile-layout.json';
+const characterReview=${JSON.stringify(characterReview)};
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const host=document.querySelector('#host');
 const count=()=>Number(host.dataset.frames||0);
 const round=n=>Math.round(n*100)/100;
 const percentile=(a,p)=>a.length?round([...a].sort((x,y)=>x-y)[Math.ceil(a.length*p)-1]):null;
+async function waitCharacters(view){
+  const deadline=performance.now()+90000;
+  while(performance.now()<deadline){
+    const m=view.metrics();
+    if(m.characters===7)return;
+    if(m.characterStatus==='preview unavailable')throw Error('Actual character assets failed to load');
+    await sleep(100);
+  }
+  throw Error('Seven characters did not become ready');
+}
+async function waitFrame(previous){
+  const deadline=performance.now()+10000;
+  while(performance.now()<deadline){
+    if(count()>previous+2)return;
+    await sleep(50);
+  }
+  throw Error('Character review did not render three frames');
+}
 async function quiet(previous){
   const deadline=performance.now()+20000;
   let last=count(),changed=performance.now();
@@ -43,13 +65,17 @@ window.benchmarkResult=(async()=>{
   let view,contextLost=false,keepView=false;
   try{
     const start=performance.now();
-    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)},bakedCandidate:${JSON.stringify(bakedCandidate)}});
+    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)},bakedCandidate:${JSON.stringify(bakedCandidate)},characterRoster:characterReview?layout.characters:[]});
     const firstFrameMs=round(performance.now()-start);
-    await quiet(0);
+    if(characterReview){
+      await waitCharacters(view);
+      if(!view.setAgentState('QA Engineer','working'))throw Error('QA typing clip unavailable');
+      await waitFrame(count());
+    }else await quiet(0);
     const initial=view.metrics(),initialFrames=count();
     if(${JSON.stringify(previewMode)}){
       window.previewView=async index=>{
-        const before=count();view.go(index,true);await quiet(before);return view.metrics();
+        const before=count();view.go(index,true);if(characterReview)await waitFrame(before);else await quiet(before);return view.metrics();
       };
       keepView=true;
       return {ok:true,firstFrameMs,textureFormat:host.dataset.textureFormat,initial,contextLost};
@@ -83,7 +109,7 @@ async function run(){
   await build(config);
   server=await preview({...config,preview:{host:'127.0.0.1',port:4173,strictPort:false}});
   const port=server.httpServer.address().port;
-  win=new BrowserWindow({width:previewMode?1920:1280,height:previewMode?1080:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
+  win=new BrowserWindow({width:previewMode&&!characterReview?1920:1280,height:previewMode&&!characterReview?1080:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
   await win.loadURL('http://127.0.0.1:'+port+'/scripts/'+path.basename(html));
   const deadline=Date.now()+120000;
   while(Date.now()<deadline){
@@ -98,17 +124,30 @@ async function run(){
   assert.ok(result,'Benchmark module did not initialize');
   if(previewMode){
     assert.ok(result.ok,result.error);
+    if(characterReview){
+      assert.equal(result.initial.characters,7);
+      assert.equal(result.textureFormat,bakedCandidate?'baked-ktx2':'ktx2');
+      if(bakedCandidate)assert.ok(result.initial.bakedMeshes>0,'No actual baked meshes');
+      assert.equal(result.contextLost,false);
+    }
     const destination=path.resolve(previewDir);
+    const views=[];
     fs.mkdirSync(destination,{recursive:true});
     for(const index of [0,1,2]){
       const metrics=await win.webContents.executeJavaScript('window.previewView('+index+')');
-      assert.ok(metrics.width>=1920&&metrics.height>=1080,'Actual rendering buffer is below Full HD; select High or use a larger display.');
+      if(!characterReview)assert.ok(metrics.width>=1920&&metrics.height>=1080,'Actual rendering buffer is below Full HD; select High or use a larger display.');
+      else {assert.equal(metrics.characters,7);assert.ok(metrics.width>0&&metrics.height>0);}
       const shot=await win.webContents.capturePage();
       const {width,height}=shot.getSize();
-      assert.ok(width>=1920&&height>=1080,'Captured viewport is below Full HD.');
+      if(!characterReview)assert.ok(width>=1920&&height>=1080,'Captured viewport is below Full HD.');
+      else assert.ok(width>0&&height>0);
       fs.writeFileSync(path.join(destination,'view-'+index+'.png'),shot.toPNG(),{flag:'wx'});
+      views.push({index,width,height,...metrics});
     }
-    console.log('Native Full HD office previews:',destination);
+    if(characterReview){
+      fs.writeFileSync(path.join(destination,'review.json'),JSON.stringify({schemaVersion:1,gpuFeatures:app.getGPUFeatureStatus(),gpuInfo:await app.getGPUInfo('basic').catch(()=>null),...result,views},null,2)+'\n');
+      console.log('Actual character review captures:',destination);
+    }else console.log('Native Full HD office previews:',destination);
     return;
   }
   const report={schemaVersion:1,recordedAt:new Date().toISOString(),electron:process.versions.electron,platform:process.platform,arch:process.arch,gpuFeatures:app.getGPUFeatureStatus(),gpuInfo:await app.getGPUInfo('basic').catch(()=>null),...result};

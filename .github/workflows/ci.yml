@@ -156,6 +156,10 @@ jobs:
         working-directory: app
         run: npx --no-install electron scripts/auth-smoke.cjs
 
+      - name: Test Windows code-signing verification policy
+        shell: pwsh
+        run: ./scripts/test-code-signing.ps1
+
       - name: Package tested Windows build (no publishing)
         working-directory: app
         env:

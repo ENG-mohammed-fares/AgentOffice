@@ -1,0 +1,3 @@
+# Rendering foundation
+
+Blender 4.5.3 LTS (official archive verified by SHA-256), CPU Cycles fallback, Three.js r180 and GSAP 3.13.0. CI builds a real fixture with PBR material, camera, lighting, linear EXR diffuse bake, independent UV1 and validated GLB attributes. The runtime module applies the lightmap by mesh name. This is an isolated fixture, not the final office; full office UV atlas optimization, bake, GPU browser verification, reflection environment and performance budgets remain required. No changes to development or release pipeline. GitHub runners are ephemeral, not persistent installations.

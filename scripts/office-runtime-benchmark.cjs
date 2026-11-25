@@ -11,10 +11,12 @@ const appDir = path.join(root, 'app');
 const out = fs.mkdtempSync(path.join(os.tmpdir(), 'agentoffice-benchmark-'));
 const html = path.join(appDir, 'scripts', 'office-benchmark-' + process.pid + '.html');
 const reportPath = path.resolve(process.env.AGENTOFFICE_PERF_REPORT || path.join(root, 'office-performance-report.json'));
-let server, win;
+let server, win, lastStage='starting';
+const reviewEvents=[];
 const previewDir=process.env.AGENTOFFICE_PREVIEW_DIR;
 const previewMode=Boolean(previewDir);
 const characterReview=process.env.AGENTOFFICE_CHARACTER_REVIEW==='1';
+const ciReview=characterReview&&process.env.CI==='true';
 assert.ok(!characterReview||previewMode,'Character review requires a screenshot destination');
 const preset=process.env.AGENTOFFICE_GRAPHICS_PRESET||'balanced';
 const bakedMode=process.env.AGENTOFFICE_BAKED_CANDIDATE;
@@ -30,10 +32,11 @@ const characterReview=${JSON.stringify(characterReview)};
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const host=document.querySelector('#host');
 const count=()=>Number(host.dataset.frames||0);
+const stage=value=>{if(characterReview)console.info('OFFICE_REVIEW_STAGE '+value);};
 const round=n=>Math.round(n*100)/100;
 const percentile=(a,p)=>a.length?round([...a].sort((x,y)=>x-y)[Math.ceil(a.length*p)-1]):null;
 async function waitCharacters(view){
-  const deadline=performance.now()+90000;
+  const deadline=performance.now()+120000;
   while(performance.now()<deadline){
     const m=view.metrics();
     if(m.characters===7)return;
@@ -43,7 +46,7 @@ async function waitCharacters(view){
   throw Error('Seven characters did not become ready');
 }
 async function waitFrame(previous){
-  const deadline=performance.now()+10000;
+  const deadline=performance.now()+45000;
   while(performance.now()<deadline){
     if(count()>previous+2)return;
     await sleep(50);
@@ -65,12 +68,14 @@ window.benchmarkResult=(async()=>{
   let view,contextLost=false,keepView=false;
   try{
     const start=performance.now();
-    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)},bakedCandidate:${JSON.stringify(bakedCandidate)},characterRoster:characterReview?layout.characters:[]});
+    stage('mount-start');
+    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)},bakedCandidate:${JSON.stringify(bakedCandidate)},characterRoster:characterReview?layout.characters:[],onProgress:stage});
+    stage('office-first-frame');
     const firstFrameMs=round(performance.now()-start);
     if(characterReview){
-      await waitCharacters(view);
+      await waitCharacters(view);stage('seven-avatars-ready');
       if(!view.setAgentState('QA Engineer','working'))throw Error('QA typing clip unavailable');
-      await waitFrame(count());
+      await waitFrame(count());stage('animated-frames-observed');
     }else await quiet(0);
     const initial=view.metrics(),initialFrames=count();
     if(${JSON.stringify(previewMode)}){
@@ -99,6 +104,16 @@ window.benchmarkResult=(async()=>{
   finally{if(!keepView)view?.dispose();}
 })();
 </script>`;
+async function boundedResult(){
+  const timeoutMs=characterReview?240000:120000;
+  let timer;
+  const read=async()=>{
+    while(!(await win.webContents.executeJavaScript('Boolean(window.benchmarkResult)')))await new Promise(r=>setTimeout(r,100));
+    return win.webContents.executeJavaScript('window.benchmarkResult');
+  };
+  try{return await Promise.race([read(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Benchmark timeout at stage: '+lastStage)),timeoutMs);})]);}
+  finally{clearTimeout(timer);}
+}
 async function run(){
   assert.ok(fs.existsSync(path.join(appDir,'src','agile-renderer.js')),'Prepare the current app source first');
   assert.ok(fs.existsSync(path.join(appDir,'public','office','office.glb')),'Office asset missing');
@@ -109,18 +124,17 @@ async function run(){
   await build(config);
   server=await preview({...config,preview:{host:'127.0.0.1',port:4173,strictPort:false}});
   const port=server.httpServer.address().port;
-  win=new BrowserWindow({width:previewMode&&!characterReview?1920:1280,height:previewMode&&!characterReview?1080:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
+  win=new BrowserWindow({width:ciReview?800:previewMode&&!characterReview?1920:1280,height:ciReview?450:previewMode&&!characterReview?1080:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
+  win.webContents.on('console-message',(_event,details,legacyMessage)=>{
+    const message=typeof details==='object'?details.message:legacyMessage;
+    if(typeof message!=='string')return;
+    if(message.startsWith('OFFICE_REVIEW_STAGE '))lastStage=message.slice('OFFICE_REVIEW_STAGE '.length);
+    if(characterReview){const entry={at:new Date().toISOString(),message:message.slice(0,2000)};if(reviewEvents.length<200)reviewEvents.push(entry);console.log('[renderer]',entry.message);}
+  });
+  win.webContents.on('render-process-gone',(_event,details)=>{lastStage='renderer process gone: '+details.reason;console.error(lastStage);});
+  console.log('GPU feature status:',JSON.stringify(app.getGPUFeatureStatus()));
   await win.loadURL('http://127.0.0.1:'+port+'/scripts/'+path.basename(html));
-  const deadline=Date.now()+120000;
-  while(Date.now()<deadline){
-    const ready=await win.webContents.executeJavaScript('Boolean(window.benchmarkResult)');
-    if(ready)break;
-    await new Promise(r=>setTimeout(r,100));
-  }
-  const result=await Promise.race([
-    win.webContents.executeJavaScript('window.benchmarkResult'),
-    new Promise((_,reject)=>setTimeout(()=>reject(Error('Benchmark result timeout')),120000).unref())
-  ]);
+  const result=await boundedResult();
   assert.ok(result,'Benchmark module did not initialize');
   if(previewMode){
     assert.ok(result.ok,result.error);
@@ -134,6 +148,7 @@ async function run(){
     const views=[];
     fs.mkdirSync(destination,{recursive:true});
     for(const index of [0,1,2]){
+      lastStage='capture-view-'+index;
       const metrics=await win.webContents.executeJavaScript('window.previewView('+index+')');
       if(!characterReview)assert.ok(metrics.width>=1920&&metrics.height>=1080,'Actual rendering buffer is below Full HD; select High or use a larger display.');
       else {assert.equal(metrics.characters,7);assert.ok(metrics.width>0&&metrics.height>0);}
@@ -145,7 +160,7 @@ async function run(){
       views.push({index,width,height,...metrics});
     }
     if(characterReview){
-      fs.writeFileSync(path.join(destination,'review.json'),JSON.stringify({schemaVersion:1,gpuFeatures:app.getGPUFeatureStatus(),gpuInfo:await app.getGPUInfo('basic').catch(()=>null),...result,views},null,2)+'\n');
+      fs.writeFileSync(path.join(destination,'review.json'),JSON.stringify({schemaVersion:1,ciReview,gpuFeatures:app.getGPUFeatureStatus(),gpuInfo:await app.getGPUInfo('basic').catch(()=>null),...result,views},null,2)+'\n');
       console.log('Actual character review captures:',destination);
     }else console.log('Native Full HD office previews:',destination);
     return;
@@ -166,7 +181,15 @@ async function run(){
   if(bakedCandidate){assert.equal(result.textureFormat,bakedCandidate==='compressed'?'baked-ktx2':'baked-candidate');assert.ok(result.initial.bakedMeshes>0);}
   else if(process.env.AGENTOFFICE_REQUIRE_KTX2==='1')assert.equal(result.textureFormat,'ktx2');
 }
-app.whenReady().then(run).then(()=>finish(0),error=>{console.error(error);finish(1);});
+app.whenReady().then(run).then(()=>finish(0),error=>{
+  console.error(error);
+  if(characterReview){
+    try{const destination=path.resolve(previewDir);fs.mkdirSync(destination,{recursive:true});
+      fs.writeFileSync(path.join(destination,'failure.json'),JSON.stringify({schemaVersion:1,ciReview,lastStage,error:String(error?.stack||error),gpuFeatures:app.getGPUFeatureStatus(),reviewEvents},null,2)+'\n');
+    }catch(writeError){console.error('Could not preserve review diagnostics',writeError);}
+  }
+  finish(1);
+});
 function finish(code){
   try{win?.destroy();server?.httpServer.close();}finally{
     try{fs.unlinkSync(html);}catch{}

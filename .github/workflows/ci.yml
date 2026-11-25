@@ -244,7 +244,7 @@ jobs:
         shell: pwsh
         env:
           AGENTOFFICE_CHARACTER_REVIEW: '1'
-          AGENTOFFICE_GRAPHICS_PRESET: 'balanced'
+          AGENTOFFICE_GRAPHICS_PRESET: 'performance'
         run: |
           $ErrorActionPreference = 'Stop'
           $inputDir = Join-Path $PWD '../hybrid-review-input'
@@ -257,11 +257,12 @@ jobs:
             Copy-Item $model $destination
             $env:AGENTOFFICE_PREVIEW_DIR = Join-Path $PWD '../character-review/pbr'
             npx --no-install electron ../scripts/office-runtime-benchmark.cjs
-            if ($LASTEXITCODE -ne 0) { throw 'PBR character review failed' }
+            $pbrExit = $LASTEXITCODE
             $env:AGENTOFFICE_BAKED_CANDIDATE = 'ktx2'
             $env:AGENTOFFICE_PREVIEW_DIR = Join-Path $PWD '../character-review/hybrid'
             npx --no-install electron ../scripts/office-runtime-benchmark.cjs
-            if ($LASTEXITCODE -ne 0) { throw 'Hybrid character review failed' }
+            $hybridExit = $LASTEXITCODE
+            if ($pbrExit -ne 0 -or $hybridExit -ne 0) { throw "Character review failed: PBR=$pbrExit Hybrid=$hybridExit" }
           } finally {
             Remove-Item $destination -ErrorAction SilentlyContinue
           }

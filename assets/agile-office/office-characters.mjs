@@ -34,7 +34,7 @@ function readModel(url){
     xhr.onerror=xhr.ontimeout=()=>reject(Error('Character asset unavailable'));xhr.send();
   });
 }
-export async function loadCharacterRoster({roster,stations,officeURL,isCancelled,read=readModel,loader=new GLTFLoader()}){
+export async function loadCharacterRoster({roster,stations,officeURL,isCancelled,read=readModel,loader=new GLTFLoader(),onProgress=()=>{}}){
   const plan=rosterPlan(roster,stations),group=new THREE.Group(),records=new Map();
   group.name='AgentOffice character preview';
   let disposed=false;
@@ -45,9 +45,11 @@ export async function loadCharacterRoster({roster,stations,officeURL,isCancelled
     for(const entry of plan){
       if(isCancelled())throw Error('Character loading cancelled');
       const url=new URL('characters/'+entry.file,officeURL).href;
+      onProgress('avatar-load:'+entry.file);
       const data=await read(url);
       if(isCancelled())throw Error('Character loading cancelled');
       const {scene:root,animations:clips}=await loader.parseAsync(data,new URL('./',url).href);
+      onProgress('avatar-decoded:'+entry.file);
       group.add(root);
       if(isCancelled())throw Error('Character loading cancelled');
       if(!CLIPS.every(name=>clips.some(c=>c.name===name)))throw Error('Required character clips missing');
@@ -58,7 +60,7 @@ export async function loadCharacterRoster({roster,stations,officeURL,isCancelled
       const scale=1.66/height;root.scale.multiplyScalar(scale);
       root.position.set(entry.x,-bounds.min.y*scale,entry.z);root.rotation.y=entry.yaw;root.name=entry.role;
       const animator=createAgentAnimator({root,clips,mixer:new THREE.AnimationMixer(root),loopRepeat:THREE.LoopRepeat,loopOnce:THREE.LoopOnce});
-      records.set(entry.role,{animator});
+      records.set(entry.role,{animator});onProgress('avatar-ready:'+entry.file);
     }
     return {group,get count(){return records.size;},setState(role,state){return records.get(role)?.animator.setState(state)??false;},update(dt){records.forEach(r=>r.animator.update(dt));},dispose};
   }catch(error){dispose();throw error;}

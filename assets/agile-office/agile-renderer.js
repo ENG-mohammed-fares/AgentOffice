@@ -59,7 +59,7 @@ async function loadOfficeModel(renderer,url,isCancelled,bakedCandidate){
   return {gltf:await new GLTFLoader().parseAsync(raw,new URL('./',url).href),format:'original'};
 }
 
-export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitialIndex=()=>0,preset='balanced',bakedCandidate=false,characterRoster=[]}){
+export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitialIndex=()=>0,preset='balanced',bakedCandidate=false,characterRoster=[],onProgress=()=>{}}){
   const canvas=document.createElement('canvas'),gl=canvas.getContext('webgl2',{alpha:false,antialias:true,powerPreference:'high-performance'});
   if(!gl)throw Error('WebGL2 unavailable');
   let renderer,scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,1,.045,130),environment,pmrem,model,observer,disposed=false,move=null,drag=null,frameScheduler,resolution,stats,lastFrame=0,settleFrames=0,frames=0;
@@ -105,9 +105,10 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     for(const [x,z] of [[-2.6,0],[5.6,0]]){
       const l=new THREE.SpotLight(0xffddb6,32,13,Math.PI/3,.8,2);l.position.set(x,3.05,z);l.target.position.set(x,.2,z);l.castShadow=true;l.shadow.mapSize.set(1024,1024);l.shadow.bias=-.00015;l.shadow.normalBias=.02;scene.add(l,l.target);
     }
+    onProgress('office-asset-load');
     const loading=performance.now();
     const {gltf,format}=await loadOfficeModel(renderer,url,()=>isCancelled()||contextLost,bakedCandidate);
-    assetLoadMs=performance.now()-loading;
+    assetLoadMs=performance.now()-loading;onProgress('office-asset-decoded');
     model=gltf.scene;scene.add(model);host.dataset.textureFormat=format;
     if(isCancelled()||contextLost)throw Error('Office cancelled');
     let bakedMeshes=0;
@@ -172,21 +173,25 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     sizeToHost();setCamera(cameras[getInitialIndex()]||cameras[0]);
     // Compile while the previous view is still visible. The initial render also
     // uploads visible textures and builds the cached static shadow maps.
+    onProgress('office-shader-compile');
     await renderer.compileAsync(scene,camera);
+    onProgress('office-shader-compiled');
     if(isCancelled()||contextLost)throw Error('Office cancelled');
     setCamera(cameras[getInitialIndex()]||cameras[0]);
+    onProgress('office-first-render');
     if(document.hidden)frameScheduler.pause();else{renderer.render(scene,camera);report();}
+    onProgress('office-first-render-complete');
     readyMs=performance.now()-started;
     host.replaceChildren(canvas);observer=new ResizeObserver(resize);observer.observe(host);
     document.addEventListener('visibilitychange',visibility);
     if(characterRoster.length){
       // Load only after the first office frame; keep the office usable on failure.
-      loadCharacterRoster({roster:characterRoster,stations:layout.stations,officeURL:url,isCancelled:()=>disposed||contextLost||isCancelled()}).then(roster=>{
+      loadCharacterRoster({roster:characterRoster,stations:layout.stations,officeURL:url,isCancelled:()=>disposed||contextLost||isCancelled(),onProgress}).then(roster=>{
         if(disposed||contextLost||isCancelled()){roster.dispose();return;}
-        characters=roster;scene.add(roster.group);characterStatus='preview ready';
+        characters=roster;scene.add(roster.group);characterStatus='preview ready';onProgress('avatar-roster-attached');
         for(const [role,state] of activity)roster.setState(role,state);
         frameScheduler.request();
-      }).catch(err=>{if(!disposed&&!contextLost){characterStatus='preview unavailable';console.warn('Character preview unavailable',err?.message);}});
+      }).catch(err=>{if(!disposed&&!contextLost){characterStatus='preview unavailable';onProgress('avatar-roster-failed');console.warn('Character preview unavailable',err?.message);}});
     }
     function setAgentState(role,state){activity.set(role,state);return characters?.setState(role,state)??false;}
     return {go,dispose,setGraphicsPreset,setAgentState,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,characters:characters?.count??0,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};

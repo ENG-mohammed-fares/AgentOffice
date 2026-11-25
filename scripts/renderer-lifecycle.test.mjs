@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import * as performancePolicy from '../src/office-performance.mjs';
 import * as batching from '../src/office-batching.mjs';
 const source=fileURLToPath(new URL('../src/agile-renderer.js',import.meta.url));
-async function fixture({fallback=false,noGL=false,failParse=false,cancelled=false,reduced=false,hidden=false}={}){
+async function fixture({fallback=false,noGL=false,failParse=false,cancelled=false,reduced=false,hidden=false,bakedCandidate=false}={}){
   let now=0,sequence=0,lost=0,renders=0,disposed=0,decoderDisposed=0,compiled=0;
   const frames=new Map(),events=new Map(),canvasEvents=new Map(),requests=[];
   const canvas={getContext:()=>noGL?null:{},addEventListener:(key,fn)=>canvasEvents.set(key,fn),
@@ -21,6 +21,7 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
   }
   const texture=new THREE.Texture(),material=new THREE.MeshStandardMaterial({map:texture});
   const model=new THREE.Group();
+  if(bakedCandidate){const baked=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial({name:'Office baked static atlas',map:new THREE.Texture()}));baked.name='Baked wall';model.add(baked);}
   const box=new THREE.Mesh(new THREE.BoxGeometry(),material);box.name='Desk';model.add(box);
   const glass=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshStandardMaterial({transparent:true}));
   glass.name='Glass';model.add(glass);
@@ -64,7 +65,7 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
   });
   await module.evaluate();
   const mount=()=>module.namespace.mountAgileRenderer(host,'file:///fixture/office/office.glb',
-    {onLost:()=>{lost++},isCancelled:()=>cancelled});
+    {onLost:()=>{lost++},isCancelled:()=>cancelled,bakedCandidate});
   const tick=time=>{now=time;const pending=[...frames.values()];frames.clear();for(const fn of pending)fn(time)};
   return {mount,host,canvas,canvasEvents,events,document,frames,tick,requests,box,glass,texture,
     get lost(){return lost},get renders(){return renders},get disposed(){return disposed},
@@ -102,4 +103,14 @@ test('original-model fallback, reduced motion, and load errors preserve cleanup'
   await assert.rejects(cancelled.mount(),/Office cancelled/);assert.equal(cancelled.disposed,1);
   const noGL=await fixture({noGL:true});
   await assert.rejects(noGL.mount(),/WebGL2 unavailable/);
+});
+
+test('experimental baked path requests only its explicit asset and keeps PBR glass',async()=>{
+ const f=await fixture({bakedCandidate:true});
+ const renderer=await f.mount();
+ assert.equal(f.host.dataset.textureFormat,'baked-candidate');
+ assert.equal(renderer.metrics().bakedMeshes,1);
+ assert.deepEqual(f.requests,['file:///fixture/office/office-baked.glb']);
+ assert.equal(f.glass.receiveShadow,true);
+ renderer.dispose();
 });

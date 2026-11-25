@@ -15,3 +15,18 @@ blender --background --factory-startup --python-exit-code 1 --python assets/agil
 ```
 
 The Ubuntu Blender package reports `Build without OpenImageDenoiser` if Cycles denoising is enabled. The candidate uses raw CPU samples with denoising disabled; this does not disable any quality or security gate. Inspect noise before accepting the previews.
+
+## Tutorial-inspired hybrid candidate (separate experiment)
+
+The combined branch bakes static matte surfaces (direct/indirect light and material color) into a 2048x2048 display-referred atlas, and emits an explicit KHR_materials_unlit GLB using UV1. Metallic, glossy, transparent, emissive and screen-like surfaces stay PBR. The original KTX2 loader remains unchanged for the normal application; the benchmark explicitly opts into office-baked.glb using AGENTOFFICE_BAKED_CANDIDATE=1. The candidate is not yet KTX2-compressed. Compare it to the normal path with identical hardware, graphics preset and viewport. Real-time lights remain for the PBR meshes; unlit surfaces skip lighting and shadow receiving, but still cast shadows. Baked walls do not receive moving-character shadows without a separate technique. Do not ship until the atlas, seam padding, texture resolution, material appearance, geometry, and device results are validated.
+
+After downloading the experimental artifact, copy office-baked.glb into a prepared app/public/office folder, then run from app:
+
+```powershell
+$env:AGENTOFFICE_BAKED_CANDIDATE = '1'
+$env:AGENTOFFICE_GRAPHICS_PRESET = 'high'
+npx --no-install electron ../scripts/office-runtime-benchmark.cjs
+Remove-Item Env:AGENTOFFICE_BAKED_CANDIDATE
+```
+
+This approach was adapted from the supplied Andrew Wan tutorial (combined baking and MeshBasicMaterial for static objects, with separate reflective materials). It does not replace the existing architecture or publish a release.

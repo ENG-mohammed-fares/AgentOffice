@@ -21,7 +21,13 @@ function readGLB(url,responseType='arraybuffer'){
 
 // XHR handles the packaged Electron file: scheme. Blob-backed decoder assets
 // also avoid depending on browser fetch support for local file URLs.
-async function loadOfficeModel(renderer,url,isCancelled){
+async function loadOfficeModel(renderer,url,isCancelled,bakedCandidate){
+  if(bakedCandidate){
+    const candidate=new URL('office-baked.glb',url).href;
+    const raw=await readGLB(candidate);
+    if(isCancelled())throw Error('Office cancelled');
+    return {gltf:await new GLTFLoader().parseAsync(raw,new URL('./',candidate).href),format:'baked-candidate'};
+  }
   let decoder,jsURL,wasmURL,timer,expired=false;
   try{
     const packedURL=new URL('office-ktx2.glb',url).href;
@@ -52,7 +58,7 @@ async function loadOfficeModel(renderer,url,isCancelled){
   return {gltf:await new GLTFLoader().parseAsync(raw,new URL('./',url).href),format:'original'};
 }
 
-export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitialIndex=()=>0,preset='balanced'}){
+export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitialIndex=()=>0,preset='balanced',bakedCandidate=false}){
   const canvas=document.createElement('canvas'),gl=canvas.getContext('webgl2',{alpha:false,antialias:true,powerPreference:'high-performance'});
   if(!gl)throw Error('WebGL2 unavailable');
   let renderer,scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,1,.045,130),environment,pmrem,model,observer,disposed=false,move=null,drag=null,frameScheduler,resolution,stats,lastFrame=0,settleFrames=0,frames=0;
@@ -97,11 +103,20 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
       const l=new THREE.SpotLight(0xffddb6,32,13,Math.PI/3,.8,2);l.position.set(x,3.05,z);l.target.position.set(x,.2,z);l.castShadow=true;l.shadow.mapSize.set(1024,1024);l.shadow.bias=-.00015;l.shadow.normalBias=.02;scene.add(l,l.target);
     }
     const loading=performance.now();
-    const {gltf,format}=await loadOfficeModel(renderer,url,()=>isCancelled()||contextLost);
+    const {gltf,format}=await loadOfficeModel(renderer,url,()=>isCancelled()||contextLost,bakedCandidate);
     assetLoadMs=performance.now()-loading;
     model=gltf.scene;scene.add(model);host.dataset.textureFormat=format;
     if(isCancelled()||contextLost)throw Error('Office cancelled');
-    model.traverse(o=>{if(!o.isMesh)return;o.receiveShadow=true;o.castShadow=!o.name.toLowerCase().includes('glass')&&!o.name.toLowerCase().includes('sky');if(o.material?.map)o.material.map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());});
+    let bakedMeshes=0;
+    model.traverse(o=>{
+      if(!o.isMesh)return;
+      const baked=bakedCandidate&&o.material?.isMeshBasicMaterial&&o.material.name==='Office baked static atlas';
+      if(baked){o.material.toneMapped=false;bakedMeshes++;}
+      o.receiveShadow=!baked;
+      o.castShadow=!o.name.toLowerCase().includes('glass')&&!o.name.toLowerCase().includes('sky');
+      if(o.material?.map)o.material.map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+    });
+    if(bakedCandidate&&!bakedMeshes)throw Error('Baked candidate has no unlit atlas meshes');
     stats=optimizeStaticMeshes(model);
     const report=()=>{host.dataset.frames=String(++frames);host.dataset.drawCalls=String(renderer.info.render.calls);host.dataset.triangles=String(renderer.info.render.triangles);host.dataset.pixelRatio=resolution.ratio.toFixed(2);host.dataset.batchesBefore=String(stats.before);host.dataset.batchesAfter=String(stats.after);host.dataset.instances=String(stats.instances);};
     let qualityCap=maxRatio();
@@ -156,6 +171,6 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     readyMs=performance.now()-started;
     host.replaceChildren(canvas);observer=new ResizeObserver(resize);observer.observe(host);
     document.addEventListener('visibilitychange',visibility);
-    return {go,dispose,setGraphicsPreset,metrics:()=>({...stats,...motionMetrics.snapshot(),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
+    return {go,dispose,setGraphicsPreset,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
   }catch(err){dispose();throw err;}
 }

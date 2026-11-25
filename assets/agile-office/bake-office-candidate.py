@@ -135,6 +135,26 @@ def diffuse_target(obj):
     return bool(obj.data.materials)
 
 
+def combined_target(obj):
+    """Keep transparent, emissive and visibly reflective surfaces on PBR."""
+    if not diffuse_target(obj):
+        return False
+    if any(word in obj.name.lower() for word in ("screen", "display", "mirror")):
+        return False
+    for material in obj.data.materials:
+        shader = next(n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+        if shader.inputs["Metallic"].default_value > .10:
+            return False
+        if shader.inputs["Roughness"].default_value < .45:
+            return False
+        emission = shader.inputs.get("Emission Color")
+        if emission and (emission.is_linked or max(emission.default_value[:3]) > .01):
+            return False
+        if any(shader.inputs[key].is_linked for key in ("Metallic", "Roughness", "Alpha")):
+            return False
+    return True
+
+
 def unwrap_targets(targets):
     bpy.ops.object.select_all(action="DESELECT")
     for obj in targets:
@@ -153,7 +173,7 @@ def unwrap_targets(targets):
         bpy.ops.object.mode_set(mode="OBJECT")
 
 
-def bake_lightmap(scene, targets, output, atlas_size):
+def bake_lightmap(scene, targets, output, atlas_size, combined=False):
     image = bpy.data.images.new("Office diffuse illumination", width=atlas_size,
                                 height=atlas_size, alpha=False, float_buffer=True)
     nodes = []
@@ -169,11 +189,22 @@ def bake_lightmap(scene, targets, output, atlas_size):
             tree.nodes.active = node
             nodes.append((tree, node))
         scene.cycles.use_denoising = False
-        bpy.ops.object.bake(type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT"},
-                            uv_layer="Lightmap", margin=4, use_clear=True)
-        image.filepath_raw = str(output / "office-diffuse-lightmap.exr")
+        if combined:
+            bpy.ops.object.bake(type="COMBINED", uv_layer="Lightmap",
+                                margin=8, use_clear=True)
+            image.filepath_raw = str(output / "office-combined-linear.exr")
+        else:
+            bpy.ops.object.bake(type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT"},
+                                uv_layer="Lightmap", margin=4, use_clear=True)
+            image.filepath_raw = str(output / "office-diffuse-lightmap.exr")
         image.file_format = "OPEN_EXR"
         image.save()
+        if combined:
+            # Apply the display transform exactly once. The candidate runtime
+            # disables tone mapping only for its display-referred unlit atlas.
+            scene.render.image_settings.file_format = "PNG"
+            scene.render.image_settings.color_mode = "RGB"
+            image.save_render(str(output / "office-combined.png"), scene=scene)
         if not Path(image.filepath_raw).is_file():
             raise RuntimeError("Missing baked EXR")
     finally:
@@ -184,12 +215,72 @@ def bake_lightmap(scene, targets, output, atlas_size):
             obj.data.uv_layers[0].active_render = True
 
 
+def embed_unlit_atlas(source, output, names):
+    """Attach a baked color atlas to UV1 using glTF's standard unlit extension."""
+    raw = source.read_bytes()
+    size, kind = struct.unpack_from("<I4s", raw, 12)
+    if kind != b"JSON":
+        raise ValueError("Expected GLB JSON")
+    doc = json.loads(raw[20:20 + size])
+    offset = 20 + size
+    binary_size, binary_kind = struct.unpack_from("<I4s", raw, offset)
+    if binary_kind != b"BIN\x00" or offset + 8 + binary_size != len(raw):
+        raise ValueError("Expected exactly one GLB binary chunk")
+    binary = bytearray(raw[offset + 8:])
+    atlas = (output / "office-combined.png").read_bytes()
+    if not atlas.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ValueError("Missing PNG atlas")
+    view = len(doc["bufferViews"])
+    doc["bufferViews"].append({"buffer": 0, "byteOffset": len(binary), "byteLength": len(atlas)})
+    binary.extend(atlas)
+    binary.extend(b"\x00" * ((-len(binary)) % 4))
+    doc["buffers"][0]["byteLength"] = len(binary)
+    image = len(doc.setdefault("images", []))
+    doc["images"].append({"name": "Office combined atlas", "bufferView": view, "mimeType": "image/png"})
+    texture = len(doc.setdefault("textures", []))
+    doc["textures"].append({"source": image})
+    material = len(doc["materials"])
+    doc["materials"].append({
+        "name": "Office baked static atlas",
+        "pbrMetallicRoughness": {"baseColorTexture": {"index": texture, "texCoord": 1},
+                                 "metallicFactor": 0, "roughnessFactor": 1},
+        "extensions": {"KHR_materials_unlit": {}}
+    })
+    for key in ("extensionsUsed", "extensionsRequired"):
+        if "KHR_materials_unlit" not in doc.setdefault(key, []):
+            doc[key].append("KHR_materials_unlit")
+    # A mesh shared by eligible and ineligible nodes must not be mutated.
+    patched = set()
+    for node in doc["nodes"]:
+        if node.get("name") not in names:
+            continue
+        mesh = doc["meshes"][node["mesh"]]
+        clone = {**mesh, "primitives": []}
+        for primitive in mesh["primitives"]:
+            if "TEXCOORD_1" not in primitive["attributes"]:
+                raise ValueError("Baked primitive lacks UV1")
+            clone["primitives"].append({**primitive, "material": material})
+        node["mesh"] = len(doc["meshes"])
+        doc["meshes"].append(clone)
+        patched.add(node["name"])
+    if patched != names:
+        raise ValueError("Unlit assignment does not match bake targets")
+    header = json.dumps(doc, separators=(",", ":")).encode()
+    header += b" " * ((-len(header)) % 4)
+    chunks = struct.pack("<I4s", len(header), b"JSON") + header
+    chunks += struct.pack("<I4s", len(binary), b"BIN\x00") + binary
+    candidate = output / "office-baked.glb"
+    candidate.write_bytes(struct.pack("<4sII", b"glTF", 2, 12 + len(chunks)) + chunks)
+    return candidate
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--layout", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--samples", type=int, choices=(16, 32, 64), default=16)
+    parser.add_argument("--combined", action="store_true")
     parser.add_argument("--atlas", type=int, choices=(1024, 2048, 4096), default=1024)
     args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
     source, output = args.source.resolve(), args.output.resolve()
@@ -199,12 +290,14 @@ def main():
         raise ValueError("Original office triangle count changed")
     layout = json.loads(args.layout.read_text(encoding="utf-8"))
     scene = setup_scene(source, layout, args.samples)
-    render_previews(scene, layout, output)
-    targets = [obj for obj in scene.objects if diffuse_target(obj)]
+    if not args.combined:
+        render_previews(scene, layout, output)
+    eligible = combined_target if args.combined else diffuse_target
+    targets = [obj for obj in scene.objects if eligible(obj)]
     if not targets:
         raise RuntimeError("No diffuse lightmap targets")
     unwrap_targets(targets)
-    bake_lightmap(scene, targets, output, args.atlas)
+    bake_lightmap(scene, targets, output, args.atlas, args.combined)
     candidate = output / "office-bake-uv.glb"
     bpy.ops.export_scene.gltf(filepath=str(candidate), export_format="GLB",
                               export_cameras=False, export_lights=False,
@@ -215,7 +308,12 @@ def main():
     missing = sorted({obj.name for obj in targets} - set(summary["secondary_uv_nodes"]))
     if missing:
         raise ValueError(f"Missing secondary UVs: {missing}")
-    report = {"status": "review_only", "blender": bpy.app.version_string,
+    if args.combined:
+        candidate = embed_unlit_atlas(candidate, output, {obj.name for obj in targets})
+        summary = glb_summary(candidate)
+        if summary["triangles"] != original["triangles"]:
+            raise ValueError("Unlit candidate changed triangles")
+    report = {"status": "review_only", "mode": "combined" if args.combined else "diffuse", "blender": bpy.app.version_string,
               "original": original, "candidate": summary,
               "baked_nodes": sorted(obj.name for obj in targets),
               "atlas": args.atlas, "samples": args.samples,

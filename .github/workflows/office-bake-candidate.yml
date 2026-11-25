@@ -1,8 +1,8 @@
-name: Office lighting and preview candidates
+name: Office hybrid combined bake candidate
 
 on:
   push:
-    branches: ['perf/1.6.17-lightmap-candidate']
+    branches: ['perf/1.6.17-hybrid-baked']
     paths:
       - 'assets/agile-office/bake-office-candidate.py'
       - '.github/workflows/office-bake-candidate.yml'
@@ -39,25 +39,28 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y blender
           blender --version
-      - name: Render native Full HD views and bake diffuse lighting
+      - name: Bake static combined color atlas
         run: |
           mkdir -p office-candidates
-          blender --background --factory-startup --python-exit-code 1 --python assets/agile-office/bake-office-candidate.py -- --source assets/agile-office/office.glb --layout assets/agile-office/scene.json --output office-candidates --samples 32 --atlas 1024
-      - name: Verify native previews and encode candidate WebP files
+          blender --background --factory-startup --python-exit-code 1 --python assets/agile-office/bake-office-candidate.py -- --source assets/agile-office/office.glb --layout assets/agile-office/scene.json --output office-candidates --samples 32 --atlas 2048 --combined
+      - name: Verify atlas and candidate model
         run: |
           python - <<'PY'
+          import json
           from pathlib import Path
           from PIL import Image
-          for i in range(3):
-              path = Path("office-candidates") / f"view-{i}.png"
-              with Image.open(path) as im:
-                  assert im.size == (1920, 1080), im.size
-                  im.convert("RGB").save(path.with_suffix(".webp"), quality=92, method=6)
+          root = Path("office-candidates")
+          report = json.loads((root / "bake-report.json").read_text())
+          assert report["mode"] == "combined" and report["baked_nodes"]
+          with Image.open(root / "office-combined.png") as im:
+              assert im.size == (2048, 2048)
+              assert any(high > low for low, high in im.convert("RGB").getextrema())
+          assert (root / "office-baked.glb").stat().st_size > 0
           PY
       - uses: actions/upload-artifact@v6
         if: always()
         with:
-          name: office-lighting-review-candidates
+          name: office-hybrid-review-candidate
           path: office-candidates/
           if-no-files-found: warn
           retention-days: 14

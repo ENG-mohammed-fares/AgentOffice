@@ -15,6 +15,7 @@ let server, win;
 const previewDir=process.env.AGENTOFFICE_PREVIEW_DIR;
 const previewMode=Boolean(previewDir);
 const preset=process.env.AGENTOFFICE_GRAPHICS_PRESET||'balanced';
+const bakedCandidate=process.env.AGENTOFFICE_BAKED_CANDIDATE==='1';
 assert.ok(['balanced','high','performance'].includes(preset),'Invalid graphics preset');
 const page = `<!doctype html><meta charset="utf-8"><title>AgentOffice renderer benchmark</title>
 <style>html,body,#host{width:100%;height:100%;margin:0;overflow:hidden}canvas{display:block;width:100%;height:100%}</style>
@@ -40,7 +41,7 @@ window.benchmarkResult=(async()=>{
   let view,contextLost=false,keepView=false;
   try{
     const start=performance.now();
-    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)}});
+    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)},bakedCandidate:${JSON.stringify(bakedCandidate)}});
     const firstFrameMs=round(performance.now()-start);
     await quiet(0);
     const initial=view.metrics(),initialFrames=count();
@@ -121,7 +122,8 @@ async function run(){
     assert.ok(t.frames>0,'No camera-transition frames');
     assert.equal(t.idleExtraFrames,0,'Unexpected idle rendering after transition');
   }
-  if(process.env.AGENTOFFICE_REQUIRE_KTX2==='1')assert.equal(result.textureFormat,'ktx2');
+  if(bakedCandidate){assert.equal(result.textureFormat,'baked-candidate');assert.ok(result.initial.bakedMeshes>0);}
+  else if(process.env.AGENTOFFICE_REQUIRE_KTX2==='1')assert.equal(result.textureFormat,'ktx2');
 }
 app.whenReady().then(run).then(()=>finish(0),error=>{console.error(error);finish(1);});
 function finish(code){

@@ -99,6 +99,9 @@ jobs:
       - name: Validate compressed and original geometry
         run: python assets/agile-office/verify-ktx2.py app/public/office
 
+      - name: Install local crash monitoring
+        run: python scripts/apply-crash-monitor.py
+
       - name: Check JavaScript syntax
         shell: pwsh
         run: |
@@ -147,6 +150,14 @@ jobs:
           New-Item -ItemType Directory -Force public/basis | Out-Null
           Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.js public/basis/
           Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.wasm public/basis/
+
+      - name: Crash monitoring unit tests
+        working-directory: app
+        run: node --test scripts/crash-monitor.test.cjs
+
+      - name: Real Electron crash monitoring smoke test
+        working-directory: app
+        run: npx --no-install electron scripts/crash-monitor-smoke.cjs
 
       - name: Production Vite build
         working-directory: app

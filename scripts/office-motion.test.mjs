@@ -10,7 +10,8 @@ function fixture(i=0){
 const advance=(m,n)=>{for(let i=0;i<n;i++)m.update(.05);};
 test('seated agents type, pull the chair, rise before walking, then sit and push it in',()=>{
  const f=fixture(),m=f.motion;assert.equal(m.phase,'seated');m.setActivity('working');assert.equal(f.poses.at(-1),'seatedTyping');
- m.requestMeeting(true);advance(m,5);assert.equal(m.phase,'pull');assert.ok(f.chairs.get('desk_0').z>0);assert.equal(f.poses.at(-1),'sitting');
+ const initialZ=f.chairs.get('desk_0').z;
+ m.requestMeeting(true);advance(m,5);assert.equal(m.phase,'pull');assert.ok(f.chairs.get('desk_0').z>initialZ,'chair must move backward relative to its tucked starting position');assert.equal(f.poses.at(-1),'sitting');
  advance(m,11);assert.equal(m.phase,'rise');assert.equal(f.poses.at(-1),'idle');
  advance(m,20);assert.equal(m.phase,'walk');assert.equal(f.poses.at(-1),'walking');
  advance(m,1000);assert.equal(m.phase,'seated');assert.equal(m.location,'meeting_0');assert.equal(f.poses.at(-1),'seatedMeeting');assert.equal(f.chairs.get('meeting_0').x,0);
@@ -26,4 +27,13 @@ test('meeting queue serializes travel and returns every agent',()=>{
  assert.ok(records.every(r=>r.location.startsWith('meeting_')&&r.phase==='seated'));
  q.request(false);for(let i=0;i<9000;i++)q.update(.05);
  assert.ok(records.every(r=>r.location.startsWith('desk_')&&r.phase==='seated'));
+});
+
+test('destination chair is pulled gradually before stepping into the seat space',()=>{
+ const f=fixture(),m=f.motion;m.requestMeeting(true);
+ for(let i=0;i<2000&&m.phase!=='prepare-chair';i++)m.update(.05);
+ assert.equal(m.phase,'prepare-chair');const initial=f.chairs.get('meeting_0')?.x??0;
+ m.update(.05);const first=f.chairs.get('meeting_0').x;assert.ok(first<initial&&first>-.55);
+ for(let i=0;i<20&&m.phase==='prepare-chair';i++)m.update(.05);
+ assert.equal(m.phase,'approach-seat');assert.ok(Math.abs(f.chairs.get('meeting_0').x+.55)<1e-8);
 });

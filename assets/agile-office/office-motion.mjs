@@ -37,9 +37,10 @@ function turn(current,target,dt){
   return current+Math.max(-dt*4,Math.min(dt*4,delta));
 }
 export function createSeatedMotion({plan,position,rotation,setPose,setChair,groundY=0}){
-  let seat=plan.desk,desired=seat,phase='seated',clock=0,activity='idle',route=[],cursor=0;
+  let seat=plan.desk,desired=seat,phase='seated',clock=0,activity='idle',route=[],cursor=0,arrivalPull=0;
   const setPosition=p=>{position.x=p.x;position.z=p.z;position.y=groundY;};
-  const setOffset=(s,n)=>setChair(s.id,chairOffset(s,n));
+  const pulls=new Map([[plan.desk.id,0],[plan.meeting.id,0]]);
+  const setOffset=(s,n)=>{pulls.set(s.id,n);setChair(s.id,chairOffset(s,n));};
   const seatedPose=()=>seat===plan.meeting?'seatedMeeting':activity==='working'?'seatedTyping':'sitting';
   function enter(next){phase=next;clock=0;}
   function completeSeat(){setPosition(seat.at);rotation.y=yawFor(seat.forward);setOffset(seat,0);setPose(seatedPose());enter('seated');}
@@ -59,7 +60,8 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
       }else if(phase==='rise'){
         setPosition(mix(plus(seat.at,seat.forward,-PULL),standingPoint(seat),ease(clock/.8)));
         if(clock>=.8){
-          route=seat===plan.desk?meetingRoute(plan.desk,plan.meeting):meetingRoute(plan.desk,plan.meeting).slice(0,-1).reverse().concat([standingPoint(plan.desk)]);
+          const corridor=meetingRoute(plan.desk,plan.meeting).slice(0,-1);
+          route=seat===plan.desk?corridor:corridor.reverse();
           cursor=0;setPose('walking');enter('walk');
         }
       }else if(phase==='walk'){
@@ -71,7 +73,17 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
           const step=Math.min(remaining,d);setPosition(mix(position,target,step/d));remaining-=step;
           if(step>=d-1e-5)cursor++;
         }
-        if(cursor===route.length){seat=seat===plan.desk?plan.meeting:plan.desk;setOffset(seat,1);setPose('idle');enter('align');}
+        if(cursor===route.length){
+          seat=seat===plan.desk?plan.meeting:plan.desk;
+          arrivalPull=pulls.get(seat.id)??0;setPose('idle');enter('prepare-chair');
+        }
+      }else if(phase==='prepare-chair'){
+        setOffset(seat,arrivalPull+(1-arrivalPull)*ease(clock/.65));
+        if(clock>=.65){setPose('walking');enter('approach-seat');}
+      }else if(phase==='approach-seat'){
+        const target=standingPoint(seat),d=dist(position,target);
+        if(d<=WALK*dt){setPosition(target);setPose('idle');enter('align');}
+        else{rotation.y=turn(rotation.y,yawFor(point(target.x-position.x,target.z-position.z)),dt);setPosition(mix(position,target,WALK*dt/d));}
       }else if(phase==='align'){
         rotation.y=turn(rotation.y,yawFor(seat.forward),dt);
         if(clock>=.9){rotation.y=yawFor(seat.forward);setPose('sitting');enter('lower');}

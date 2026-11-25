@@ -2,7 +2,7 @@ name: AgentOffice CI
 
 on:
   push:
-    branches-ignore: [development]
+    branches-ignore: [development, lab/office-baked-assets]
   pull_request:
   workflow_dispatch:
   workflow_call:

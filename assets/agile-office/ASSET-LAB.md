@@ -1,0 +1,3 @@
+# Real asset optimization lab
+
+Runs on the actual authored seven-station, two-room asset, separately from production. KTX2 UASTC converts only known sRGB base-color textures, validates each image against KHR_texture_basisu, and preserves geometry. Cycles makes a first-pass diffuse bake with secondary UVs and linear EXR maps per eligible interior mesh. Glass, metallic and emissive surfaces are intentionally excluded. Test artifacts are not release inputs until visual and hardware validation; this is not a claim of completed production light baking. No external runtime dependency.

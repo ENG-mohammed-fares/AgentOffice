@@ -1,0 +1,60 @@
+name: Actual Office - KTX2 and Cycles lightmaps
+on:
+  push:
+    branches: [lab/office-baked-assets]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  asset-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [ktx2, bake]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Generate actual office
+        run: |
+          python -m pip install "numpy==2.3.5" "scipy==1.17.0" "trimesh==4.11.1" "Pillow==12.3.0"
+          python assets/agile-office/build_scene.py
+          python assets/agile-office/export_glb.py
+          mkdir -p output
+      - name: Install pinned Khronos KTX tools
+        if: matrix.task == 'ktx2'
+        run: |
+          curl -fL --retry 2 https://github.com/KhronosGroup/KTX-Software/releases/download/v4.4.2/KTX-Software-4.4.2-Linux-x86_64.deb -o "$RUNNER_TEMP/ktx.deb"
+          echo "ca635ed489d8bf54fac8d7687056c651193de0740830a7738cc034adc63e3027  $RUNNER_TEMP/ktx.deb" | sha256sum -c -
+          sudo apt-get install -y "$RUNNER_TEMP/ktx.deb"
+          toktx --version
+          ktx --version
+      - name: Convert actual office textures
+        if: matrix.task == 'ktx2'
+        run: python assets/agile-office/compress-ktx2.py assets/agile-office/office.glb output/office-ktx2.glb
+      - name: Install verified Blender 4.5.3
+        if: matrix.task == 'bake'
+        run: |
+          set -euo pipefail
+          url=https://download.blender.org/release/Blender4.5
+          file=blender-4.5.3-linux-x64.tar.xz
+          curl -fL --retry 2 "$url/$file" -o "$RUNNER_TEMP/$file"
+          curl -fL --retry 2 "$url/blender-4.5.3.sha256" -o "$RUNNER_TEMP/checksums"
+          cd "$RUNNER_TEMP"
+          grep -E ' [*]?blender-4[.]5[.]3-linux-x64[.]tar[.]xz$' checksums | sha256sum -c -
+          tar xf "$file"
+      - name: Bake actual office static diffuse lighting
+        if: matrix.task == 'bake'
+        run: |
+          "$RUNNER_TEMP/blender-4.5.3-linux-x64/blender" -b --factory-startup --python-exit-code 1 --python assets/agile-office/bake-office.py -- assets/agile-office output
+      - uses: actions/upload-artifact@v6
+        with:
+          name: office-${{ matrix.task }}-candidate
+          path: output/
+          if-no-files-found: error
+          retention-days: 14

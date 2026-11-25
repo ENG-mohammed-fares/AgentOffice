@@ -132,8 +132,74 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Validate coverage reporter
-        run: node --test scripts/coverage-report.test.cjs
+      - name: Validate coverage reporter and measure tooling coverage
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force coverage | Out-Null
+          Remove-Item Env:NODE_V8_COVERAGE -ErrorAction SilentlyContinue
+          node --test --experimental-test-coverage "--test-coverage-include=scripts/run-coverage.cjs" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/tooling-lcov.info scripts/coverage-report.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Coverage reporter tests failed.' }
+          if (!(Test-Path coverage/tooling-lcov.info)) { throw 'Tooling LCOV missing.' }
+          if (!(Select-String -Path coverage/tooling-lcov.info -Pattern '^SF:.*run-coverage\.cjs
+
+      - name: Unit tests with production-source code coverage
+        run: node scripts/run-coverage.cjs
+
+      - name: Upload code coverage reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: agentoffice-code-coverage
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Package local KTX2 transcoder
+        working-directory: app
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force public/basis | Out-Null
+          Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.js public/basis/
+          Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.wasm public/basis/
+
+      - name: Production Vite build
+        working-directory: app
+        run: npm run build --ignore-scripts
+
+      - name: Electron authentication smoke tests
+        working-directory: app
+        run: npx --no-install electron scripts/auth-smoke.cjs
+
+      - name: Package tested Windows build (no publishing)
+        working-directory: app
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: npx --no-install electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never
+
+      - name: Prepare candidate manifest and verify update metadata
+        shell: pwsh
+        run: python scripts/release-candidate.py create
+
+      - name: Upload Windows candidate for QA
+        uses: actions/upload-artifact@v6
+        with:
+          name: agentoffice-windows-candidate
+          path: candidate/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Dependency security audit (blocking high and critical)
+        working-directory: app
+        run: npm audit --audit-level=high
+
+      - name: Require committed dependency lock for release eligibility
+        shell: pwsh
+        run: |
+          if ((Get-Content ./ci-lock-present.txt -Raw).Trim() -ne 'true') {
+            throw 'Commit the reviewed package-lock.json from the dependency-lock artifact before release.'
+          }
+ -Quiet)) { throw 'Coverage runner missing from tooling report.' }
 
       - name: Unit tests with production-source code coverage
         run: node scripts/run-coverage.cjs

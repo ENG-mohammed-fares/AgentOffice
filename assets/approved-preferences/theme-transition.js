@@ -22,11 +22,11 @@ async function changeTheme(next,event,systemChange=false){
       await reveal.finished;
     }catch{transition.skipTransition()}
     await transition.finished.catch(()=>{});
-  }finally{root.classList.remove('theme-switching');themeChanging=false;if(themeMode==='system'&&effectiveTheme('system')!==theme)changeTheme('system',null,true)}
+  }finally{root.classList.remove('theme-switching');themeChanging=false;if(themeMode==='system'&&effectiveTheme('system')!==theme)void changeTheme('system',null,true).catch(console.error)}
 }
 byId('theme').onclick=event=>{
   // Normal click changes appearance immediately; Shift+click returns to System.
-  changeTheme(event.shiftKey?'system':theme==='dark'?'light':'dark',event);
+  void changeTheme(event.shiftKey?'system':theme==='dark'?'light':'dark',event).catch(console.error);
 };
-byId('theme').addEventListener('contextmenu',event=>{event.preventDefault();changeTheme('system',event)});
-themeMedia.addEventListener('change',()=>{if(themeMode==='system')changeTheme('system',null,true)});
+byId('theme').addEventListener('contextmenu',event=>{event.preventDefault();void changeTheme('system',event).catch(console.error)});
+themeMedia.addEventListener('change',()=>{if(themeMode==='system')void changeTheme('system',null,true).catch(console.error)});

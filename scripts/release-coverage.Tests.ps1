@@ -87,6 +87,13 @@ Describe 'Public release orchestration (isolated; no external writes)' {
         { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*Candidate hash mismatch*'
         Should -Invoke Get-AuthenticodeSignature -Times 0 -Exactly
     }
+    It 'accepts an unsigned candidate through the local checks without signing credentials' {
+        $env:AGENTOFFICE_SIGNING_PUBLISHER=''
+        $env:AGENTOFFICE_SIGNING_THUMBPRINT=''
+        Mock gh { throw 'Fixture source head reached' }
+        { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*Fixture source head reached*'
+        Should -Invoke Get-AuthenticodeSignature -Times 0 -Exactly
+    }
     It 'rejects a mismatched provenance manifest before publication' {
         $env:EXPECTED_RUN_ID='different'
         { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*Candidate manifest mismatch*'

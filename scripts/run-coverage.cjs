@@ -5,11 +5,6 @@ const {spawnSync} = require('node:child_process');
 const assert = require('node:assert/strict');
 
 const root = path.resolve(__dirname, '..');
-const app = path.join(root, 'app');
-const output = path.join(root, 'coverage');
-const rawPath = path.join(output, 'raw-lcov.info');
-const lcovPath = path.join(output, 'lcov.info');
-const summaryPath = path.join(output, 'summary.json');
 const required = [
   'app/electron/identity.cjs',
   'app/electron/update-policy.cjs',
@@ -17,14 +12,14 @@ const required = [
   'app/src/office-batching.mjs'
 ];
 const slash = p => p.split(path.sep).join('/');
-function inventory(dir) {
+function inventory(dir, rootDir) {
   return fs.readdirSync(dir, {withFileTypes:true}).flatMap(entry => {
     const p = path.join(dir, entry.name);
-    return entry.isDirectory() ? inventory(p) :
-      entry.isFile() && /\.(js|cjs|mjs)$/i.test(entry.name) ? [slash(path.relative(root,p))] : [];
+    return entry.isDirectory() ? inventory(p,rootDir) :
+      entry.isFile() && /\.(js|cjs|mjs)$/i.test(entry.name) ? [slash(path.relative(rootDir,p))] : [];
   });
 }
-function collect(raw, files) {
+function collect(raw, files, rootDir=root) {
   const available = new Set(files);
   const records = new Map();
   const normalized = [];
@@ -33,8 +28,8 @@ function collect(raw, files) {
     const lines = record.trim().split(/\r?\n/);
     const sf = lines.filter(s=>s.startsWith('SF:'));
     assert.equal(sf.length,1,'Invalid LCOV source record');
-    const absolute = path.resolve(app,sf[0].slice(3));
-    const relative = slash(path.relative(root,absolute));
+    const absolute = path.resolve(rootDir,'app',sf[0].slice(3));
+    const relative = slash(path.relative(rootDir,absolute));
     assert.ok(available.has(relative),'Unexpected coverage source: '+relative);
     assert.ok(!records.has(relative),'Duplicate coverage source: '+relative);
     const count = key => {
@@ -63,17 +58,22 @@ function collect(raw, files) {
     missingRequired:required.filter(p=>!records.has(p)||records.get(p).lines.hit===0)
   }};
 }
-function main(){
+function main({rootDir=root,run=spawnSync,environment=process.env,log=console.log}={}){
+  const app=path.join(rootDir,'app');
+  const output=path.join(rootDir,'coverage');
+  const rawPath=path.join(output,'raw-lcov.info');
+  const lcovPath=path.join(output,'lcov.info');
+  const summaryPath=path.join(output,'summary.json');
   assert.ok(Number(process.versions.node.split('.')[0])>=22,'Node 22+ required');
-  const files=[...inventory(path.join(app,'src')),...inventory(path.join(app,'electron'))].sort();
+  const files=[...inventory(path.join(app,'src'),rootDir),...inventory(path.join(app,'electron'),rootDir)].sort((a,b)=>a.localeCompare(b,'en'));
   for(const p of required)assert.ok(files.includes(p),'Missing expected production source: '+p);
   fs.mkdirSync(output,{recursive:true});
   for(const p of [rawPath,lcovPath,summaryPath])fs.rmSync(p,{force:true});
-  const tests=fs.readdirSync(path.join(app,'scripts')).filter(s=>/\.test\.(js|cjs|mjs)$/.test(s)).sort();
+  const tests=fs.readdirSync(path.join(app,'scripts')).filter(s=>/\.test\.(js|cjs|mjs)$/.test(s)).sort((a,b)=>a.localeCompare(b,'en'));
   for(const p of ['identity.test.cjs','office-performance.test.mjs'])assert.ok(tests.includes(p),'Missing mandatory test: '+p);
-  const env={...process.env};
+  const env={...environment};
   delete env.NODE_V8_COVERAGE;
-  const result=spawnSync(process.execPath,[
+  const result=run(process.execPath,[
     '--test','--experimental-test-coverage',
     '--test-coverage-include=src/**','--test-coverage-include=electron/**',
     '--test-reporter=spec','--test-reporter-destination=stdout',
@@ -82,7 +82,7 @@ function main(){
   ],{cwd:app,stdio:'inherit',env});
   if(result.error)throw result.error;
   assert.ok(fs.existsSync(rawPath),'Missing LCOV output');
-  const {lcov,report}=collect(fs.readFileSync(rawPath,'utf8'),files);
+  const {lcov,report}=collect(fs.readFileSync(rawPath,'utf8'),files,rootDir);
   report.tests=tests;
   report.testExitCode=result.status;
   fs.writeFileSync(lcovPath,lcov);
@@ -94,11 +94,12 @@ function main(){
     'Unmeasured source files: '+report.unmeasuredFiles.length,
     'These percentages do not represent whole-app or Electron runtime coverage.',
     '', 'Full file inventory: coverage/summary.json. Sonar-compatible paths: coverage/lcov.info.',''];
-  console.log(lines.join('\n'));
-  if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join('\n'));
+  log(lines.join('\n'));
+  if(environment.GITHUB_STEP_SUMMARY)fs.appendFileSync(environment.GITHUB_STEP_SUMMARY,lines.join('\n'));
   assert.equal(result.status,0,'Unit tests failed');
   assert.deepEqual(report.missingRequired,[],'Required modules must be measured with at least one covered line');
   assert.ok(report.totals.lines.total>0,'Empty coverage report');
+  return report;
 }
 if(require.main===module)main();
-module.exports={collect};
+module.exports={collect,main};

@@ -20,9 +20,16 @@ jobs:
     permissions:
       contents: read
 
+  private-security:
+    name: Verify local security scans
+    if: github.ref == 'refs/heads/development' && github.repository == 'ENG-mohammed-fares/AgentOffice'
+    uses: ./.github/workflows/private-security.yml
+    permissions:
+      contents: read
+
   verify:
     name: Verify exact tested candidate
-    needs: ci
+    needs: [ci, private-security]
     runs-on: windows-latest
     timeout-minutes: 10
     outputs:

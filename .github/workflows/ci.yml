@@ -152,6 +152,9 @@ jobs:
         working-directory: app
         run: npm run build --ignore-scripts
 
+      - name: Check renderer benchmark syntax
+        run: node --check scripts/office-runtime-benchmark.cjs
+
       # Hosted runners may use software graphics. Enable only to collect a CI
       # renderer report; a Windows reference-device benchmark is still required.
       - name: Optional Electron renderer benchmark

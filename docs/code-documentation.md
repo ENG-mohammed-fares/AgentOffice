@@ -8,6 +8,12 @@ New and materially changed exported functions, public methods, classes and nontr
 
 Place a JSDoc block immediately above the declaration. Describe intent, relevant types, units, defaults, return value, errors and side effects. For object parameters document important properties or use a named typedef when the structure is shared. Example:
 
+For modules already importing a namespace, use that namespace in JSDoc types
+(for example `THREE.AnimationClip`). The current conservative architecture gate
+also scans comment text for dynamic-import syntax. Do not add type-only import
+expressions or bypass the gate to accommodate them. Run the existing refactoring
+gate against the prepared application after documentation changes too.
+
 ```js
 /**
  * Computes a normalized progress value from elapsed time.

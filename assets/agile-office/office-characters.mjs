@@ -5,9 +5,9 @@ import {seatingPlan,createSeatedMotion,createMeetingQueue} from './office-motion
 // Compose genuine skeletal tracks: seated pelvis and legs, animated upper body.
 /**
  * Combines seated lower-body skeletal tracks with animated upper-body tracks.
- * @param {import('three').AnimationClip[]} clips - Source clips including Sitting and activity clips.
+ * @param {THREE.AnimationClip[]} clips - Source clips including Sitting and activity clips.
  * @param {object} [THREEImpl] - Three.js implementation used to create clips.
- * @returns {import('three').AnimationClip[]} Derived clips, without mutating source tracks.
+ * @returns {THREE.AnimationClip[]} Derived clips, without mutating source tracks.
  */
 export function seatedClips(clips,THREEImpl=THREE){
   const sitting=clips.find(c=>c.name==='Sitting');

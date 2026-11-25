@@ -19,7 +19,7 @@ def load(name, filename):
 
 feed = load("update_feed", "verify-update-feed.py")
 candidate = load("release_candidate", "release-candidate.py")
-GOOD = "provider: github\nowner: ENG-mohammed-fares\nrepo: AgentOffice-Releases\n"
+GOOD = "provider: github\nowner: ENG-mohammed-fares\nrepo: AgentOffice\n"
 
 
 class FeedTests(unittest.TestCase):
@@ -42,7 +42,7 @@ class FeedTests(unittest.TestCase):
     def test_invalid_fields(self):
         for text in (
             GOOD.replace("repo: AgentOffice-Releases", "repo: AgentOffice"),
-            GOOD + "repo: AgentOffice\n",
+            GOOD + "repo: AgentOffice-Releases\n",
             GOOD.replace("provider: github", "provider:\ngithub"),
             GOOD.replace("owner: ENG-mohammed-fares\n", ""),
             GOOD + "private: false\n",

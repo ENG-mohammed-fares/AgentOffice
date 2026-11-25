@@ -41,7 +41,7 @@ class FeedTests(unittest.TestCase):
 
     def test_invalid_fields(self):
         for text in (
-            GOOD.replace("repo: AgentOffice-Releases", "repo: AgentOffice"),
+            GOOD.replace("repo: AgentOffice", "repo: AgentOffice-Releases"),
             GOOD + "repo: AgentOffice-Releases\n",
             GOOD.replace("provider: github", "provider:\ngithub"),
             GOOD.replace("owner: ENG-mohammed-fares\n", ""),

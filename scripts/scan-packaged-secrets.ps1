@@ -18,10 +18,20 @@ try {
     } finally { Pop-Location }
     if (!(Test-Path (Join-Path $extracted 'electron/main.cjs')) -or !(Test-Path (Join-Path $extracted 'dist/index.html'))) { throw 'Packaged source inventory incomplete.' }
     $config = Join-Path $root '.github/security/gitleaks.toml'
+    # Scan ASAR entries in their decoded, named form above rather than
+    # scanning the same container as an opaque binary without file context.
+    # Every other resource, including app.asar.unpacked, stays in scope.
+    $loose = Join-Path $workspace 'loose-resources'
+    New-Item -ItemType Directory -Path $loose | Out-Null
+    foreach ($resource in Get-ChildItem -LiteralPath $resources -Force) {
+        if ($resource.FullName -eq $asar) { continue }
+        Copy-Item -LiteralPath $resource.FullName -Destination $loose -Recurse -Force
+    }
+    if (Test-Path -LiteralPath (Join-Path $loose 'app.asar')) { throw 'Unexpected duplicate ASAR in loose resource scan.' }
     $scanFailed = $false
     $targets = [ordered]@{
         'extracted-asar' = $extracted
-        'resources' = $resources
+        'loose-resources' = $loose
         'vite-output' = (Join-Path $root 'app/dist')
     }
     foreach ($label in $targets.Keys) {

@@ -38,8 +38,10 @@ Status: deferred on 2026-11-25; no application submitted.
 
 ## Pending foundation blockers (not completed or silently deferred)
 
-- Confirm SonarCloud project is private and free-plan eligible, set the repository privacy-confirmation variable, rerun the full integrated Quality Gate.
+- Owner reported Free plan and private-project configuration complete; verify the privacy-confirmation variable via CI and rerun the full integrated Quality Gate.
 - Restore native branch protection with eligible GitHub Pro/Team entitlement; confirm independent reviewer availability. CI is not native branch protection.
-- Create the separate public binary-only distribution repository and scoped publishing secret; complete trusted signing and migration from the old private feed before public release.
+- Public binary-only distribution repository created; configure the scoped publishing secret; complete trusted signing and migration from the old private feed before public release.
 - Run reference-device renderer performance and installed-app QA (live login, crash behavior, signed update migration). Record measured results rather than estimates.
 - Complete integrated CI and review before adopting in development. Do not claim production release readiness while any applicable gate remains blocked.
+
+- Public-facing documentation exists in the separate distribution repository; complete release-specific privacy review and third-party license notices before public distribution.

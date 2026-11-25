@@ -32,3 +32,18 @@ test('missing clips, missing rig and cancellation clean up without partial chara
  }
  const f=fixture();await assert.rejects(loadCharacterRoster({...base,read:f.read,loader:f.loader,isCancelled:()=>true}),/cancelled/);assert.equal(f.loaded,0);
 });
+
+test('invalid station data and cancellation after decoding are rejected safely',async()=>{
+ assert.throws(()=>rosterPlan(roster,null),/Expected seven/);
+ assert.throws(()=>rosterPlan(roster,[['bad',2,0],...stations.slice(1)]),/Invalid character station/);
+ assert.throws(()=>rosterPlan(roster,[{},...stations.slice(1)]),/Invalid character station/);
+ assert.throws(()=>rosterPlan([{...roster[0],file:{toString:()=>roster[0].file}},...roster.slice(1)],stations),/Invalid character roster/);
+ const f=fixture();
+ await assert.rejects(loadCharacterRoster({...base,read:f.read,loader:f.loader,isCancelled:()=>f.loaded>0}),/cancelled/);
+ assert.equal(f.disposed,1);
+});
+test('asset read failure leaves no partially attached roster',async()=>{
+ const f=fixture();let reads=0;
+ await assert.rejects(loadCharacterRoster({...base,loader:f.loader,read:async url=>{if(++reads===2)throw Error('read failure');return f.read(url)}}),/read failure/);
+ assert.equal(f.disposed,1);
+});

@@ -40,3 +40,15 @@ test('invalid route, pause/stop, and agent task ownership',()=>{
  assert.equal(taskActivity([{owner:'QA',status:'Done'}],'QA'),'idle');
  assert.equal(taskActivity([{owner:'QA',status:'In progress'}],'DevOps'),'idle');
 });
+
+test('immediate transition stops old action and validates malformed configuration',()=>{
+ const f=fixture(),a=createAgentAnimator({...options(f),fade:0});
+ assert.equal(a.supports('working'),true);assert.equal(a.supports('unknown'),false);
+ assert.equal(a.setState('unknown'),false);assert.equal(a.setState('working'),true);
+ assert.deepEqual(f.calls.at(-1),['stop','Idle']);a.dispose();a.update(.1);
+ assert.throws(()=>createAgentAnimator({...options(f),fade:2}),/Invalid animation configuration/);
+ assert.throws(()=>createAgentAnimator({...options(f),clips:[{name:'Idle',duration:0,tracks:[]}]}),/Invalid or duplicate/);
+ assert.throws(()=>createAgentAnimator({...options(f),clips:[{name:'Idle',duration:1}]}),/Invalid animation tracks/);
+ assert.throws(()=>createRouteFollower({position:{x:0,z:0},face:()=>{},speed:0}),/Invalid movement/);
+ assert.equal(taskActivity(null,'QA'),'idle');
+});

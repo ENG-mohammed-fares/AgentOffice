@@ -4,11 +4,12 @@ import {createAgentAnimator} from './agent-animation.mjs';
 export const CLIPS=Object.freeze(['Idle','Walk','Typing','Thinking','Review','Meeting','Talk','Error','Celebrate','Sitting']);
 const filePattern=/^[a-z-]+\.glb$/;
 export function rosterPlan(roster,stations){
-  if(!Array.isArray(roster)||roster.length!==7||stations.length!==7)throw Error('Expected seven characters and stations');
+  if(!Array.isArray(roster)||roster.length!==7||!Array.isArray(stations)||stations.length!==7)throw Error('Expected seven characters and stations');
   const roles=new Set(),slots=new Set(),files=new Set();
   return roster.map(({role,file,station})=>{
-    if(typeof role!=='string'||!role||!filePattern.test(file)||!Number.isInteger(station)||!stations[station]||roles.has(role)||slots.has(station)||files.has(file))throw Error('Invalid character roster');
+    if(typeof role!=='string'||!role||typeof file!=='string'||!filePattern.test(file)||!Number.isInteger(station)||!stations[station]||roles.has(role)||slots.has(station)||files.has(file))throw Error('Invalid character roster');
     roles.add(role);slots.add(station);files.add(file);
+    if(!Array.isArray(stations[station])||stations[station].length!==3)throw Error('Invalid character station');
     const [x,y,a]=stations[station];
     if(![x,y,a].every(Number.isFinite))throw Error('Invalid character station');
     // Preview stands behind the chair, rather than claiming validated seating/IK.
@@ -49,8 +50,8 @@ export async function loadCharacterRoster({roster,stations,officeURL,isCancelled
       const data=await read(url);
       if(isCancelled())throw Error('Character loading cancelled');
       const {scene:root,animations:clips}=await loader.parseAsync(data,new URL('./',url).href);
-      onProgress('avatar-decoded:'+entry.file);
       group.add(root);
+      onProgress('avatar-decoded:'+entry.file);
       if(isCancelled())throw Error('Character loading cancelled');
       if(!CLIPS.every(name=>clips.some(c=>c.name===name)))throw Error('Required character clips missing');
       let skinned=false;root.traverse(o=>{if(o.isSkinnedMesh)skinned=true;if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});

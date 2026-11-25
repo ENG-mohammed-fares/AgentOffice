@@ -2,14 +2,12 @@ title = "AgentOffice secret detection"
 [extend]
 useDefault = true
 
-# Both findings were reviewed: same Supabase publishable key in the historical
-# JSON and the immutable source ZIP. Never allowlist the file by itself.
+# Allow only the reviewed public client key type in identity configuration.
+# All other secret types and files remain subject to the default scanner.
 [[allowlists]]
 description = "Only Supabase public client keys in the reviewed identity configuration"
 targetRules = ["generic-api-key"]
 condition = "AND"
 regexTarget = "secret"
-paths = ['''^electron[/\\]identity-config\.json'''^app/electron/identity-config\.json$''', '''^AgentOffice-Source\.zip!electron/identity-config\.json$''']
-regexes = ['''^sb_publishable_[A-Za-z0-9_-]{31}$''']
-'', '''^app/electron/identity-config\.json$''', '''^AgentOffice-Source\.zip!electron/identity-config\.json$''']
+paths = ['''^app/electron/identity-config\.json$''', '''^AgentOffice-Source\.zip!electron/identity-config\.json$''', '''^electron[/\\]identity-config\.json$''']
 regexes = ['''^sb_publishable_[A-Za-z0-9_-]{31}$''']

@@ -51,6 +51,14 @@ jobs:
           python scripts/apply-auth.py
           if ($LASTEXITCODE -ne 0) { throw 'Authentication preparation failed.' }
 
+      - name: Build the authenticated office assets
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "numpy==2.3.5" "scipy==1.17.0" "trimesh==4.11.1" "Pillow==12.3.0"
+          if ($LASTEXITCODE -ne 0) { throw 'Office dependency installation failed.' }
+          python scripts/apply-agile-office.py
+          if ($LASTEXITCODE -ne 0) { throw 'Office asset preparation failed.' }
+
       - name: Check JavaScript syntax
         shell: pwsh
         run: |

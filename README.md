@@ -4,6 +4,10 @@
 
 AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
 
+## What's new in 1.6.14
+
+Replaces the authenticated dashboard with the two-room Agile Office: seven individual workstations and a glass meeting room. The existing sign-in intro leads directly to this office. The scene is bundled locally, with live Three.js rendering and pre-rendered view fallback. Previous local workspace data remains intact. Full-office light baking and hardware validation are not yet complete.
+
 ## What's new in 1.6.13
 
 Defers phone sign-in: removes the phone alternative and form from the sign-in screen and disables the production phone OTP provider. Existing email, Google, GitHub and guest sign-in remain unchanged. See [deferred backlog](DEFERRED.md).

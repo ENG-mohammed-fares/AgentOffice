@@ -1,0 +1,57 @@
+import './style.css';
+import './agile-office.css';
+import {mountAuth} from './auth.js';
+import {mountLoadingIntro} from './loading-intro.js';
+
+const desktop=window.agentOfficeDesktop;
+const url=name=>new URL('./office/'+name,document.baseURI).href;
+const views=['Agile Workspace','Workspace and city','Meeting Room'];
+
+function mountWorkspace(user){
+  const app=document.querySelector('#app');
+  const stage=document.createElement('main');
+  stage.id='agile-office';
+  stage.className='agile-office';
+  stage.innerHTML='<img id="office-poster" alt="Architectural render of the office"><div id="office-live" aria-label="Interactive office"></div><header class="office-header"><span class="office-brand"><img src="./icon.png" alt="">AgentOffice</span><div class="office-account"><span id="office-user"></span><button id="check-update" type="button" aria-label="Check for updates" title="Check for updates">Updates</button><button id="sign-out" type="button">Sign out</button></div></header><footer class="office-footer"><div><span class="office-kicker">AGENTOFFICE / 01</span><h1 id="office-title">Agile Workspace</h1><div class="office-nav"><button id="office-workspace" type="button" aria-pressed="true">Workspace</button><button id="office-meeting" type="button" aria-pressed="false">Meeting room</button></div></div><span id="office-status" role="status">Preparing interactive office...</span></footer><div id="office-update" role="status" hidden><span></span><button id="install-update" type="button" hidden>Restart and install</button><button id="dismiss-update" type="button">Dismiss</button></div>';
+  const el=id=>stage.querySelector('#'+id);
+  const poster=el('office-poster'), live=el('office-live'), status=el('office-status');
+  el('office-user').textContent=user?.guest?'Guest workspace':(user?.name||user?.email||'Workspace');
+  let index=0,renderer=null,disposed=false,signingOut=false;
+  const initialView=()=>{poster.src=url('view-'+index+'.webp');poster.hidden=false;};
+  initialView();app.replaceChildren(stage);
+  const choose=i=>{
+    index=i;el('office-title').textContent=views[i];
+    el('office-workspace').setAttribute('aria-pressed',String(i!==2));
+    el('office-meeting').setAttribute('aria-pressed',String(i===2));
+    stage.querySelector('.office-kicker').textContent='AGENTOFFICE / '+(i===2?'02':'01');
+    if(renderer)renderer.go(i);else initialView();
+  };
+  el('office-workspace').onclick=()=>choose(0);el('office-meeting').onclick=()=>choose(2);
+  function fallback(){if(disposed)return;renderer?.dispose();renderer=null;live.replaceChildren();initialView();status.textContent='Rendered views • live 3D unavailable';stage.dataset.renderMode='poster';}
+  function showUpdate(st){if(disposed||!st)return;const box=el('office-update');box.hidden=!['checking','available','downloading','ready','error','current'].includes(st.state);box.querySelector('span').textContent=st.message||st.state;el('install-update').hidden=st.state!=='ready';}
+  const stopUpdate=desktop?.onUpdateStatus?.(showUpdate);
+  if(desktop?.updateStatus)desktop.updateStatus().then(showUpdate).catch(()=>{});
+  el('check-update').onclick=async()=>{try{if(desktop?.checkUpdates)showUpdate(await desktop.checkUpdates());}catch{status.textContent='Unable to check for updates.';}};
+  el('dismiss-update').onclick=()=>{el('office-update').hidden=true;};
+  el('install-update').onclick=()=>desktop?.installUpdate?.();
+  el('sign-out').onclick=async()=>{
+    if(signingOut)return;signingOut=true;el('sign-out').disabled=true;
+    try{if(desktop?.auth?.logout&&!await desktop.auth.logout())throw Error('Logout rejected');}
+    catch{signingOut=false;el('sign-out').disabled=false;status.textContent='Unable to sign out. Try again.';return;}
+    disposed=true;stopUpdate?.();renderer?.dispose();
+    mountLoadingIntro({mode:'logout',onComplete:()=>mountAuth({onAuthenticated:mountWorkspace})});
+  };
+  // Real rendered stills appear immediately, even on machines with no WebGL2.
+  // The expensive GLB and renderer load only after the authenticated destination exists.
+  import('./agile-renderer.js').then(async mod=>{
+    if(disposed)return;
+    const view=await mod.mountAgileRenderer(live,url('office.glb'),{onLost:fallback,isCancelled:()=>disposed});
+    if(disposed){view.dispose();return;}
+    renderer=view;renderer.go(index,true);poster.hidden=true;status.textContent='Live 3D • drag to look around';stage.dataset.renderMode='live';
+  }).catch(()=>{if(!disposed)fallback();});
+  return Promise.resolve();
+}
+mountLoadingIntro({mode:'startup',onComplete:()=>{
+  if(desktop?.auth?.current){return desktop.auth.current().then(user=>user?mountWorkspace(user):mountAuth({onAuthenticated:mountWorkspace})).catch(()=>mountAuth({onAuthenticated:mountWorkspace}));}
+  return mountAuth({onAuthenticated:mountWorkspace});
+}});

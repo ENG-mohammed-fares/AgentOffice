@@ -44,6 +44,23 @@ jobs:
           pathlib.Path('compatibility-report.json').write_text(json.dumps(report,indent=2))
           print(json.dumps(report,indent=2))
           PY
+      - name: Inspect only task and simulation modules for the port
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import io, json, subprocess, zipfile
+          rev = 'fb8e7587113409c45a90b169bc413bba1d10bf5c'
+          data = subprocess.check_output(['git','show',rev+':AgentOffice-Source.zip'])
+          selected = ('src/data/labels.js','src/data/members.json','src/data/zones.json','src/data/schema.js','src/store/officeStore.js','src/store/store.js','src/runtime/officeRuntime.js','src/app/mountApp.js','src/ui/toolbar.js','scripts/office.test.mjs')
+          with zipfile.ZipFile(io.BytesIO(data)) as z:
+              for name in selected:
+                  info = z.getinfo(name)
+                  if info.file_size > 80000: raise RuntimeError('Unexpected module size')
+                  source = z.read(info).decode('utf-8')
+                  # These exact UI/state/test files are not credentials or authentication files.
+                  # Emit only to the existing PRIVATE repository job log; no external uploads.
+                  print('PORT_MODULE '+json.dumps({'path':name,'source':source},ensure_ascii=True))
+          PY
       - uses: actions/upload-artifact@v6
         with:
           name: virtual-office-compatibility-inventory

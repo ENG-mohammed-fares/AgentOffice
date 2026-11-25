@@ -1,0 +1,52 @@
+name: Virtual office compatibility inventory
+on:
+  push:
+    branches: [feature/virtual-office]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Compare private source archive inventories without executing either archive
+        env:
+          BASE_REV: 8b22d9450dba564d829c45bbd3ef1d9ee55065ee
+          FEATURE_REV: fb8e7587113409c45a90b169bc413bba1d10bf5c
+          INTEGRATED_REV: 6fded916eb6aeb3ca6855eb488726d0de8a6f35e
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, io, json, os, pathlib, subprocess, zipfile
+          def inventory(rev):
+              data = subprocess.check_output(['git','show',rev+':AgentOffice-Source.zip'])
+              files = {}
+              with zipfile.ZipFile(io.BytesIO(data)) as z:
+                  for f in z.infolist():
+                      if f.is_dir(): continue
+                      p = pathlib.PurePosixPath(f.filename)
+                      if p.is_absolute() or '..' in p.parts or f.filename in files or f.file_size > 50_000_000:
+                          raise RuntimeError('Unexpected archive entry')
+                      files[f.filename] = hashlib.sha256(z.read(f)).hexdigest()
+              return files
+          base, feature, integrated = [inventory(os.environ[k]) for k in ('BASE_REV','FEATURE_REV','INTEGRATED_REV')]
+          rows = []
+          for name in sorted(set(base)|set(feature)|set(integrated)):
+              if base.get(name) == feature.get(name): continue
+              status = 'already identical' if feature.get(name) == integrated.get(name) else 'feature only' if base.get(name) == integrated.get(name) else 'different; reconcile'
+              rows.append({'path':name,'status':status,'feature_present':name in feature,'integrated_present':name in integrated})
+          report = {'base':os.environ['BASE_REV'],'feature':os.environ['FEATURE_REV'],'integrated':os.environ['INTEGRATED_REV'],'counts':[len(base),len(feature),len(integrated)],'feature_changes':rows}
+          pathlib.Path('compatibility-report.json').write_text(json.dumps(report,indent=2))
+          print(json.dumps(report,indent=2))
+          PY
+      - uses: actions/upload-artifact@v6
+        with:
+          name: virtual-office-compatibility-inventory
+          path: compatibility-report.json
+          if-no-files-found: error
+          retention-days: 14

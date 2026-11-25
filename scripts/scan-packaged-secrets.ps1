@@ -18,12 +18,39 @@ try {
     } finally { Pop-Location }
     if (!(Test-Path (Join-Path $extracted 'electron/main.cjs')) -or !(Test-Path (Join-Path $extracted 'dist/index.html'))) { throw 'Packaged source inventory incomplete.' }
     $config = Join-Path $root '.github/security/gitleaks.toml'
-    foreach ($target in @($extracted,$resources,(Join-Path $root 'app/dist'))) {
+    $scanFailed = $false
+    $targets = [ordered]@{
+        'extracted-asar' = $extracted
+        'resources' = $resources
+        'vite-output' = (Join-Path $root 'app/dist')
+    }
+    foreach ($label in $targets.Keys) {
+        $target = $targets[$label]
+        $report = Join-Path $workspace "$label.json"
+        Write-Host "Scanning $label"
         Push-Location $target
         try {
-            & $gitleaks dir --config $config --redact=100 --no-banner --max-archive-depth=2 --max-decode-depth=1 --timeout=180 .
-            if ($LASTEXITCODE -ne 0) { throw 'Packaged secret scan failed; investigate redacted findings.' }
+            & $gitleaks dir --config $config --redact=100 --no-banner --max-archive-depth=2 --max-decode-depth=1 --timeout=180 --report-format=json --report-path $report .
+            $scanStatus = $LASTEXITCODE
+            if (Test-Path -LiteralPath $report) {
+                $findings = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
+                foreach ($finding in $findings) {
+                    if ($null -eq $finding) { continue }
+                    [ordered]@{
+                        scope = $label
+                        rule = $finding.RuleID
+                        file = $finding.File
+                        line = $finding.StartLine
+                    } | ConvertTo-Json -Compress | Write-Host
+                }
+                Remove-Item -LiteralPath $report -Force
+            }
+            if ($scanStatus -ne 0) {
+                $scanFailed = $true
+                Write-Host "Scan failed: $label (exit $scanStatus)"
+            }
         } finally { Pop-Location }
     }
+    if ($scanFailed) { throw 'Packaged secret scan failed; investigate redacted finding metadata.' }
     Write-Host 'Packaged app.asar, loose resources and Vite output passed secret scanning.'
 } finally { Remove-Item -LiteralPath $workspace -Recurse -Force }

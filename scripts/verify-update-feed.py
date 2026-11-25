@@ -13,7 +13,7 @@ def validate(text):
     for key, expected in {
         "provider": "github",
         "owner": "ENG-mohammed-fares",
-        "repo": "AgentOffice-Releases",
+        "repo": "AgentOffice",
     }.items():
         if value(key) != expected:
             raise RuntimeError("Unexpected updater field: " + key)
@@ -25,7 +25,7 @@ def main():
     root = Path(__file__).resolve().parents[1]
     config = root / "app" / "release" / "win-unpacked" / "resources" / "app-update.yml"
     validate(config.read_text(encoding="utf-8"))
-    print("Packaged application targets the public binary-only GitHub update channel.")
+    print("Packaged application targets the AgentOffice GitHub release channel.")
 
 
 if __name__ == "__main__":

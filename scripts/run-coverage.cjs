@@ -71,13 +71,15 @@ function main(){
   for(const p of [rawPath,lcovPath,summaryPath])fs.rmSync(p,{force:true});
   const tests=fs.readdirSync(path.join(app,'scripts')).filter(s=>/\.test\.(js|cjs|mjs)$/.test(s)).sort();
   for(const p of ['identity.test.cjs','office-performance.test.mjs'])assert.ok(tests.includes(p),'Missing mandatory test: '+p);
+  const env={...process.env};
+  delete env.NODE_V8_COVERAGE;
   const result=spawnSync(process.execPath,[
     '--test','--experimental-test-coverage',
     '--test-coverage-include=src/**','--test-coverage-include=electron/**',
     '--test-reporter=spec','--test-reporter-destination=stdout',
     '--test-reporter=lcov','--test-reporter-destination='+rawPath,
     ...tests.map(p=>'scripts/'+p)
-  ],{cwd:app,stdio:'inherit',env:{...process.env,NODE_V8_COVERAGE:''}});
+  ],{cwd:app,stdio:'inherit',env});
   if(result.error)throw result.error;
   assert.ok(fs.existsSync(rawPath),'Missing LCOV output');
   const {lcov,report}=collect(fs.readFileSync(rawPath,'utf8'),files);

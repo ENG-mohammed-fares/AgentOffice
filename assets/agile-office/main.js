@@ -24,7 +24,7 @@ function mountWorkspace(user){
   graphics.onchange=()=>{renderer?.setGraphicsPreset(graphics.value);if(!diagnostics.hidden)refreshMetrics();};
   el('office-diagnostics-toggle').onclick=()=>{diagnostics.hidden=!diagnostics.hidden;el('office-diagnostics-toggle').setAttribute('aria-expanded',String(!diagnostics.hidden));if(!diagnostics.hidden)refreshMetrics();};
   el('office-metrics-refresh').onclick=refreshMetrics;
-  const initialView=()=>{poster.src=url('view-'+index+'.webp');poster.hidden=false;};
+  const initialView=()=>{poster.src=url('view-'+index+'.webp');poster.hidden=false;poster.removeAttribute('aria-hidden');};
   initialView();app.replaceChildren(stage);
   const disposeTasks=mountTaskPanel(stage,user,{roles:layout.roles});
   const choose=i=>{
@@ -55,7 +55,7 @@ function mountWorkspace(user){
     if(disposed)return;
     const view=await mod.mountAgileRenderer(live,url('office.glb'),{onLost:fallback,isCancelled:()=>disposed,getInitialIndex:()=>index,preset:graphics.value});
     if(disposed){view.dispose();return;}
-    renderer=view;renderer.setGraphicsPreset(graphics.value);poster.hidden=true;if(!diagnostics.hidden)refreshMetrics();status.textContent='Live 3D • drag to look around';stage.dataset.renderMode='live';
+    renderer=view;renderer.setGraphicsPreset(graphics.value);poster.setAttribute('aria-hidden','true');if(!diagnostics.hidden)refreshMetrics();status.textContent='Live 3D • drag to look around';stage.dataset.renderMode='live';
   }).catch(()=>{if(!disposed)fallback();});
   return Promise.resolve();
 }

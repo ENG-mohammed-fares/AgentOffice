@@ -8,7 +8,7 @@ export function makeFrameScheduler(request,cancel,draw){
 // Default arguments retain the historical policy for existing callers and its
 // differential contract. The office opts into the more conservative motion policy.
 export function makeResolutionController(maxRatio,{stable=false}={}){
-  const max=Math.max(.5,maxRatio),min=Math.min(max,Math.max(.55,max*(stable?.70:.55)));
+  const max=Math.max(.5,maxRatio),min=Math.min(max,Math.max(.55,max*(stable ? .70 : .55)));
   let ratio=max,ema=0,slow=0,fast=0,cooldown=0;
   const reset=()=>{ema=slow=fast=cooldown=0;};
   return {get ratio(){return ratio},sample(ms){

@@ -12,6 +12,8 @@ const out = fs.mkdtempSync(path.join(os.tmpdir(), 'agentoffice-benchmark-'));
 const html = path.join(appDir, 'scripts', 'office-benchmark-' + process.pid + '.html');
 const reportPath = path.resolve(process.env.AGENTOFFICE_PERF_REPORT || path.join(root, 'office-performance-report.json'));
 let server, win;
+const preset=process.env.AGENTOFFICE_GRAPHICS_PRESET||'balanced';
+assert.ok(['balanced','high','performance'].includes(preset),'Invalid graphics preset');
 const page = `<!doctype html><meta charset="utf-8"><title>AgentOffice renderer benchmark</title>
 <style>html,body,#host{width:100%;height:100%;margin:0;overflow:hidden}canvas{display:block;width:100%;height:100%}</style>
 <div id="host"></div><script type="module">
@@ -36,7 +38,7 @@ window.benchmarkResult=(async()=>{
   let view,contextLost=false;
   try{
     const start=performance.now();
-    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost});
+    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)}});
     const firstFrameMs=round(performance.now()-start);
     await quiet(0);
     const initial=view.metrics(),initialFrames=count();
@@ -52,7 +54,7 @@ window.benchmarkResult=(async()=>{
       const elapsed=times.length>1?times.at(-1)-times[0]:0;
       const after=count(),metrics=view.metrics();
       await sleep(1000);
-      transitions.push({target:index,frames:after-before,observedIntervals:intervals.length,observedFps:elapsed>0?round((times.length-1)*1000/elapsed):null,p95FrameIntervalMs:percentile(intervals,.95),firstObservedFrameMs:times.length?round(times[0]-started):null,idleExtraFrames:count()-after,...metrics});
+      transitions.push({...metrics,target:index,frames:after-before,observedIntervals:intervals.length,observedFps:elapsed>0?round((times.length-1)*1000/elapsed):null,p95FrameIntervalMs:percentile(intervals,.95),firstObservedFrameMs:times.length?round(times[0]-started):null,idleExtraFrames:count()-after});
     }
     return {ok:true,firstFrameMs,initialIdleFrames,textureFormat:host.dataset.textureFormat,contextLost,viewport:{width:host.clientWidth,height:host.clientHeight,devicePixelRatio},initial,transitions};
   }catch(error){return {ok:false,error:String(error?.stack||error),contextLost};}

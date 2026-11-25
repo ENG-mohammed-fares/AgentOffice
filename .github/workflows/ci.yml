@@ -402,7 +402,13 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
             throw 'SONAR_TOKEN is required for development Quality Gate.'
           }
-          if (!(Test-Path coverage/sonar-lcov.info)) { throw 'Canonical coverage report missing.' }
+          $requiredReports = @('coverage/sonar-lcov.info','coverage/tooling-lcov.info','coverage/execution-lcov.info','coverage/execution-tooling-lcov.info','coverage/python-coverage.xml','coverage/office-assets-coverage.xml','coverage/powershell-sonar.xml')
+          foreach ($report in $requiredReports) {
+            if (!(Test-Path $report -PathType Leaf) -or (Get-Item $report).Length -eq 0) { throw "Required measured coverage report missing or empty: $report" }
+          }
+          $actual = (Get-FileHash app/scripts/collect-renderer.cjs -Algorithm SHA256).Hash
+          $canonical = (Get-FileHash scripts/coverage-tools/collect-renderer.cjs -Algorithm SHA256).Hash
+          if ($actual -ne $canonical) { throw 'Generated Electron test collector is not identical to its source.' }
 
       - name: SonarCloud analysis and blocking Quality Gate
         if: github.repository == 'ENG-mohammed-fares/AgentOffice' && (github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))

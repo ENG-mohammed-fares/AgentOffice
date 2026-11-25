@@ -1,7 +1,9 @@
 """Check the actual artifact, not merely the filename or encoder exit status."""
 import json,struct,sys
 from pathlib import Path
-p=Path(sys.argv[1])
+p=Path(__file__).resolve().parents[2]/'app'/'public'/'office'
+if len(sys.argv)!=2 or Path(sys.argv[1]).resolve()!=p.resolve():
+    raise ValueError('Expected the prepared application office asset directory')
 def read(path):
     data=path.read_bytes()
     assert struct.unpack_from('<4sII',data)==(b'glTF',2,len(data))
@@ -19,3 +21,4 @@ for im in b['images']:
     assert im['mimeType']=='image/ktx2' and bin_data[v.get('byteOffset',0):][:12]==b'\xabKTX 20\xbb\r\n\x1a\n'
 for t in b['textures']:assert 'KHR_texture_basisu' in t['extensions']
 print('Verified compressed office: all 14 KTX2 maps and identical mesh topology; original fallback bundled.')
+

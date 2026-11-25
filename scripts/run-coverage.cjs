@@ -74,7 +74,7 @@ function main({rootDir=root,run=spawnSync,environment=process.env,log=console.lo
   const env={...environment};
   delete env.NODE_V8_COVERAGE;
   const result=run(process.execPath,[
-    '--test','--experimental-test-coverage',
+    '--test','--experimental-vm-modules','--experimental-test-coverage',
     '--test-coverage-include=src/**','--test-coverage-include=electron/**',
     '--test-reporter=spec','--test-reporter-destination=stdout',
     '--test-reporter=lcov','--test-reporter-destination='+rawPath,
@@ -142,3 +142,4 @@ function writeCanonical(rootDir=root){
 
 if(require.main===module){if(process.argv[2]==='--canonicalize')writeCanonical();else main()}
 module.exports={collect,main,canonicalize,writeCanonical};
+

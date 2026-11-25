@@ -176,7 +176,7 @@ glyphs={'AgentOffice': ['0000000000000000000000000000000000000000000000000000000
 def sign(text, origin, u, up, width, m=38):
  a=np.array([[c=='1' for c in row] for row in glyphs[text]]);scale=width/a.shape[1];v=[];f=[];origin=np.array(origin);u=np.array(u);up=np.array(up)
  for row,line in enumerate(a):
-  runs=np.diff(np.r_[False,line,False].astype(int));starts=np.where(runs==1)[0];ends=np.where(runs==-1)[0]
+  runs=np.diff(np.r_[False,line,False].astype(int));starts=np.nonzero(runs==1)[0];ends=np.nonzero(runs==-1)[0]
   for l,r in zip(starts,ends):
    n=len(v);v.extend([origin+u*(xx*scale)+up*((a.shape[0]-yy)*scale) for xx,yy in [(l,row),(r,row),(r,row+1),(l,row+1)]]);f.extend([(n,n+1,n+2),(n,n+2,n+3)])
  mesh('lettering '+text,v,f,m)
@@ -200,3 +200,4 @@ with open(P/'scene.dat','w') as f:
  f.write(str(len(cameras))+'\n')
  for c in cameras:f.write(' '.join(map(str,(*c['pos'],*c['target'],c['fov'])))+'\n')
 print(len(objects),'objects',len(tri),'triangles',len(lights),'lights',flush=True)
+

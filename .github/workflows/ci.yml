@@ -103,6 +103,9 @@ jobs:
       - name: Validate compressed and original geometry
         run: python assets/agile-office/verify-ktx2.py app/public/office
 
+      - name: Install local crash monitoring
+        run: python scripts/apply-crash-monitor.py
+
       - name: Check JavaScript syntax
         shell: pwsh
         run: |
@@ -158,29 +161,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Require SonarCloud credentials for trusted development analysis
-        if: github.repository == 'ENG-mohammed-fares/AgentOffice' && (github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
-        shell: pwsh
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          PRIVATE_SOURCE: ${{ github.event.repository.private }}
-          SONAR_PRIVATE_CONFIRMED: ${{ vars.AGENTOFFICE_SONAR_PRIVATE_CONFIRMED }}
-        run: |
-          if ($env:PRIVATE_SOURCE -eq 'true' -and $env:SONAR_PRIVATE_CONFIRMED -ne 'true') {
-            throw 'Private source: verify SonarCloud project visibility and set AGENTOFFICE_SONAR_PRIVATE_CONFIRMED=true before analysis.'
-          }
-          if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
-            throw 'SONAR_TOKEN is required for development Quality Gate.'
-          }
-          if (!(Test-Path coverage/lcov.info)) { throw 'Coverage report missing.' }
-
-      - name: SonarCloud analysis and blocking Quality Gate
-        if: github.repository == 'ENG-mohammed-fares/AgentOffice' && (github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
-        uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
-
       - name: Package local KTX2 transcoder
         working-directory: app
         shell: pwsh
@@ -193,16 +173,55 @@ jobs:
         working-directory: app
         run: npm run build --ignore-scripts
 
+      - name: Check renderer benchmark syntax
+        run: node --check scripts/office-runtime-benchmark.cjs
+
+      # Hosted runners may use software graphics. Enable only to collect a CI
+      # renderer report; a Windows reference-device benchmark is still required.
+      - name: Optional Electron renderer benchmark
+        if: ${{ vars.AGENTOFFICE_RUN_RENDER_BENCHMARK == 'true' }}
+        working-directory: app
+        shell: pwsh
+        env:
+          AGENTOFFICE_PERF_REPORT: ${{ github.workspace }}/office-performance-report.json
+          AGENTOFFICE_REQUIRE_KTX2: '1'
+        run: npx --no-install electron ../scripts/office-runtime-benchmark.cjs
+
+      - name: Upload optional renderer benchmark report
+        if: ${{ always() && vars.AGENTOFFICE_RUN_RENDER_BENCHMARK == 'true' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: agentoffice-renderer-performance
+          path: office-performance-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Electron authentication smoke tests
         working-directory: app
         run: npx --no-install electron scripts/auth-smoke.cjs
+
+      - name: Real Electron crash monitoring smoke test
+        working-directory: app
+        run: npx --no-install electron scripts/crash-monitor-smoke.cjs
+
+      - name: Test Windows code-signing verification policy
+        shell: pwsh
+        run: ./scripts/test-code-signing.ps1
 
       - name: Package tested Windows build (no publishing)
         working-directory: app
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GITHUB_REPOSITORY: ${{ github.repository }}
+          AGENTOFFICE_REPO: ENG-mohammed-fares/AgentOffice-Releases
         run: npx --no-install electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never
+
+      - name: Verify packaged public update feed
+        run: python scripts/verify-update-feed.py
+
+      - name: Scan packaged application for secrets
+        shell: pwsh
+        run: ./scripts/scan-packaged-secrets.ps1
 
       - name: Prepare candidate manifest and verify update metadata
         shell: pwsh
@@ -226,3 +245,26 @@ jobs:
           if ((Get-Content ./ci-lock-present.txt -Raw).Trim() -ne 'true') {
             throw 'Commit the reviewed package-lock.json from the dependency-lock artifact before release.'
           }
+
+      - name: Require SonarCloud credentials for trusted development analysis
+        if: github.repository == 'ENG-mohammed-fares/AgentOffice' && (github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          PRIVATE_SOURCE: ${{ github.event.repository.private }}
+          SONAR_PRIVATE_CONFIRMED: ${{ vars.AGENTOFFICE_SONAR_PRIVATE_CONFIRMED }}
+        run: |
+          if ($env:PRIVATE_SOURCE -eq 'true' -and $env:SONAR_PRIVATE_CONFIRMED -ne 'true') {
+            throw 'Private source: verify SonarCloud project visibility and set AGENTOFFICE_SONAR_PRIVATE_CONFIRMED=true before analysis.'
+          }
+          if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
+            throw 'SONAR_TOKEN is required for development Quality Gate.'
+          }
+          if (!(Test-Path coverage/lcov.info)) { throw 'Coverage report missing.' }
+
+      - name: SonarCloud analysis and blocking Quality Gate
+        if: github.repository == 'ENG-mohammed-fares/AgentOffice' && (github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
+        uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io

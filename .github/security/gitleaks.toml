@@ -9,5 +9,7 @@ description = "Only Supabase public client keys in the reviewed identity configu
 targetRules = ["generic-api-key"]
 condition = "AND"
 regexTarget = "secret"
-paths = ['''^app/electron/identity-config\.json$''', '''^AgentOffice-Source\.zip!electron/identity-config\.json$''']
+paths = ['''^electron[/\\]identity-config\.json'''^app/electron/identity-config\.json$''', '''^AgentOffice-Source\.zip!electron/identity-config\.json$''']
+regexes = ['''^sb_publishable_[A-Za-z0-9_-]{31}$''']
+'', '''^app/electron/identity-config\.json$''', '''^AgentOffice-Source\.zip!electron/identity-config\.json$''']
 regexes = ['''^sb_publishable_[A-Za-z0-9_-]{31}$''']

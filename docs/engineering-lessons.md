@@ -20,4 +20,10 @@ Record verified problems, their cause, the fix, its regression protection, and e
 
 ## Refactoring prevention
 
-Use characterization before edits, differential tests against a fixed baseline, targeted mutation checks and architecture boundary checks. Preserve real production tests; a surviving mutation requires an improved test or reviewed justification, not a fake kill. The first scoped gate is implemented; its CI evidence is pending.
+Use characterization before edits, differential tests against a fixed baseline, targeted mutation checks and architecture boundary checks. Preserve real production tests; a surviving mutation requires an improved test or reviewed justification, not a fake kill. The scoped gate passed in the Windows CI for 1544d01d (run 45594760239).
+
+## Dependency download hardening (SonarCloud PR #10)
+
+- S6506: curl followed redirects without explicitly restricting protocols. Enforce HTTPS both for the initial request and all redirects (`--proto '=https' --proto-redir '=https'`), while retaining TLS validation and pinned SHA256 verification.
+- S8541: pip could fall back to source distributions and execute build scripts during installation. Require wheel distributions with `--only-binary :all:`. If a compatible wheel is unavailable, fail and review the dependency; never silently remove the restriction.
+- Applied to both affected security commands and matching commands in the main CI workflow. A standard-library regression guard scans the current literal curl and pip commands, including negative controls for the previous unsafe forms. This guard is scoped to direct commands, not a general shell interpreter. CI and Sonar reanalysis must confirm the fix.

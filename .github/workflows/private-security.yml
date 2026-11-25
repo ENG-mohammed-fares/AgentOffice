@@ -24,6 +24,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Verify secure dependency download policy
+        run: python3 -m unittest discover -s scripts -p test_workflow_downloads.py -v
       - name: Install pinned Gitleaks CLI
         shell: bash
         run: |
@@ -33,7 +35,7 @@ jobs:
           base="https://github.com/gitleaks/gitleaks/releases/download/v${version}"
           mkdir -p "$RUNNER_TEMP/gitleaks"
           cd "$RUNNER_TEMP/gitleaks"
-          curl --fail --silent --show-error --location --retry 2 "$base/$archive" -o "$archive"
+          curl --proto '=https' --proto-redir '=https' --fail --silent --show-error --location --retry 2 "$base/$archive" -o "$archive"
           printf "%s  %s\n" "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb" "$archive" | sha256sum --check --strict
           tar -xzf "$archive" gitleaks
           ./gitleaks version
@@ -94,7 +96,7 @@ jobs:
 
       - name: Install pinned Semgrep Community Edition
         if: success() || failure()
-        run: python -m pip install --disable-pip-version-check setuptools==80.9.0 semgrep==1.126.0
+        run: python -m pip install --only-binary :all: --disable-pip-version-check setuptools==80.9.0 semgrep==1.126.0
 
       - name: Scan source with local security rules
         if: success() || failure()

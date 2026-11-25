@@ -163,7 +163,12 @@ jobs:
         shell: pwsh
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          PRIVATE_SOURCE: ${{ github.event.repository.private }}
+          SONAR_PRIVATE_CONFIRMED: ${{ vars.AGENTOFFICE_SONAR_PRIVATE_CONFIRMED }}
         run: |
+          if ($env:PRIVATE_SOURCE -eq 'true' -and $env:SONAR_PRIVATE_CONFIRMED -ne 'true') {
+            throw 'Private source: verify SonarCloud project visibility and set AGENTOFFICE_SONAR_PRIVATE_CONFIRMED=true before analysis.'
+          }
           if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
             throw 'SONAR_TOKEN is required for development Quality Gate.'
           }

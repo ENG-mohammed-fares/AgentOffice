@@ -39,14 +39,31 @@ jobs:
           ./gitleaks version
           echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
 
+      - name: Test narrow publishable-key exception
+        shell: bash
+        run: |
+          set -euo pipefail
+          config="$GITHUB_WORKSPACE/.github/security/gitleaks.toml"
+          fixture="$(mktemp -d)"
+          trap 'rm -rf "$fixture"' EXIT
+          cd "$fixture"
+          mkdir -p app/electron
+          python3 -c 'import json,secrets,pathlib,zipfile; value=json.dumps({"publishableKey":"sb_"+"publishable_"+secrets.token_hex(16)[:31]}); pathlib.Path("app/electron/identity-config.json").write_text(value); z=zipfile.ZipFile("AgentOffice-Source.zip","w"); z.writestr("electron/identity-config.json",value); z.close()'
+          gitleaks dir --config "$config" --redact=100 --no-banner --max-archive-depth=2 .
+          python3 -c 'import json,secrets,pathlib; pathlib.Path("app/electron/identity-config.json").write_text(json.dumps({"publishableKey":"sb_"+"secret_"+secrets.token_hex(24)}))'
+          status=0
+          gitleaks dir --config "$config" --redact=100 --no-banner --max-archive-depth=2 . || status=$?
+          test "$status" -eq 1
+
       - name: Scan fetched Git history for secrets (redacted)
+        if: success() || failure()
         shell: bash
         run: |
           set -euo pipefail
           report="$RUNNER_TEMP/gitleaks-history.json"
           trap 'rm -f "$report"' EXIT
           status=0
-          gitleaks git --log-opts=--all --redact=100 --no-banner --max-decode-depth=1 --timeout=180 --report-format=json --report-path="$report" . || status=$?
+          gitleaks git --config .github/security/gitleaks.toml --log-opts=--all --redact=100 --no-banner --max-decode-depth=1 --timeout=180 --report-format=json --report-path="$report" . || status=$?
           if [ -f "$report" ]; then
             python3 -c 'import json,sys; rows=json.load(open(sys.argv[1],encoding="utf-8")) or []; print(json.dumps([{"rule":x.get("RuleID"),"file":x.get("File"),"line":x.get("StartLine"),"commit":x.get("Commit")} for x in rows],ensure_ascii=True))' "$report"
           fi
@@ -60,7 +77,7 @@ jobs:
           report="$RUNNER_TEMP/gitleaks-tree.json"
           trap 'rm -f "$report"' EXIT
           status=0
-          gitleaks dir --redact=100 --no-banner --max-archive-depth=2 --max-decode-depth=1 --timeout=180 --report-format=json --report-path="$report" . || status=$?
+          gitleaks dir --config .github/security/gitleaks.toml --redact=100 --no-banner --max-archive-depth=2 --max-decode-depth=1 --timeout=180 --report-format=json --report-path="$report" . || status=$?
           if [ -f "$report" ]; then
             python3 -c 'import json,sys; rows=json.load(open(sys.argv[1],encoding="utf-8")) or []; print(json.dumps([{"rule":x.get("RuleID"),"file":x.get("File"),"line":x.get("StartLine"),"commit":x.get("Commit")} for x in rows],ensure_ascii=True))' "$report"
           fi

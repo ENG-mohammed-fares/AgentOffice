@@ -37,6 +37,9 @@ def apply(root):
             '<label class="remember" for="remember-email">')
     replace("src/auth-screen.html", '<input type="checkbox" >',
             '<input id="remember-email" type="checkbox" >')
+    # CSS direction accepts ltr/rtl; the old auto value is ignored by browsers.
+    replace("src/auth-screen.html", "padding-top:0;direction:auto}",
+            "padding-top:0}")
 
     # A static stylesheet requires no inline CSP exception.
     startup = app / "electron/startup-update.html"

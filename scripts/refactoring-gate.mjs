@@ -82,7 +82,7 @@ function architecture(){
   const three=s=>s==='three'||s.startsWith('three/addons/');
   enforceImports(read('app/src/office-batching.mjs'),three);
   enforceImports(read('app/src/agile-renderer.js'),s=>three(s)||['./agile-layout.json','./office-performance.mjs','./office-batching.mjs','./office-characters.mjs'].includes(s));
-  enforceImports(read('app/src/office-characters.mjs'),s=>s==='three'||s==='three/addons/loaders/GLTFLoader.js'||s==='./agent-animation.mjs');
+  enforceImports(read('app/src/office-characters.mjs'),s=>s==='three'||s==='three/addons/loaders/GLTFLoader.js'||['./agent-animation.mjs','./office-motion.mjs'].includes(s));
   const animation=read('app/src/agent-animation.mjs');
   enforceImports(animation,()=>false);
   assert.ok(!/\b(?:window|document|process|fetch|XMLHttpRequest)\b/.test(animation),'Animation policy has environment dependency');

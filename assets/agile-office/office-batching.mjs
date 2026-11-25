@@ -8,7 +8,7 @@ export function optimizeStaticMeshes(root){
   const inv=new THREE.Matrix4().copy(root.matrixWorld).invert();
   const groups=new Map(),instances=new Map(),meshes=[];
   root.traverse(o=>{if(o.isMesh)meshes.push(o);});
-  const eligible=m=>!m.isInstancedMesh&&!m.isSkinnedMesh&&!m.material.transparent&&!Array.isArray(m.material)&&!m.material.lightMap&&!m.geometry.morphAttributes.position?.length&&m.children.length===0&&m.visible&&m.material.visible&&m.matrixWorld.determinant()>0;
+  const eligible=m=>!m.userData.movableChair&&!m.isInstancedMesh&&!m.isSkinnedMesh&&!m.material.transparent&&!Array.isArray(m.material)&&!m.material.lightMap&&!m.geometry.morphAttributes.position?.length&&m.children.length===0&&m.visible&&m.material.visible&&m.matrixWorld.determinant()>0;
   // True instancing is safe only for shared geometry AND material. Merging
   // already-batched, distinct geometry is usually better for this office.
   const state=m=>[m.material.uuid,m.castShadow,m.receiveShadow,m.renderOrder,m.layers.mask].join('|');

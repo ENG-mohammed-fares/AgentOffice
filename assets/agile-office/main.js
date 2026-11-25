@@ -33,7 +33,7 @@ function mountWorkspace(user){
     el('office-workspace').setAttribute('aria-pressed',String(i!==2));
     el('office-meeting').setAttribute('aria-pressed',String(i===2));
     stage.querySelector('.office-kicker').textContent='AGENTOFFICE / '+(i===2?'02':'01');
-    if(renderer)renderer.go(i);else initialView();
+    if(renderer){renderer.go(i);renderer.setMeeting?.(i===2);}else initialView();
   };
   el('office-workspace').onclick=()=>choose(0);el('office-meeting').onclick=()=>choose(2);
   function fallback(){if(disposed)return;renderer?.dispose();renderer=null;live.replaceChildren();initialView();status.textContent='Rendered views • live 3D unavailable';stage.dataset.renderMode='poster';}
@@ -56,7 +56,7 @@ function mountWorkspace(user){
     if(disposed)return;
     const view=await mod.mountAgileRenderer(live,url('office.glb'),{onLost:fallback,isCancelled:()=>disposed,getInitialIndex:()=>index,preset:graphics.value,characterRoster:layout.characters??[]});
     if(disposed){view.dispose();return;}
-    renderer=view;for(const [role,state] of activity)renderer.setAgentState(role,state);renderer.setGraphicsPreset(graphics.value);poster.setAttribute('aria-hidden','true');if(!diagnostics.hidden)refreshMetrics();status.textContent='Live 3D • drag to look around';stage.dataset.renderMode='live';
+    renderer=view;renderer.setMeeting?.(index===2);for(const [role,state] of activity)renderer.setAgentState(role,state);renderer.setGraphicsPreset(graphics.value);poster.setAttribute('aria-hidden','true');if(!diagnostics.hidden)refreshMetrics();status.textContent='Live 3D • drag to look around';stage.dataset.renderMode='live';
   }).catch(()=>{if(!disposed)fallback();});
   return Promise.resolve();
 }

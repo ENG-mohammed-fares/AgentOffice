@@ -97,13 +97,17 @@ def tr(x,y,a,lx,ly,lz):return (x+math.cos(a)*lx-math.sin(a)*ly,y+math.sin(a)*lx+
 def B(n,x,y,a,loc,dim,m,r=.008):box(n,tr(x,y,a,*loc),dim,m,r,a)
 def R(n,x,y,a,loc,dim,m,r=.04,tilt=0):rounded(n,tr(x,y,a,*loc),dim,m,r,a,tilt)
 def C(n,x,y,a,p,q,r,m,r2=None,nseg=18):cylinder(n,tr(x,y,a,*p),tr(x,y,a,*q),r,m,r2,nseg)
-def chair(x,y,a,m=25,meeting=False):
+def chair(x,y,a,m=25,meeting=False,chair_id=None):
+ first=len(objects)
  R('seat cushion',x,y,a,(0,0,.48),(.55,.53,.115),m,.055);R('sculpted backrest',x,y,a,(0,-.245,.79 if meeting else .91),(.53,.13,.53 if meeting else .78),m,.060,-.12)
  if not meeting:R('headrest',x,y,a,(0,-.30,1.28),(.43,.13,.14),m,.045,-.10)
  R('lumbar cushion',x,y,a,(0,-.17,.71),(.42,.065,.21),m,.032);C('gas lift',x,y,a,(0,0,.13),(0,0,.42),.033,23)
  for j in range(5):
   ang=j*math.tau/5;dx=.30*math.cos(ang);dy=.30*math.sin(ang);C('base spoke',x,y,a,(0,0,.14),(dx,dy,.065),.023,23,.019);C('caster',x,y,a,(dx-.023,dy,.046),(dx+.023,dy,.046),.043,26,nseg=12)
  for dx in (-.29,.29):C('armrest support',x,y,a,(dx,-.10,.46),(dx,-.02,.67),.018,23);R('armrest pad',x,y,a,(dx,.015,.69),(.068,.29,.049),26,.018)
+ if chair_id is not None:
+  for j in range(first,len(objects)):
+   name,v,faces,material=objects[j];objects[j]=(f'Chair_{chair_id} {name}',v,faces,material)
 def plant(x,y,z=0,s=1,large=False):
  h=(.50 if large else .18)*s;r=(.24 if large else .10)*s;cylinder('planter',(x,y,z),(x,y,z+h),r*.78,18 if large else 20,r,n=24)
  for j in range(7 if large else 5):
@@ -147,14 +151,14 @@ for i,(x,y,a) in enumerate(stations):
  if i==5:
   B('network unit',x,y,a,(.62,-.22,.94),(.23,.17,.18),23,.012)
   for j in range(4):B('network LED',x,y,a,(.54+j*.045,-.307,.95),(.018,.004,.016),35,0)
- chair(x,y-.91,a,26 if i in (1,3,5) else 25)
+ chair(x,y-.91,a,26 if i in (1,3,5) else 25,chair_id=f'desk_{i}')
 for p in [(-7.2,4.6),(2.28,4.62),(2.25,-4.58),(7.35,4.68)]:plant(*p,0,1.12,True)
 # Meeting room: eight chairs, table and sprint display.
 rounded('conference table',(5.55,.65,.79),(1.57,4.25,.105),1,.045)
 for y in (-.78,2.08):rounded('meeting stone pedestal',(5.55,y,.39),(1.12,.52,.70),20,.045)
 box('meeting rug',(5.55,.65,.009),(3.94,5.35,.018),9,.005)
 for j in range(4):
- yy=-.97+j*1.08;chair(4.34,yy,-math.pi/2,25,True);chair(6.76,yy,math.pi/2,25,True)
+ yy=-.97+j*1.08;chair(4.34,yy,-math.pi/2,25,True,chair_id=f'meeting_{j*2}');chair(6.76,yy,math.pi/2,25,True,chair_id=f'meeting_{j*2+1}')
  for x in (5.05,6.05):box('meeting notepad',(x,yy,.853),(.20,.28,.018),2,.005)
 plant(5.55,.65,.85,1.1)
 box('meeting walnut wall',(5.55,-5.35,1.70),(4.72,.12,3.18),40)

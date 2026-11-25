@@ -1,7 +1,7 @@
 // Animation and movement are independent of the agent execution engine.
-export const AGENT_STATES=Object.freeze(['idle','walking','working','thinking','reviewing','meeting','talking','error','completed']);
-const loops=new Set(['idle','walking','working','thinking','reviewing','meeting','talking']);
-const stateClips=Object.freeze({idle:'Idle',walking:'Walk',working:'Typing',thinking:'Thinking',reviewing:'Review',meeting:'Meeting',talking:'Talk',error:'Error',completed:'Celebrate'});
+export const AGENT_STATES=Object.freeze(['idle','walking','working','thinking','reviewing','meeting','talking','error','completed','sitting','seatedTyping','seatedMeeting']);
+const loops=new Set(['idle','walking','working','thinking','reviewing','meeting','talking','sitting','seatedTyping','seatedMeeting']);
+const stateClips=Object.freeze({idle:'Idle',walking:'Walk',working:'Typing',thinking:'Thinking',reviewing:'Review',meeting:'Meeting',talking:'Talk',error:'Error',completed:'Celebrate',sitting:'Sitting',seatedTyping:'SeatedTyping',seatedMeeting:'SeatedMeeting'});
 export function createAgentAnimator({root,clips,mixer,loopRepeat,loopOnce,fade=.2,rootTracks=[]}){
   if(!root||!Array.isArray(clips)||!mixer||!Number.isFinite(fade)||fade<0||fade>1)throw Error('Invalid animation configuration');
   const byName=new Map();

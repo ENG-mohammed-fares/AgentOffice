@@ -66,7 +66,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
   const started=performance.now(),motionMetrics=makeFrameMetrics();
   let contextLost=false,assetLoadMs=0,readyMs=0,selectedPreset=preset;
   let characters=null,characterFrame=0,characterStatus=characterRoster.length?'loading':'not bundled';
-  const activity=new Map();
+  const activity=new Map();let meetingRequested=false;
   const maxRatio=()=>graphicsPixelRatio(selectedPreset,devicePixelRatio,host.clientWidth,host.clientHeight);
   const gpuExtension=gl.getExtension?.('WEBGL_debug_renderer_info');
   const gpuRenderer=gl.getParameter?.(gpuExtension?.UNMASKED_RENDERER_WEBGL??gl.RENDERER)||'Unavailable';
@@ -121,6 +121,15 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
       if(o.material?.map)o.material.map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
     });
     if(bakedCandidate&&!bakedMeshes)throw Error('Baked candidate has no unlit atlas meshes');
+    // Exported chair components are grouped before static batching.
+    const chairs=new Map(),parts=[];
+    model.traverse(o=>{if(o.isMesh&&/^Chair_(desk|meeting)_\d+/.test(o.name))parts.push(o);});
+    for(const part of parts){
+      const id=part.name.match(/^Chair_((?:desk|meeting)_\d+)/)[1];
+      if(!chairs.has(id)){const group=new THREE.Group();group.name='Movable '+id;model.add(group);chairs.set(id,group);}
+      part.userData.movableChair=true;part.castShadow=false;chairs.get(id).attach(part);
+    }
+    if(chairs.size&&chairs.size!==15)throw Error('Incomplete movable chair geometry');
     stats=optimizeStaticMeshes(model);
     const report=()=>{host.dataset.frames=String(++frames);host.dataset.drawCalls=String(renderer.info.render.calls);host.dataset.triangles=String(renderer.info.render.triangles);host.dataset.pixelRatio=resolution.ratio.toFixed(2);host.dataset.batchesBefore=String(stats.before);host.dataset.batchesAfter=String(stats.after);host.dataset.instances=String(stats.instances);};
     let qualityCap=maxRatio();
@@ -186,14 +195,16 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     document.addEventListener('visibilitychange',visibility);
     if(characterRoster.length){
       // Load only after the first office frame; keep the office usable on failure.
-      loadCharacterRoster({roster:characterRoster,stations:layout.stations,officeURL:url,isCancelled:()=>disposed||contextLost||isCancelled(),onProgress}).then(roster=>{
+      loadCharacterRoster({roster:characterRoster,stations:layout.stations,officeURL:url,isCancelled:()=>disposed||contextLost||isCancelled(),onProgress,chairs:chairs.size===15?chairs:null}).then(roster=>{
         if(disposed||contextLost||isCancelled()){roster.dispose();return;}
         characters=roster;scene.add(roster.group);characterStatus='preview ready';onProgress('avatar-roster-attached');
         for(const [role,state] of activity)roster.setState(role,state);
+        roster.setMeeting?.(meetingRequested);
         frameScheduler.request();
       }).catch(err=>{if(!disposed&&!contextLost){characterStatus='preview unavailable';onProgress('avatar-roster-failed');console.warn('Character preview unavailable',err?.message);}});
     }
     function setAgentState(role,state){activity.set(role,state);return characters?.setState(role,state)??false;}
-    return {go,dispose,setGraphicsPreset,setAgentState,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,characters:characters?.count??0,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
+    function setMeeting(value){meetingRequested=Boolean(value);characters?.setMeeting?.(meetingRequested);}
+    return {go,dispose,setGraphicsPreset,setAgentState,setMeeting,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,characters:characters?.count??0,seated:characters?.seated??0,meetingSeated:characters?.meetingSeated??0,movableChairs:chairs.size,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
   }catch(err){dispose();throw err;}
 }

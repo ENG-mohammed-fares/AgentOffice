@@ -24,7 +24,7 @@ export function optimizeStaticMeshes(root){
   }
   const geometriesToDispose=new Set();
   for(const m of meshes){if(removed.has(m)||!eligible(m))continue;
-    const attributes=Object.keys(m.geometry.attributes).sort((a,b)=>a.localeCompare(b)).map(k=>{const a=m.geometry.attributes[k];return [k,a.itemSize,a.normalized,a.array.constructor.name].join(':')}).join(',');
+    const attributes=Object.keys(m.geometry.attributes).sort((a,b)=>a.localeCompare(b,'en')).map(k=>{const a=m.geometry.attributes[k];return [k,a.itemSize,a.normalized,a.array.constructor.name].join(':')}).join(',');
     const key=state(m)+'|'+attributes+'|'+!!m.geometry.index;
     const a=groups.get(key)||[];a.push(m);groups.set(key,a);
   }

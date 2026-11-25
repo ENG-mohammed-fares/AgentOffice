@@ -3,6 +3,12 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createAgentAnimator} from './agent-animation.mjs';
 import {seatingPlan,createSeatedMotion,createMeetingQueue} from './office-motion.mjs';
 // Compose genuine skeletal tracks: seated pelvis and legs, animated upper body.
+/**
+ * Combines seated lower-body skeletal tracks with animated upper-body tracks.
+ * @param {import('three').AnimationClip[]} clips - Source clips including Sitting and activity clips.
+ * @param {object} [THREEImpl] - Three.js implementation used to create clips.
+ * @returns {import('three').AnimationClip[]} Derived clips, without mutating source tracks.
+ */
 export function seatedClips(clips,THREEImpl=THREE){
   const sitting=clips.find(c=>c.name==='Sitting');
   if(!sitting)return [];
@@ -19,6 +25,7 @@ export function seatedClips(clips,THREEImpl=THREE){
 }
 // Two-bone reach uses real joint lengths and a bend plane, never stretches
 // the hand or translates the whole avatar to the keyboard.
+/** Rotates a joint toward a world-space target without changing its length. */
 function aimBone(bone,child,target){
   const origin=bone.getWorldPosition(new THREE.Vector3());
   const from=child.getWorldPosition(new THREE.Vector3()).sub(origin).normalize();
@@ -29,6 +36,7 @@ function aimBone(bone,child,target){
   bone.quaternion.copy(parent.multiply(new THREE.Quaternion().setFromUnitVectors(from,to).multiply(world)));
   bone.updateWorldMatrix(false,true);
 }
+/** Solves a two-segment arm reach within the existing joint lengths. */
 function reachArm(upper,fore,hand,target){
   const shoulder=upper.getWorldPosition(new THREE.Vector3()),elbow=fore.getWorldPosition(new THREE.Vector3()),wrist=hand.getWorldPosition(new THREE.Vector3());
   const a=shoulder.distanceTo(elbow),b=elbow.distanceTo(wrist);
@@ -42,12 +50,20 @@ function reachArm(upper,fore,hand,target){
   const nextElbow=shoulder.clone().addScaledVector(direction,along).addScaledVector(bend.normalize(),height);
   aimBone(upper,fore,nextElbow);aimBone(fore,hand,shoulder.clone().addScaledVector(direction,d));
 }
+/** Resolves rig joints once and returns a per-frame keyboard reach callback. */
 function keyboardReach(root,seat){
   const arms=['Left','Right'].map((side,i)=>({upper:root.getObjectByName(side+'Arm'),fore:root.getObjectByName(side+'ForeArm'),hand:root.getObjectByName(side+'Hand'),target:new THREE.Vector3(seat.keyboard.x+(i===0?-.105:.105),.885,seat.keyboard.z)}));
   return ()=>{root.updateWorldMatrix(true,true);for(const a of arms)if(a.upper&&a.fore&&a.hand)reachArm(a.upper,a.fore,a.hand,a.target);};
 }
 export const CLIPS=Object.freeze(['Idle','Walk','Typing','Thinking','Review','Meeting','Talk','Error','Celebrate','Sitting']);
 const filePattern=/^[a-z-]+\.glb$/;
+/**
+ * Validates the seven unique role/file/station assignments and computes preview transforms.
+ * @param {object[]} roster - Local GLB filenames and station indices.
+ * @param {number[][]} stations - Authored station coordinates and headings.
+ * @returns {object[]} Validated roster entries in Three.js world coordinates.
+ * @throws {Error} If the roster, paths or station coordinates are invalid.
+ */
 export function rosterPlan(roster,stations){
   if(!Array.isArray(roster)||roster.length!==7||!Array.isArray(stations)||stations.length!==7)throw Error('Expected seven characters and stations');
   const roles=new Set(),slots=new Set(),files=new Set();
@@ -62,6 +78,7 @@ export function rosterPlan(roster,stations){
     return {role,file,x:x+Math.sin(a)*offset,z:-y+Math.cos(a)*offset,yaw:Math.PI-a};
   });
 }
+/** Disposes unique avatar-owned GPU resources after detaching the roster. */
 function disposeTree(root){
   const geometry=new Set(),materials=new Set(),textures=new Set(),skeletons=new Set();
   root.traverse(o=>{
@@ -73,6 +90,7 @@ function disposeTree(root){
   });
   skeletons.forEach(s=>s.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometry.forEach(g=>g.dispose());
 }
+/** Loads a GLB via bounded XHR, including packaged Electron file URLs. */
 function readModel(url){
   return new Promise((resolve,reject)=>{
     const xhr=new XMLHttpRequest();xhr.open('GET',url,true);xhr.responseType='arraybuffer';xhr.timeout=20000;
@@ -80,6 +98,14 @@ function readModel(url){
     xhr.onerror=xhr.ontimeout=()=>reject(Error('Character asset unavailable'));xhr.send();
   });
 }
+/**
+ * Loads and validates all seven local avatars as an all-or-nothing roster.
+ * @param {object} options - Roster, office URL, cancellation/progress callbacks,
+ * injectable loader and optional movable-chair map.
+ * @returns {Promise<object>} Owned roster with animation, motion and disposal methods.
+ * @throws {Error} On cancellation, missing clips, invalid rigs or failed asset loading.
+ * Partial resources are disposed on failure; callers must dispose a successful roster.
+ */
 export async function loadCharacterRoster({roster,stations,officeURL,isCancelled,read=readModel,loader=new GLTFLoader(),onProgress=()=>{},chairs=null}){
   const plan=rosterPlan(roster,stations),group=new THREE.Group(),records=new Map();
   group.name='AgentOffice character preview';

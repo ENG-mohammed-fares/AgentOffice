@@ -2,6 +2,12 @@
 export const AGENT_STATES=Object.freeze(['idle','walking','working','thinking','reviewing','meeting','talking','error','completed','sitting','seatedTyping','seatedMeeting']);
 const loops=new Set(['idle','walking','working','thinking','reviewing','meeting','talking','sitting','seatedTyping','seatedMeeting']);
 const stateClips=Object.freeze({idle:'Idle',walking:'Walk',working:'Typing',thinking:'Thinking',reviewing:'Review',meeting:'Meeting',talking:'Talk',error:'Error',completed:'Celebrate',sitting:'Sitting',seatedTyping:'SeatedTyping',seatedMeeting:'SeatedMeeting'});
+/**
+ * Creates a skeletal animation state controller using the supplied mixer.
+ * @param {object} options - Root, clips, mixer, loop constants, fade seconds and forbidden root tracks.
+ * @returns {object} State, supported states, update and idempotent disposal interface.
+ * @throws {Error} On invalid configuration or duplicate/missing required clips.
+ */
 export function createAgentAnimator({root,clips,mixer,loopRepeat,loopOnce,fade=.2,rootTracks=[]}){
   if(!root||!Array.isArray(clips)||!mixer||!Number.isFinite(fade)||fade<0||fade>1)throw Error('Invalid animation configuration');
   const byName=new Map();
@@ -48,6 +54,12 @@ export function createAgentAnimator({root,clips,mixer,loopRepeat,loopOnce,fade=.
 }
 // Coordinates are Three.js world X/Z, not Blender's Z-up coordinates.
 // A route must be supplied by a navigation layer; no obstacle avoidance is claimed.
+/**
+ * Moves a mutable position along supplied X/Z waypoints at a bounded simulation step.
+ * @param {object} options - Position, heading callback and speed in metres per second.
+ * @returns {object} Route, movement, stop and update controls.
+ * @throws {Error} If configuration or a supplied route is invalid.
+ */
 export function createRouteFollower({position,face,speed=1.1}){
   if(!position||!Number.isFinite(position.x)||!Number.isFinite(position.z)||typeof face!=='function'||!Number.isFinite(speed)||speed<=0)throw Error('Invalid movement configuration');
   let route=[],index=0;
@@ -71,6 +83,7 @@ export function createRouteFollower({position,face,speed=1.1}){
     }
   };
 }
+/** Maps an assigned in-progress task to a visual activity state; no task execution occurs. */
 export function taskActivity(tasks,role){
   if(!Array.isArray(tasks)||typeof role!=='string')return 'idle';
   return tasks.some(t=>t?.owner===role&&t.status==='In progress')?'working':'idle';

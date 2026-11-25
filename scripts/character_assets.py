@@ -13,11 +13,20 @@ DIGEST = re.compile(r"[a-f0-9]{64}")
 
 
 def require(condition, message):
+    """Raise ValueError when an asset validation invariant fails."""
     if not condition:
         raise ValueError(message)
 
 
 def validate_model(data):
+    """Validate GLB header, animation roster and embedded resource constraints.
+
+    Args:
+        data: Raw GLB bytes from a local character asset.
+
+    Raises:
+        ValueError: If the file violates the required GLB or asset contract.
+    """
     require(len(data) >= 20, "Truncated character GLB")
     require(struct.unpack_from("<4sII", data) == (b"glTF", 2, len(data)),
             "Invalid character GLB header")
@@ -33,6 +42,19 @@ def validate_model(data):
 
 
 def stage_characters(assets, target):
+    """Verify every local character before replacing the prepared asset directory.
+
+    Args:
+        assets: Canonical asset directory containing roster and source GLBs.
+        target: Prepared character directory owned by the build.
+
+    Returns:
+        List of role, file and station records, or an empty list if no source exists.
+
+    Raises:
+        ValueError: If the roster, file digest or GLB is invalid.
+        OSError: If reading or writing the assets fails.
+    """
     source = assets / "characters"
     if not source.exists():
         if target.exists():

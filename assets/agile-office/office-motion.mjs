@@ -7,6 +7,11 @@ const point=(x,z)=>({x,z});
 const plus=(p,f,d)=>point(p.x+f.x*d,p.z+f.z*d);
 const mix=(a,b,t)=>point(a.x+(b.x-a.x)*t,a.z+(b.z-a.z)*t);
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
+/**
+ * Maps authored Blender station coordinates to desk and conference seats in Three.js.
+ * @param {number[][]} stations - Station x/y in metres and heading in radians.
+ * @returns {object[]} Independent seat plans with world X/Z coordinates.
+ */
 export function seatingPlan(stations){
   return stations.map(([x,y,a],i)=>{
     const forward=point(-Math.sin(a),-Math.cos(a));
@@ -16,7 +21,14 @@ export function seatingPlan(stations){
     return {desk,meeting};
   });
 }
+/**
+ * Computes a chair translation relative to its exported geometry, including desk tuck.
+ * @param {object} seat - Seat identifier and forward direction.
+ * @param {number} amount - Pull progress, clamped to [0, 1].
+ * @returns {{x:number,z:number}} World-space displacement in metres.
+ */
 export function chairOffset(seat,amount){return plus(point(0,0),seat.forward,(seat.id.startsWith('desk_')?DESK_TUCK:0)-PULL*clamp(amount));}
+/** Returns the authored standing clearance point in world metres for a pulled chair. */
 export function standingPoint(seat){return plus(plus(seat.at,seat.forward,-PULL),seat.forward,RISE);}
 function sidePoint(seat){
   const p=standingPoint(seat);
@@ -24,6 +36,13 @@ function sidePoint(seat){
 }
 // Door is at x=3.05,z=2.25. Keep the approach on the correct side of
 // the glass, and use the corridor south of the conference table.
+/**
+ * Builds authored waypoints through the glass doorway between assigned seats.
+ * This is not a general obstacle-avoidance or collision-detection system.
+ * @param {object} desk - Assigned desk seat.
+ * @param {object} meeting - Assigned conference seat.
+ * @returns {{x:number,z:number}[]} Ordered world-space waypoints.
+ */
 export function meetingRoute(desk,meeting){
   const d=sidePoint(desk),m=sidePoint(meeting);
   const aisle=desk.at.z+1.05;
@@ -36,6 +55,13 @@ function turn(current,target,dt){
   const delta=Math.atan2(Math.sin(target-current),Math.cos(target-current));
   return current+Math.max(-dt*4,Math.min(dt*4,delta));
 }
+/**
+ * Coordinates chair translation, pose changes and waypoint travel for one avatar.
+ * Mutates the supplied position and rotation; update receives elapsed seconds,
+ * clamped to 0.1 to avoid large simulation jumps. Contact remains a visual review item.
+ * @param {object} options - Assigned seat plan, mutable transforms and pose/chair callbacks.
+ * @returns {object} Motion controller with activity and meeting requests and phase queries.
+ */
 export function createSeatedMotion({plan,position,rotation,setPose,setChair,groundY=0}){
   let seat=plan.desk,desired=seat,phase='seated',clock=0,activity='idle',route=[],cursor=0,arrivalPull=0;
   const setPosition=p=>{position.x=p.x;position.z=p.z;position.y=groundY;};
@@ -99,6 +125,11 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
 }
 // One mover at a time through the narrow glass doorway; others stay seated.
 // Each avatar owns its own chair, so queued agents cannot share seats.
+/**
+ * Serializes travel through the narrow doorway and supports requests to return to desks.
+ * @param {object[]} records - Per-avatar seated motion controllers.
+ * @returns {object} Meeting request and frame-update interface.
+ */
 export function createMeetingQueue(records){
   let target=false,active=null;
   return {request(value){target=Boolean(value);},

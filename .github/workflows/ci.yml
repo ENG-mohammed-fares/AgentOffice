@@ -96,6 +96,18 @@ jobs:
         working-directory: app
         run: node --test scripts/identity.test.cjs
 
+      - name: Office renderer performance policy tests
+        working-directory: app
+        run: node --test scripts/office-performance.test.mjs
+
+      - name: Package local KTX2 transcoder
+        working-directory: app
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force public/basis | Out-Null
+          Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.js public/basis/
+          Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.wasm public/basis/
+
       - name: Production Vite build
         working-directory: app
         run: npm run build --ignore-scripts

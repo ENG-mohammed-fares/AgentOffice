@@ -28,8 +28,9 @@ with tempfile.TemporaryDirectory(prefix='agentoffice-model-') as tmp:
         assert image.startswith(b'RIFF') and image[8:12]==b'WEBP'
         (target/f'view-{i}.webp').write_bytes(image)
     (app/'src'/'agile-layout.json').write_text(json.dumps({k:scene[k] for k in ('lights','cameras','roles','stations')}),encoding='utf-8')
-for src,dest in [('main.js','main.js'),('agile-renderer.js','agile-renderer.js'),('agile-office.css','agile-office.css')]:
+for src,dest in [('main.js','main.js'),('agile-renderer.js','agile-renderer.js'),('agile-office.css','agile-office.css'),('office-performance.mjs','office-performance.mjs'),('office-batching.mjs','office-batching.mjs')]:
     shutil.copyfile(assets/src,app/'src'/dest)
+shutil.copyfile(assets/'office-performance.test.mjs',app/'scripts'/'office-performance.test.mjs')
 # Keep original authentication fixture coverage; assert the new destination.
 path=app/'scripts'/'auth-smoke.cjs'
 text=path.read_text(encoding='utf-8')

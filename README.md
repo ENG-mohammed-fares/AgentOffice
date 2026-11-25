@@ -4,6 +4,10 @@
 
 AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
 
+## What's new in 1.6.15
+
+Office rendering is event-driven and pauses while idle or hidden. Static shadow maps are calculated once. Adaptive resolution reduces rendering cost during motion and restores full resolution at rest. Safe opaque material batching and conditional instancing preserve the source model and transparent glass. Local KTX2 decoder support is prepared; full texture conversion and office lightmaps require separate asset verification.
+
 ## What's new in 1.6.14
 
 Replaces the authenticated dashboard with the two-room Agile Office: seven individual workstations and a glass meeting room. The existing sign-in intro leads directly to this office. The scene is bundled locally, with live Three.js rendering and pre-rendered view fallback. Previous local workspace data remains intact. Full-office light baking and hardware validation are not yet complete.

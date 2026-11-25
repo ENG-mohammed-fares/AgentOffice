@@ -42,3 +42,17 @@ The benchmark does not publish a release. Run the PR checks and verify a referen
 The runtime now requests asynchronous shader compilation before revealing the live view, records a bounded window of observed motion frame intervals, limits drawing-buffer size with explicit graphics presets, and retains the adaptive ratio across interactions rather than restoring maximum resolution after each movement. The Diagnostics button exposes the latest local snapshot; Refresh updates it on demand. FPS is a render-loop estimate, not a GPU presentation measurement. A recognizable software renderer string is a warning, not authoritative Electron GPU feature status; use the benchmark's Electron GPU report for that. No diagnostic data is transmitted.
 
 The existing 960x540 preview images, 29 area lights, two spotlights, GLB geometry, and original materials are unchanged. Full HD source renders and actual Blender lightmap generation require a verified render/bake pipeline and visual comparison; neither is claimed here. Keep the current 1.6.16 release version until CI and real-device comparisons are complete. Run the existing benchmark on the pinned release baseline and this branch with the same viewport, graphics preset (set AGENTOFFICE_GRAPHICS_PRESET=high for comparison to the old uncapped behavior; record the actual pixel ratio), hardware, driver, power mode and KTX2 path. Compare first-render time, P95 intervals, FPS, drawing-buffer dimensions, draw calls, and visual appearance. Measure software rendering separately. Do not integrate the seven new avatars into the baseline benchmark.
+
+### Generate native Full HD preview candidates
+
+From the prepared application on a display able to host a 1920x1080 content window:
+
+```powershell
+cd app
+$env:AGENTOFFICE_PREVIEW_DIR = "$PWD/../office-previews-candidate"
+$env:AGENTOFFICE_GRAPHICS_PRESET = 'high'
+npx --no-install electron ../scripts/office-runtime-benchmark.cjs
+Remove-Item Env:AGENTOFFICE_PREVIEW_DIR
+```
+
+Preview mode captures three actual Three.js renders from the authored cameras, rejects a sub-Full-HD drawing buffer or capture, and refuses to overwrite existing PNGs. It is not a benchmark run. Inspect lighting, composition and materials against the existing previews before accepting them. Convert accepted PNGs to WebP and base64 using the existing source format (e.g. Pillow) and replace view-0/1/2.webp.b64 in a separate reviewed commit. Do not upscale the old previews. The GPU capture route does not perform Blender light baking or create secondary UVs.

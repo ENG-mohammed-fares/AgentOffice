@@ -12,6 +12,8 @@ const out = fs.mkdtempSync(path.join(os.tmpdir(), 'agentoffice-benchmark-'));
 const html = path.join(appDir, 'scripts', 'office-benchmark-' + process.pid + '.html');
 const reportPath = path.resolve(process.env.AGENTOFFICE_PERF_REPORT || path.join(root, 'office-performance-report.json'));
 let server, win;
+const previewDir=process.env.AGENTOFFICE_PREVIEW_DIR;
+const previewMode=Boolean(previewDir);
 const preset=process.env.AGENTOFFICE_GRAPHICS_PRESET||'balanced';
 assert.ok(['balanced','high','performance'].includes(preset),'Invalid graphics preset');
 const page = `<!doctype html><meta charset="utf-8"><title>AgentOffice renderer benchmark</title>
@@ -35,13 +37,20 @@ async function quiet(previous){
   throw Error('Renderer did not settle after an observable frame');
 }
 window.benchmarkResult=(async()=>{
-  let view,contextLost=false;
+  let view,contextLost=false,keepView=false;
   try{
     const start=performance.now();
     view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)}});
     const firstFrameMs=round(performance.now()-start);
     await quiet(0);
     const initial=view.metrics(),initialFrames=count();
+    if(${JSON.stringify(previewMode)}){
+      window.previewView=async index=>{
+        const before=count();view.go(index,true);await quiet(before);return view.metrics();
+      };
+      keepView=true;
+      return {ok:true,firstFrameMs,textureFormat:host.dataset.textureFormat,initial,contextLost};
+    }
     await sleep(1000);
     const initialIdleFrames=count()-initialFrames;
     const transitions=[];
@@ -58,7 +67,7 @@ window.benchmarkResult=(async()=>{
     }
     return {ok:true,firstFrameMs,initialIdleFrames,textureFormat:host.dataset.textureFormat,contextLost,viewport:{width:host.clientWidth,height:host.clientHeight,devicePixelRatio},initial,transitions};
   }catch(error){return {ok:false,error:String(error?.stack||error),contextLost};}
-  finally{view?.dispose();}
+  finally{if(!keepView)view?.dispose();}
 })();
 </script>`;
 async function run(){
@@ -71,7 +80,7 @@ async function run(){
   await build(config);
   server=await preview({...config,preview:{host:'127.0.0.1',port:4173,strictPort:false}});
   const port=server.httpServer.address().port;
-  win=new BrowserWindow({width:1280,height:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
+  win=new BrowserWindow({width:previewMode?1920:1280,height:previewMode?1080:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
   await win.loadURL('http://127.0.0.1:'+port+'/scripts/'+path.basename(html));
   const deadline=Date.now()+120000;
   while(Date.now()<deadline){
@@ -84,6 +93,21 @@ async function run(){
     new Promise((_,reject)=>setTimeout(()=>reject(Error('Benchmark result timeout')),120000).unref())
   ]);
   assert.ok(result,'Benchmark module did not initialize');
+  if(previewMode){
+    assert.ok(result.ok,result.error);
+    const destination=path.resolve(previewDir);
+    fs.mkdirSync(destination,{recursive:true});
+    for(const index of [0,1,2]){
+      const metrics=await win.webContents.executeJavaScript('window.previewView('+index+')');
+      assert.ok(metrics.width>=1920&&metrics.height>=1080,'Actual rendering buffer is below Full HD; select High or use a larger display.');
+      const shot=await win.webContents.capturePage();
+      const {width,height}=shot.getSize();
+      assert.ok(width>=1920&&height>=1080,'Captured viewport is below Full HD.');
+      fs.writeFileSync(path.join(destination,'view-'+index+'.png'),shot.toPNG(),{flag:'wx'});
+    }
+    console.log('Native Full HD office previews:',destination);
+    return;
+  }
   const report={schemaVersion:1,recordedAt:new Date().toISOString(),electron:process.versions.electron,platform:process.platform,arch:process.arch,gpuFeatures:app.getGPUFeatureStatus(),gpuInfo:await app.getGPUInfo('basic').catch(()=>null),...result};
   fs.mkdirSync(path.dirname(reportPath),{recursive:true});
   fs.writeFileSync(reportPath,JSON.stringify(report,null,2)+'\n');

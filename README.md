@@ -1,72 +1,42 @@
-# AgentOffice
+# AgentOffice | Engineering
 
-**A desktop workspace for a virtual software team.**
+**Private source repository — authorized maintainers and collaborators only.**
 
-AgentOffice is an experimental Windows application that combines local work management with a live 3D office. The eventual goal is a team of seven connected AI development agents. **The AI agents are not connected yet.**
+AgentOffice is an experimental Windows desktop workspace with a live 3D office. The planned team of seven autonomous AI agents is not connected yet.
 
-## What's new in 1.6.1
+## Repository responsibilities
 
-The installed Windows app automatically checks for updates on launch, every 30 minutes, and after system resume. Downloads are automatic. A downloaded update silently installs and relaunches at the unauthenticated idle login screen (at least two minutes of system inactivity and no active authentication or recovery flow). An active workspace is never automatically restarted; the downloaded update installs on normal exit instead. Manual checking and restart remain optional.
+| Repository | Purpose |
+| --- | --- |
+| AgentOffice (this private repository) | Source, architecture, implementation, QA, internal documentation and build/release automation |
+| [AgentOffice-Releases](https://github.com/ENG-mohammed-fares/AgentOffice-Releases) (public) | End-user documentation, official Windows installers and update metadata when published |
 
-## Previously in 1.6.0
+Do not copy source archives, credentials, internal logs, private build artifacts or repository history into the distribution repository. Its README and support documentation are written for customers rather than developers.
 
-The bundled Supabase project configuration enables the client-side OAuth integration for Google and GitHub. Both use system-browser PKCE with provider-specific local workspaces. Erica One is bundled for English authentication headings and the brand wordmark; the readable Noto fonts remain for form text and Arabic. Live sign-in depends on provider dashboard configuration and must be verified using real accounts. Email-code delivery requires the email configuration in [AUTH-SETUP.md](AUTH-SETUP.md).
+## Engineering workflow
 
-## Previously in 1.5.0
+- `main`: default branch and historical baseline. Do not assume that it contains the newest application source.
+- `development`: active application development and release source. Consult the release policy and actual workflow at the checked-out revision.
+- Feature and quality branches: isolated changes and integration testing before adoption.
+- `quality/foundation-integration`: candidate consolidation of quality and security changes; refer to the live [integration PR](https://github.com/ENG-mohammed-fares/AgentOffice/pull/10) for verified status.
 
-Sign-in uses bundled Noto Kufi Arabic and Noto Sans fonts. The desktop client supports email-code recovery for local accounts on this device and a Google workspace through a configured Supabase Auth project. The public build currently ships without a project configuration. [Configure email and Google sign-in](AUTH-SETUP.md).
+## Build and validation
 
-## Previously in 1.4.0
+The repository contains the versioned baseline `AgentOffice-Source.zip` and preparation scripts. The exact build procedure depends on the checked-out branch; follow `.github/workflows/ci.yml` and its preparation, dependency-lock, testing and packaging steps. Use the committed lockfile and avoid packaging unprepared baseline source as an official release. The desktop stack includes Electron, Vite, Three.js and electron-updater. Supabase supports authentication; future agent execution and external AI services remain separate work.
 
-The desktop sign-in screen includes the interactive AgentOffice mascot, Arabic and English layouts, light and dark themes, and a guest entry to the workspace. Language, appearance and the optional remembered email are kept on the device.
+Never place privileged API keys in desktop bundles, public environment variables or logs. Use scoped secrets and server-side services where required. The integration candidate adds additional quality/security gates; passing individual branches does not establish production readiness.
 
-## Previously in 1.3.0
+## Internal documentation
 
-- A completely redesigned interface: petrol-green, terracotta orange, cream, deliberate typography, and one consistent icon family.
-- Professional local Sign In / Sign Up for Windows and a guest preview.
-- A real dashboard for managing a project and task list.
-- Create, edit, delete, search and progress tasks; edit your project brief.
-- Seven role profiles, with clear labels that these are planned AI-agent personas.
-- A new interactive procedural 3D studio — the rendered scene is still a prototype rather than cinematic final art.
-- A clear separation between real working features and future AI functions.
+- [Release policy](RELEASE-POLICY.md)
+- [Authentication setup](AUTH-SETUP.md)
+- [Security policy](SECURITY.md)
+- [Deferred engineering backlog](DEFERRED.md)
+- [Historical changelog](CHANGELOG.md)
+- [Documentation index](docs/README.md)
 
-Local account credentials are stored in the desktop app using salted scrypt hashes. Workspace data stays on this computer.
+## Distribution and licensing
 
-## Download and install
+End users should be directed to the [public distribution repository](https://github.com/ENG-mohammed-fares/AgentOffice-Releases/releases), not this private repository. The public channel is created but publication requires verified integration, scoped distribution access and trusted signing. Earlier private releases are not a public download channel.
 
-**[Download the latest Windows installer](https://github.com/ENG-mohammed-fares/AgentOffice/releases/latest)**
-
-AgentOffice checks GitHub Releases for updates. In 1.6.1 and later, installation is automatic at a safe idle sign-in screen or on ordinary exit. Earlier releases install downloaded updates on ordinary exit. The executable is currently unsigned and Windows SmartScreen may display a warning.
-
-## Source and build
-
-The complete baseline source is available as [AgentOffice-Source.zip](AgentOffice-Source.zip). The release pipeline extracts that ZIP, adds the approved brand icon from `assets/agentoffice-icon.webp.b64` via `scripts/apply-branding.py`, and packages the app using Electron Builder.
-
-To run locally, extract the source and run:
-
-```sh
-npm install
-npm run dev
-```
-
-To build a Windows installer:
-
-```sh
-npm run package:win
-```
-
-The codebase uses Vite, Three.js, Electron and electron-updater.
-
-## CI/CD — approval-controlled delivery
-
-[AgentOffice CI](https://github.com/ENG-mohammed-fares/AgentOffice/actions/workflows/ci.yml) runs on pushes and pull requests, validates source and dependencies, tests the application, and packages Windows QA candidates as Actions artifacts. High and critical dependency findings and a missing committed lockfile block release eligibility. No push publishes a GitHub Release. A manually dispatched delivery workflow prepares only an unpublished draft from an exact successful CI run; the release owner must explicitly publish the reviewed draft. The installed auto-updater continues to track stable published releases. See [release policy and QA checklist](RELEASE-POLICY.md).
-
-## Design principles
-
-The design aims to feel like a crafted tool, not a generated landing page. It avoids purple gradients, all-caps shouting, placeholder testimonials, stock product photos, random emoji icons, unnecessary fade-ins, and generic 3-card layouts. Colors and fonts are defined in `src/tokens.css` in the source package.
-
-## Roadmap
-
-The next major work is dedicated to real 3D production assets, animation and character modeling, then a secure agent runtime with distinct roles, tools, task assignments and reviews. Current role previews must not be mistaken for independently working AI employees.
-
-**License:** Proprietary — see [LICENSE](LICENSE). Previously granted MIT rights and third-party licenses are preserved; see [historical MIT notice](docs/legacy-mit-notice.txt). Public GitHub viewing and forking remain subject to GitHub's terms. Source availability does not grant additional rights to newly proprietary code.
+See [LICENSE](LICENSE) and [historical MIT notice](docs/legacy-mit-notice.txt). Previously granted rights and third-party licenses remain unaffected.

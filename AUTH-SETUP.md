@@ -22,3 +22,7 @@
 المراجع الرسمية: [إرسال رمز](https://supabase.com/docs/guides/auth/auth-email-passwordless) · [إعداد البريد](https://supabase.com/docs/guides/auth/auth-smtp) · [إعداد Google](https://supabase.com/docs/guides/auth/social-login/auth-google).
 
 اختبر زر GitHub بحساب حقيقي أيضًا. مساحات Google وGitHub والمحلية منفصلة حفاظًا على بيانات المشاريع. لا تُرسل مفاتيح Client Secret إلى المستودع.
+
+## Internal-only configuration
+
+This guide is for authorized maintainers, not end users. Customer-facing installation and sign-in troubleshooting belong in [AgentOffice-Releases](https://github.com/ENG-mohammed-fares/AgentOffice-Releases). Never publish provider credentials, SMTP configuration or privileged keys. Live provider verification and release-specific privacy review remain required.

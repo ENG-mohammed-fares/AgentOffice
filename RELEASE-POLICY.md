@@ -39,3 +39,7 @@ These settings require administrator permissions and are separate from the workf
 This public repository's Actions artifacts are not a private staging distribution channel;
 do not place secrets or private test data in artifacts. The stable installer is currently unsigned.
 Rollback is a reviewed, tested fix-forward release with a higher version, never a forced downgrade.
+
+## Distribution separation (current transition)
+
+The public `ENG-mohammed-fares/AgentOffice-Releases` repository exists and contains user-facing documentation only. No public installer is published yet. The public-channel publishing workflow is prepared in the integration candidate, not active on this historical branch. Do not direct users to private releases or use a source-repository credential in the desktop application. Before public publication, require a reviewed signed candidate, verified metadata, scoped publishing access, real update migration QA and applicable privacy/legal notices. The existing workflow behavior above remains unchanged by documentation edits.

@@ -27,6 +27,18 @@ class FeedTests(unittest.TestCase):
         feed.validate(GOOD)
         feed.validate(GOOD.replace("github", "'github'"))
 
+    def test_main_reads_packaged_config(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            config = root / "app/release/win-unpacked/resources/app-update.yml"
+            config.parent.mkdir(parents=True)
+            config.write_text(GOOD, encoding="utf-8")
+            with patch.object(feed, "__file__", str(root / "scripts/verify-update-feed.py")):
+                feed.main()
+                config.write_text(GOOD + "private: true\n", encoding="utf-8")
+                with self.assertRaises(RuntimeError):
+                    feed.main()
+
     def test_invalid_fields(self):
         for text in (
             GOOD.replace("repo: AgentOffice-Releases", "repo: AgentOffice"),

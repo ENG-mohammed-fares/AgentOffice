@@ -29,3 +29,7 @@ Node's native collector reports modules actually loaded in the unit-test process
 The first successful CI result is the baseline; do not claim a numerical coverage result before that run. A numeric regression threshold must be based on the verified baseline and the measured scope. The immediate mandatory gate is successful tests and a valid nonempty report covering the four required modules. The next quality stage will configure the SonarCloud Quality Gate and verify coverage import against the same extracted source; untested production sources should not be excluded simply to improve a score. Target 80% new-code coverage as a proposed policy, not as a measured current result.
 
 No release is published by this change itself.
+
+## Multi-language coverage extension
+
+Python unit tests execute overlay and updater validators with isolated fixtures and export Cobertura. Windows Pester 5.7.1 runs signing policy, real package scanning and isolated early publisher rejection tests and exports Cobertura, then converts the measured line evidence to Sonar generic coverage. The existing standalone signature and packaged scan gates remain mandatory. The benchmark, refactoring driver and test scripts are classified as tests; actual publishing, signature verification and secret scanning remain production source. Coverage of rejection paths is not evidence that a real signed publication succeeds. Check the actual CI/Sonar results before reporting improved coverage.

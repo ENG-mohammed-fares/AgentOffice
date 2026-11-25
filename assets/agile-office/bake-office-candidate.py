@@ -147,7 +147,7 @@ def classify_nodes(doc, combined):
             continue
         name = node["name"]
         blocked = ("glass", "sky", "screen", "display", "mirror") if combined else ("glass", "sky")
-        reason = next((word for word in blocked if word in name.lower()), None)
+        reason = "movable chair" if name.lower().startswith("chair_") else next((word for word in blocked if word in name.lower()), None)
         if reason is None:
             for primitive in doc["meshes"][node["mesh"]]["primitives"]:
                 if "TEXCOORD_0" not in primitive["attributes"] or "material" not in primitive:
@@ -318,20 +318,32 @@ def embed_unlit_atlas(source, output, names):
 
 
 def main():
+    """Bake only the canonical office assets into the fixed review directory."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source", type=Path, required=True)
-    parser.add_argument("--layout", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    # Accept only the established invocation; never use CLI paths for filesystem access.
+    parser.add_argument("--source", choices=("assets/agile-office/office.glb",), required=True)
+    parser.add_argument("--layout", choices=("assets/agile-office/scene.json",), required=True)
+    parser.add_argument("--output", choices=("office-candidates",), required=True)
     parser.add_argument("--samples", type=int, choices=(16, 32, 64), default=16)
     parser.add_argument("--combined", action="store_true")
     parser.add_argument("--atlas", type=int, choices=(1024, 2048, 4096), default=1024)
     args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
-    source, output = args.source.resolve(), args.output.resolve()
+    asset_dir = Path(__file__).resolve().parent
+    source = asset_dir / "office.glb"
+    layout_path = asset_dir / "scene.json"
+    output = asset_dir.parents[1] / "office-candidates"
+    for file in (source, layout_path):
+        if not file.is_file() or file.resolve(strict=True) != file:
+            raise ValueError("Expected a regular canonical office input")
+    if output.resolve() != output:
+        raise ValueError("Unexpected candidate output location")
     output.mkdir(parents=True, exist_ok=True)
+    if any(entry.is_symlink() for entry in output.iterdir()):
+        raise ValueError("Candidate output contains symbolic links")
     original = glb_summary(source)
     if original["triangles"] != EXPECTED_TRIANGLES:
         raise ValueError("Original office triangle count changed")
-    layout = json.loads(args.layout.read_text(encoding="utf-8"))
+    layout = json.loads(layout_path.read_text(encoding="utf-8"))
     scene = setup_scene(source, layout, args.samples)
     if not args.combined:
         render_previews(scene, layout, output)

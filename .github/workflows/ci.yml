@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
   group: agentoffice-ci-${{ github.workflow }}-${{ github.ref }}
@@ -45,6 +44,12 @@ jobs:
         run: |
           python -m coverage run --append --branch --source=scripts,assets/agile-office assets/agile-office/compress-ktx2.py assets/agile-office/office.glb compressed/office-ktx2.glb
           python -m coverage xml -o compressed/office-assets-coverage.xml
+      - name: Measure actual Blender bake execution (review assets only)
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y blender python3-coverage
+          PYTHONPATH=/usr/lib/python3/dist-packages blender --background --factory-startup --python-use-system-env --python-exit-code 1 --python scripts/test_office_bake_execution.py
+          test -s compressed/office-bake-coverage.xml
       - uses: actions/upload-artifact@v6
         with:
           name: agentoffice-compressed-textures
@@ -134,7 +139,9 @@ jobs:
           path: app/public/office
       - name: Import geometry-build execution coverage
         shell: pwsh
-        run: Move-Item app/public/office/office-assets-coverage.xml coverage/office-assets-coverage.xml
+        run: |
+          Move-Item app/public/office/office-assets-coverage.xml coverage/office-assets-coverage.xml
+          Move-Item app/public/office/office-bake-coverage.xml coverage/office-bake-coverage.xml
       - name: Validate compressed and original geometry
         run: python -m coverage run --append --branch --source=scripts,assets/agile-office assets/agile-office/verify-ktx2.py app/public/office
 
@@ -231,7 +238,7 @@ jobs:
 
       # Isolated review only: neither downloaded candidate nor captures are packaged.
       - name: Render actual seated avatars and separately movable chairs
-        if: github.ref == 'refs/heads/feat/1.6.17-natural-office-motion'
+        if: (github.ref == 'refs/heads/feat/1.6.17-natural-office-motion' || github.ref == 'refs/heads/feat/1.6.17-character-integration' || github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
         working-directory: app
         shell: pwsh
         env:
@@ -243,7 +250,7 @@ jobs:
           npx --no-install electron ../scripts/office-runtime-benchmark.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Actual seated character review failed' }
       - name: Preserve seated office screenshots
-        if: always() && github.ref == 'refs/heads/feat/1.6.17-natural-office-motion'
+        if: always() && (github.ref == 'refs/heads/feat/1.6.17-natural-office-motion' || github.ref == 'refs/heads/feat/1.6.17-character-integration' || github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
         uses: actions/upload-artifact@v6
         with:
           name: office-seated-character-review
@@ -251,50 +258,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Retrieve exact reviewed hybrid candidate
-        if: github.ref == 'refs/heads/feat/1.6.17-character-integration'
-        uses: actions/download-artifact@v7
-        with:
-          name: office-hybrid-compressed-candidate
-          run-id: 45666174816
-          github-token: ${{ github.token }}
-          path: hybrid-review-input
-      - name: Verify and render all seven actual avatars in both office modes
-        if: github.ref == 'refs/heads/feat/1.6.17-character-integration'
-        working-directory: app
-        shell: pwsh
-        env:
-          AGENTOFFICE_CHARACTER_REVIEW: '1'
-          AGENTOFFICE_GRAPHICS_PRESET: 'performance'
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $inputDir = Join-Path $PWD '../hybrid-review-input'
-          $report = Get-Content (Join-Path $inputDir 'verification.json') -Raw | ConvertFrom-Json
-          if ($report.source_run -ne 45665153041 -or !$report.geometry_and_material_metadata_unchanged) { throw 'Unexpected candidate provenance' }
-          $model = Join-Path $inputDir 'office-baked-ktx2.glb'
-          if ((Get-FileHash $model -Algorithm SHA256).Hash.ToLowerInvariant() -ne $report.compressed_sha256) { throw 'Candidate hash mismatch' }
-          $destination = Join-Path $PWD 'public/office/office-baked-ktx2.glb'
-          try {
-            Copy-Item $model $destination
-            $env:AGENTOFFICE_PREVIEW_DIR = Join-Path $PWD '../character-review/pbr'
-            npx --no-install electron ../scripts/office-runtime-benchmark.cjs
-            $pbrExit = $LASTEXITCODE
-            $env:AGENTOFFICE_BAKED_CANDIDATE = 'ktx2'
-            $env:AGENTOFFICE_PREVIEW_DIR = Join-Path $PWD '../character-review/hybrid'
-            npx --no-install electron ../scripts/office-runtime-benchmark.cjs
-            $hybridExit = $LASTEXITCODE
-            if ($pbrExit -ne 0 -or $hybridExit -ne 0) { throw "Character review failed: PBR=$pbrExit Hybrid=$hybridExit" }
-          } finally {
-            Remove-Item $destination -ErrorAction SilentlyContinue
-          }
-      - name: Upload actual office character comparison
-        if: always() && github.ref == 'refs/heads/feat/1.6.17-character-integration'
-        uses: actions/upload-artifact@v6
-        with:
-          name: office-character-visual-review
-          path: character-review/
-          if-no-files-found: warn
-          retention-days: 14
+      # A previously baked model has different chair topology. Never reuse it as a release asset.
+
 
       - name: Source-mapped execution coverage build
         working-directory: app
@@ -473,7 +438,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
             throw 'SONAR_TOKEN is required for development Quality Gate.'
           }
-          $requiredReports = @('coverage/sonar-lcov.info','coverage/tooling-lcov.info','coverage/execution-lcov.info','coverage/execution-tooling-lcov.info','coverage/python-coverage.xml','coverage/office-assets-coverage.xml','coverage/powershell-sonar.xml')
+          $requiredReports = @('coverage/sonar-lcov.info','coverage/tooling-lcov.info','coverage/execution-lcov.info','coverage/execution-tooling-lcov.info','coverage/python-coverage.xml','coverage/office-assets-coverage.xml','coverage/office-bake-coverage.xml','coverage/powershell-sonar.xml')
           foreach ($report in $requiredReports) {
             if (!(Test-Path $report -PathType Leaf) -or (Get-Item $report).Length -eq 0) { throw "Required measured coverage report missing or empty: $report" }
           }

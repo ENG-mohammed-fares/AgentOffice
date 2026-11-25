@@ -38,3 +38,7 @@ Blender 4.0.2 returned zero eligible targets under imported Principled socket ch
 ## Compressed hybrid candidate
 
 A separate workflow downloads the exact successful hybrid bake artifact from run 45665153041, verifies its model SHA-256 against the bake report and reuses the existing strict UASTC KTX2 compressor. It verifies node, mesh, material and accessor metadata, and byte equality of all non-image buffer views. This avoids re-baking or modifying the accepted source. Any unsupported texture semantics fail rather than being reinterpreted as sRGB. The artifact remains experimental. Copy the resulting office-baked-ktx2.glb into the prepared office directory, then set AGENTOFFICE_BAKED_CANDIDATE=ktx2 for the benchmark. Missing or invalid compressed assets fail explicitly rather than generating misleading fallback results. Normal app startup still uses the original verified PBR pipeline. Compare on identical hardware, and review the actual atlas and all camera views before adopting the candidate.
+
+## Current integration safety
+
+The former hybrid artifact predates the individually movable chairs and is not a valid release asset for the seated scene. The canonical bake command accepts only the fixed source, layout and review-output locations. Movable chair nodes are excluded from static baking. CI now measures real Cycles execution in both modes, including native preview renders; the resulting candidate remains review-only until visual and GPU validation. Only coverage XML is transferred to the Windows build, not the baked scene.

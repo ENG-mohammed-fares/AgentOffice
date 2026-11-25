@@ -41,3 +41,15 @@ if pkg["version"] != version:
 if not (app / "src" / "auth.js").exists() or not (app / "electron" / "auth.cjs").exists():
     raise RuntimeError("Authentication source files are missing")
 print("Verified AgentOffice", version, "auth source")
+
+# Apply the approved visual intro after production auth has been prepared.
+import runpy
+runpy.run_path(str(repo / 'scripts' / 'apply-exact-intro.py'), run_name='__main__')
+
+runpy.run_path(str(repo / 'scripts' / 'apply-preferences.py'), run_name='__main__')
+
+runpy.run_path(str(repo / 'scripts' / 'apply-nonstartup-intro.py'), run_name='__main__')
+
+runpy.run_path(str(repo / 'scripts' / 'apply-ux-polish.py'), run_name='__main__')
+
+runpy.run_path(str(repo / 'scripts' / 'apply-phone-auth.py'), run_name='__main__')

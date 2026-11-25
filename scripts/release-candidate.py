@@ -26,10 +26,10 @@ def assets(directory, version):
         raise RuntimeError("Missing or empty updater assets")
     metadata = (directory / "latest.yml").read_text(encoding="utf-8")
     def field(key):
-        m = re.search(r"^" + re.escape(key) + r":\s*([^\r\n]+)", metadata, re.M)
-        if not m:
-            raise RuntimeError(f"Missing updater metadata: {key}")
-        return m.group(1).strip().strip("'\"")
+        matches = re.findall(r"^" + re.escape(key) + r":[ \t]*([^\r\n]*)$", metadata, re.M)
+        if len(matches) != 1:
+            raise RuntimeError(f"Missing or ambiguous updater metadata: {key}")
+        return matches[0].strip().strip("'\"")
     if field("version") != version or field("path") != exe:
         raise RuntimeError("Updater version or filename mismatch")
     expected = base64.b64encode(digest(directory / exe, "sha512").digest()).decode("ascii")
@@ -60,9 +60,9 @@ def verify():
     if expected_version != VERSION or manifest.get("version") != VERSION:
         raise RuntimeError("Candidate version mismatch")
     if manifest.get("commit") != os.environ["GITHUB_SHA"] or str(manifest.get("run_id")) != os.environ["EXPECTED_RUN_ID"]:
-        raise RuntimeError("Candidate is not from the selected current main CI run")
-    if manifest.get("ref") != "refs/heads/main" or manifest.get("locked") is not True:
-        raise RuntimeError("Candidate requires main and committed dependency lock")
+        raise RuntimeError("Candidate is not from the selected development CI run")
+    if manifest.get("ref") != "refs/heads/development" or manifest.get("locked") is not True:
+        raise RuntimeError("Candidate requires development and committed dependency lock")
     names = assets(DEST, VERSION)
     if set(manifest.get("sha256", {})) != set(names):
         raise RuntimeError("Manifest asset list mismatch")

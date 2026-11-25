@@ -58,12 +58,14 @@ async function loadOfficeModel(renderer,url,isCancelled,bakedCandidate){
   return {gltf:await new GLTFLoader().parseAsync(raw,new URL('./',url).href),format:'original'};
 }
 
-export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitialIndex=()=>0,preset='balanced',bakedCandidate=false}){
+export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitialIndex=()=>0,preset='balanced',bakedCandidate=false,characterRoster=[]}){
   const canvas=document.createElement('canvas'),gl=canvas.getContext('webgl2',{alpha:false,antialias:true,powerPreference:'high-performance'});
   if(!gl)throw Error('WebGL2 unavailable');
   let renderer,scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,1,.045,130),environment,pmrem,model,observer,disposed=false,move=null,drag=null,frameScheduler,resolution,stats,lastFrame=0,settleFrames=0,frames=0;
   const started=performance.now(),motionMetrics=makeFrameMetrics();
   let contextLost=false,assetLoadMs=0,readyMs=0,selectedPreset=preset;
+  let characters=null,characterFrame=0,characterStatus=characterRoster.length?'loading':'not bundled';
+  const activity=new Map();
   const maxRatio=()=>graphicsPixelRatio(selectedPreset,devicePixelRatio,host.clientWidth,host.clientHeight);
   const gpuExtension=gl.getExtension?.('WEBGL_debug_renderer_info');
   const gpuRenderer=gl.getParameter?.(gpuExtension?.UNMASKED_RENDERER_WEBGL??gl.RENDERER)||'Unavailable';
@@ -76,8 +78,8 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());
   };
   const lost=e=>{e.preventDefault();contextLost=true;onLost?.();};
-  const dispose=()=>{if(disposed)return;disposed=true;frameScheduler?.dispose();document.removeEventListener('visibilitychange',visibility);observer?.disconnect();canvas.removeEventListener('webglcontextlost',lost);disposeScene();environment?.dispose();pmrem?.dispose();renderer?.dispose();canvas.remove();};
-  function visibility(){if(document.hidden){frameScheduler?.pause();lastFrame=0;}else{lastFrame=0;frameScheduler?.resume();}}
+  const dispose=()=>{if(disposed)return;disposed=true;characters?.dispose();characters=null;frameScheduler?.dispose();document.removeEventListener('visibilitychange',visibility);observer?.disconnect();canvas.removeEventListener('webglcontextlost',lost);disposeScene();environment?.dispose();pmrem?.dispose();renderer?.dispose();canvas.remove();};
+  function visibility(){characterFrame=0;if(document.hidden){frameScheduler?.pause();lastFrame=0;}else{lastFrame=0;frameScheduler?.resume();}}
   try{
     renderer=new THREE.WebGLRenderer({canvas,context:gl,antialias:true});
     resolution=makeResolutionController(maxRatio(),{stable:true});
@@ -153,8 +155,13 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
       }
       lastFrame=moving?now:0;
       if(move){const q=Math.min(1,(now-move.start)/move.duration),e=q*q*(3-2*q);camera.position.copy(move.path.getPointAt(e));target.lerpVectors(move.from,move.to,e);camera.fov=THREE.MathUtils.lerp(move.fov,move.endFov,e);camera.updateProjectionMatrix();camera.lookAt(target);if(q>=1)move=null;}
+      if(characters){
+        const elapsed=characterFrame?now-characterFrame:33.34;
+        if(!moving&&elapsed<33){frameScheduler.request();return;}
+        characters.update(elapsed/1000);characterFrame=now;
+      }
       renderer.render(scene,camera);report();
-      if(move||drag){settleFrames=0;frameScheduler.request();}
+      if(characters||move||drag){settleFrames=0;frameScheduler.request();}
       else if(moving||settleFrames===1){if(settleFrames===0){settleFrames=1;frameScheduler.request();}else settleFrames=0;}
     }
     canvas.addEventListener('pointerdown',e=>{if(move)return;drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);lastFrame=0;settleFrames=0;frameScheduler.request();});
@@ -171,6 +178,16 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     readyMs=performance.now()-started;
     host.replaceChildren(canvas);observer=new ResizeObserver(resize);observer.observe(host);
     document.addEventListener('visibilitychange',visibility);
-    return {go,dispose,setGraphicsPreset,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
+    if(characterRoster.length){
+      // Load only after the first office frame; keep the office usable on failure.
+      import('./office-characters.mjs').then(mod=>mod.loadCharacterRoster({roster:characterRoster,stations:layout.stations,officeURL:url,isCancelled:()=>disposed||contextLost||isCancelled()})).then(roster=>{
+        if(disposed||contextLost||isCancelled()){roster.dispose();return;}
+        characters=roster;scene.add(roster.group);characterStatus='preview ready';
+        for(const [role,state] of activity)roster.setState(role,state);
+        frameScheduler.request();
+      }).catch(err=>{if(!disposed&&!contextLost){characterStatus='preview unavailable';console.warn('Character preview unavailable',err?.message);}});
+    }
+    function setAgentState(role,state){activity.set(role,state);return characters?.setState(role,state)??false;}
+    return {go,dispose,setGraphicsPreset,setAgentState,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,characters:characters?.count??0,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
   }catch(err){dispose();throw err;}
 }

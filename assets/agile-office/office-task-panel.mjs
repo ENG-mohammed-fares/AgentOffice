@@ -1,5 +1,5 @@
 import {createTaskStore,createActivityDemo,STATUSES} from './office-tasks.mjs';
-export function mountTaskPanel(stage,user,{roles,getStorage=()=>globalThis.localStorage,setTimer,clearTimer}){
+export function mountTaskPanel(stage,user,{roles,getStorage=()=>globalThis.localStorage,setTimer,clearTimer,onActivity=()=>{}}){
   const document=stage.ownerDocument;
   const $=id=>stage.querySelector('#'+id);
   const panel=$('office-tasks'),toggle=$('office-tasks-toggle'),form=$('office-task-form'),title=$('office-task-title'),owner=$('office-task-owner'),list=$('office-task-list'),feedback=$('office-task-feedback'),demoButton=$('office-demo-toggle'),activity=$('office-demo-activity');
@@ -9,10 +9,12 @@ export function mountTaskPanel(stage,user,{roles,getStorage=()=>globalThis.local
   const store=createTaskStore({roles,accountId:user?.guest?null:user?.id,storage});
   const option=(value,label=value)=>{const el=document.createElement('option');el.value=value;el.textContent=label;return el};
   for(const role of roles)owner.append(option(role));
-  const demo=createActivityDemo({roles,setTimer,clearTimer,emit:({role,activity:state})=>{activity.textContent='Demo: '+role+' · '+state}});
+  const demo=createActivityDemo({roles,setTimer,clearTimer,emit:({role,activity:state})=>{activity.textContent='Demo: '+role+' · '+state;onActivity(role,state==='available'?'idle':state)}});
   function render(){
+    const tasks=store.get();
+    for(const role of roles)onActivity(role,tasks.some(t=>t.owner===role&&t.status==='In progress')?'working':'idle');
     const fragment=document.createDocumentFragment();
-    for(const task of store.get()){
+    for(const task of tasks){
       const row=document.createElement('li'),text=document.createElement('span'),select=document.createElement('select');
       text.textContent=task.title+' · '+task.owner;
       select.setAttribute('aria-label','Status: '+task.title);

@@ -26,7 +26,8 @@ function mountWorkspace(user){
   el('office-metrics-refresh').onclick=refreshMetrics;
   const initialView=()=>{poster.src=url('view-'+index+'.webp');poster.hidden=false;poster.removeAttribute('aria-hidden');};
   initialView();app.replaceChildren(stage);
-  const disposeTasks=mountTaskPanel(stage,user,{roles:layout.roles});
+  const activity=new Map();
+  const disposeTasks=mountTaskPanel(stage,user,{roles:layout.roles,onActivity:(role,state)=>{activity.set(role,state);renderer?.setAgentState(role,state);}});
   const choose=i=>{
     index=i;el('office-title').textContent=views[i];
     el('office-workspace').setAttribute('aria-pressed',String(i!==2));
@@ -53,9 +54,9 @@ function mountWorkspace(user){
   // The expensive GLB and renderer load only after the authenticated destination exists.
   import('./agile-renderer.js').then(async mod=>{
     if(disposed)return;
-    const view=await mod.mountAgileRenderer(live,url('office.glb'),{onLost:fallback,isCancelled:()=>disposed,getInitialIndex:()=>index,preset:graphics.value});
+    const view=await mod.mountAgileRenderer(live,url('office.glb'),{onLost:fallback,isCancelled:()=>disposed,getInitialIndex:()=>index,preset:graphics.value,characterRoster:layout.characters??[]});
     if(disposed){view.dispose();return;}
-    renderer=view;renderer.setGraphicsPreset(graphics.value);poster.setAttribute('aria-hidden','true');if(!diagnostics.hidden)refreshMetrics();status.textContent='Live 3D • drag to look around';stage.dataset.renderMode='live';
+    renderer=view;for(const [role,state] of activity)renderer.setAgentState(role,state);renderer.setGraphicsPreset(graphics.value);poster.setAttribute('aria-hidden','true');if(!diagnostics.hidden)refreshMetrics();status.textContent='Live 3D • drag to look around';stage.dataset.renderMode='live';
   }).catch(()=>{if(!disposed)fallback();});
   return Promise.resolve();
 }

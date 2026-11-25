@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {rosterPlan,loadCharacterRoster,CLIPS} from '../src/office-characters.mjs';
+import {rosterPlan,loadCharacterRoster,CLIPS,seatedClips} from '../src/office-characters.mjs';
 const roster=Array.from({length:7},(_,i)=>({role:'Role '+i,file:'character-'+String.fromCharCode(97+i)+'.glb',station:i}));
 const stations=Array.from({length:7},(_,i)=>[i*3,2,0]);
 test('roster requires distinct roles, filenames and stations, with contained local asset paths',()=>{
@@ -46,4 +46,16 @@ test('asset read failure leaves no partially attached roster',async()=>{
  const f=fixture();let reads=0;
  await assert.rejects(loadCharacterRoster({...base,loader:f.loader,read:async url=>{if(++reads===2)throw Error('read failure');return f.read(url)}}),/read failure/);
  assert.equal(f.disposed,1);
+});
+
+test('seated clips preserve hip and leg tracks while using actual animated upper-body tracks',()=>{
+ const track=(name,y)=>new THREE.VectorKeyframeTrack(name,[0,1],[0,y,0,0,y,0]);
+ const sitting=new THREE.AnimationClip('Sitting',1,[track('Hips.position',.55),track('LeftLeg.position',.4),track('LeftHand.position',.7)]);
+ const typing=new THREE.AnimationClip('Typing',2,[track('Hips.position',.9),track('LeftHand.position',.88)]);
+ const meeting=new THREE.AnimationClip('Meeting',2,[track('RightHand.position',.8)]);
+ const [a,b]=seatedClips([sitting,typing,meeting]);
+ assert.equal(a.duration,2);assert.equal(a.tracks.find(t=>t.name==='Hips.position').values[1],Math.fround(.55));
+ assert.equal(a.tracks.find(t=>t.name==='Hips.position').times[1],2);
+ assert.equal(a.tracks.find(t=>t.name==='LeftHand.position').values[1],Math.fround(.88));
+ assert.ok(b.tracks.some(t=>t.name==='RightHand.position'));assert.equal(sitting.tracks[0].times[1],1);
 });

@@ -230,6 +230,27 @@ jobs:
           Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.wasm public/basis/
 
       # Isolated review only: neither downloaded candidate nor captures are packaged.
+      - name: Render actual seated avatars and separately movable chairs
+        if: github.ref == 'refs/heads/feat/1.6.17-natural-office-motion'
+        working-directory: app
+        shell: pwsh
+        env:
+          AGENTOFFICE_CHARACTER_REVIEW: '1'
+          AGENTOFFICE_SEATED_REVIEW: '1'
+          AGENTOFFICE_GRAPHICS_PRESET: 'performance'
+        run: |
+          $env:AGENTOFFICE_PREVIEW_DIR = Join-Path $PWD '../seated-review'
+          npx --no-install electron ../scripts/office-runtime-benchmark.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Actual seated character review failed' }
+      - name: Preserve seated office screenshots
+        if: always() && github.ref == 'refs/heads/feat/1.6.17-natural-office-motion'
+        uses: actions/upload-artifact@v6
+        with:
+          name: office-seated-character-review
+          path: seated-review/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Retrieve exact reviewed hybrid candidate
         if: github.ref == 'refs/heads/feat/1.6.17-character-integration'
         uses: actions/download-artifact@v7

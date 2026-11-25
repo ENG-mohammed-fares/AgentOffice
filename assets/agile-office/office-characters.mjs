@@ -9,10 +9,42 @@ export function seatedClips(clips,THREEImpl=THREE){
   const lower=/^(Hips|LeftUpLeg|RightUpLeg|LeftLeg|RightLeg|LeftFoot|RightFoot|LeftToeBase|RightToeBase)\./;
   return [['Typing','SeatedTyping'],['Meeting','SeatedMeeting']].flatMap(([source,name])=>{
     const upper=clips.find(c=>c.name===source);if(!upper)return [];
-    const tracks=[...upper.tracks.filter(t=>!lower.test(t.name)).map(t=>t.clone()),
-      ...sitting.tracks.filter(t=>lower.test(t.name)).map(t=>t.clone())];
-    return [new THREEImpl.AnimationClip(name,Math.max(sitting.duration,upper.duration),tracks)];
+    const duration=upper.duration;
+    const legs=sitting.tracks.filter(t=>lower.test(t.name)).map(t=>{
+      const track=t.clone();track.times=Float32Array.from(track.times,time=>time*duration/sitting.duration);return track;
+    });
+    const tracks=[...upper.tracks.filter(t=>!lower.test(t.name)).map(t=>t.clone()),...legs];
+    return [new THREEImpl.AnimationClip(name,duration,tracks)];
   });
+}
+// Two-bone reach uses real joint lengths and a bend plane, never stretches
+// the hand or translates the whole avatar to the keyboard.
+function aimBone(bone,child,target){
+  const origin=bone.getWorldPosition(new THREE.Vector3());
+  const from=child.getWorldPosition(new THREE.Vector3()).sub(origin).normalize();
+  const to=target.clone().sub(origin).normalize();
+  if(!from.lengthSq()||!to.lengthSq())return;
+  const world=bone.getWorldQuaternion(new THREE.Quaternion());
+  const parent=bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+  bone.quaternion.copy(parent.multiply(new THREE.Quaternion().setFromUnitVectors(from,to).multiply(world)));
+  bone.updateWorldMatrix(false,true);
+}
+function reachArm(upper,fore,hand,target){
+  const shoulder=upper.getWorldPosition(new THREE.Vector3()),elbow=fore.getWorldPosition(new THREE.Vector3()),wrist=hand.getWorldPosition(new THREE.Vector3());
+  const a=shoulder.distanceTo(elbow),b=elbow.distanceTo(wrist);
+  if(a<.01||b<.01)return;
+  const direction=target.clone().sub(shoulder);
+  const d=THREE.MathUtils.clamp(direction.length(),Math.abs(a-b)+.001,a+b-.001);
+  direction.normalize();
+  const along=(a*a+d*d-b*b)/(2*d),height=Math.sqrt(Math.max(0,a*a-along*along));
+  const bend=new THREE.Vector3(0,-1,0).addScaledVector(direction,direction.y);
+  if(bend.lengthSq()<1e-6)return;
+  const nextElbow=shoulder.clone().addScaledVector(direction,along).addScaledVector(bend.normalize(),height);
+  aimBone(upper,fore,nextElbow);aimBone(fore,hand,shoulder.clone().addScaledVector(direction,d));
+}
+function keyboardReach(root,seat){
+  const arms=['Left','Right'].map((side,i)=>({upper:root.getObjectByName(side+'Arm'),fore:root.getObjectByName(side+'ForeArm'),hand:root.getObjectByName(side+'Hand'),target:new THREE.Vector3(seat.keyboard.x+(i===0?-.105:.105),.885,seat.keyboard.z)}));
+  return ()=>{root.updateWorldMatrix(true,true);for(const a of arms)if(a.upper&&a.fore&&a.hand)reachArm(a.upper,a.fore,a.hand,a.target);};
 }
 export const CLIPS=Object.freeze(['Idle','Walk','Typing','Thinking','Review','Meeting','Talk','Error','Celebrate','Sitting']);
 const filePattern=/^[a-z-]+\.glb$/;
@@ -77,9 +109,9 @@ export async function loadCharacterRoster({roster,stations,officeURL,isCancelled
       const animator=createAgentAnimator({root,clips:[...clips,...seatedClips(clips)],mixer:new THREE.AnimationMixer(root),loopRepeat:THREE.LoopRepeat,loopOnce:THREE.LoopOnce,fade:.65});
       const slot=roster.find(r=>r.role===entry.role).station;
       const motion=chairs?createSeatedMotion({plan:seats[slot],position:root.position,rotation:root.rotation,groundY:root.position.y,setPose:state=>animator.setState(state),setChair:(id,offset)=>chairs.get(id)?.position.set(offset.x,0,offset.z)}):null;
-      records.set(entry.role,{animator,motion});onProgress('avatar-ready:'+entry.file);
+      records.set(entry.role,{animator,motion,reach:motion?keyboardReach(root,seats[slot].desk):null});onProgress('avatar-ready:'+entry.file);
     }
     if(chairs)queue=createMeetingQueue([...records.values()].map(r=>r.motion));
-    return {group,get count(){return records.size;},get seated(){return [...records.values()].filter(r=>r.motion?.phase==='seated').length;},get meetingSeated(){return [...records.values()].filter(r=>r.motion?.phase==='seated'&&r.motion.location.startsWith('meeting_')).length;},setMeeting(value){queue?.request(value);},setState(role,state){const r=records.get(role);if(!r)return false;if(r.motion){r.motion.setActivity(state);return true;}return r.animator.setState(state);},update(dt){queue?.update(dt);records.forEach(r=>r.animator.update(dt));},dispose};
+    return {group,get count(){return records.size;},get seated(){return [...records.values()].filter(r=>r.motion?.phase==='seated').length;},get meetingSeated(){return [...records.values()].filter(r=>r.motion?.phase==='seated'&&r.motion.location.startsWith('meeting_')).length;},setMeeting(value){queue?.request(value);},setState(role,state){const r=records.get(role);if(!r)return false;if(r.motion){r.motion.setActivity(state);return true;}return r.animator.setState(state);},update(dt){queue?.update(dt);records.forEach(r=>{r.animator.update(dt);if(r.motion?.typing)r.reach?.();});},dispose};
   }catch(error){dispose();throw error;}
 }

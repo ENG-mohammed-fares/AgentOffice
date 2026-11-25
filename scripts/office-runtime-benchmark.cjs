@@ -16,6 +16,7 @@ const reviewEvents=[];
 const previewDir=process.env.AGENTOFFICE_PREVIEW_DIR;
 const previewMode=Boolean(previewDir);
 const characterReview=process.env.AGENTOFFICE_CHARACTER_REVIEW==='1';
+const seatedReview=process.env.AGENTOFFICE_SEATED_REVIEW==='1';
 const ciReview=characterReview&&process.env.CI==='true';
 assert.ok(!characterReview||previewMode,'Character review requires a screenshot destination');
 const preset=process.env.AGENTOFFICE_GRAPHICS_PRESET||'balanced';
@@ -140,6 +141,7 @@ async function run(){
     assert.ok(result.ok,result.error);
     if(characterReview){
       assert.equal(result.initial.characters,7);
+      if(seatedReview){assert.equal(result.initial.movableChairs,15);assert.equal(result.initial.seated,7);}
       assert.equal(result.textureFormat,bakedCandidate?'baked-ktx2':'ktx2');
       if(bakedCandidate)assert.ok(result.initial.bakedMeshes>0,'No actual baked meshes');
       assert.equal(result.contextLost,false);
@@ -151,7 +153,7 @@ async function run(){
       lastStage='capture-view-'+index;
       const metrics=await win.webContents.executeJavaScript('window.previewView('+index+')');
       if(!characterReview)assert.ok(metrics.width>=1920&&metrics.height>=1080,'Actual rendering buffer is below Full HD; select High or use a larger display.');
-      else {assert.equal(metrics.characters,7);assert.ok(metrics.width>0&&metrics.height>0);}
+      else {assert.equal(metrics.characters,7);if(seatedReview)assert.equal(metrics.seated,7);assert.ok(metrics.width>0&&metrics.height>0);}
       const shot=await win.webContents.capturePage();
       const {width,height}=shot.getSize();
       if(!characterReview)assert.ok(width>=1920&&height>=1080,'Captured viewport is below Full HD.');

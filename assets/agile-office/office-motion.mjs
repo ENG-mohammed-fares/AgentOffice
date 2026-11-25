@@ -1,6 +1,6 @@
 // Authored floor coordinates are converted to Three.js X/Z. Chair geometry
 // remains independently movable; never translate a static environment batch.
-const PULL=.55, RISE=.38, WALK=.78;
+const PULL=.55, RISE=.38, WALK=.78, DESK_TUCK=.16;
 const clamp=n=>Math.max(0,Math.min(1,n));
 const ease=n=>{const q=clamp(n);return q*q*(3-2*q);};
 const point=(x,z)=>({x,z});
@@ -10,13 +10,13 @@ const dist=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 export function seatingPlan(stations){
   return stations.map(([x,y,a],i)=>{
     const forward=point(-Math.sin(a),-Math.cos(a));
-    const desk={id:'desk_'+i,at:plus(point(x,-y),forward,-.91),forward};
+    const desk={id:'desk_'+i,at:plus(point(x,-y),forward,-.91+DESK_TUCK),forward,keyboard:point(x-.19,-y+.19)};
     const row=Math.floor(i/2),right=i%2===1;
     const meeting={id:'meeting_'+i,at:point(right?6.76:4.34,.97-row*1.08),forward:point(right?-1:1,0)};
     return {desk,meeting};
   });
 }
-export function chairOffset(seat,amount){return plus(point(0,0),seat.forward,-PULL*clamp(amount));}
+export function chairOffset(seat,amount){return plus(point(0,0),seat.forward,(seat.id.startsWith('desk_')?DESK_TUCK:0)-PULL*clamp(amount));}
 export function standingPoint(seat){return plus(plus(seat.at,seat.forward,-PULL),seat.forward,RISE);}
 function sidePoint(seat){
   const p=standingPoint(seat);
@@ -45,7 +45,7 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
   function completeSeat(){setPosition(seat.at);rotation.y=yawFor(seat.forward);setOffset(seat,0);setPose(seatedPose());enter('seated');}
   completeSeat();
   return {
-    get phase(){return phase;},get location(){return seat.id;},
+    get phase(){return phase;},get location(){return seat.id;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},
     requestMeeting(value){desired=value?plan.meeting:plan.desk;},
     setActivity(value){activity=value;if(phase==='seated')setPose(seatedPose());},
     update(seconds){

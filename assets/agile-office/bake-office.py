@@ -8,6 +8,7 @@ source=Path(args[0]).resolve();out=Path(args[1]).resolve();out.mkdir(parents=Tru
 layout=json.loads((source/'scene.json').read_text())
 bpy.ops.wm.read_factory_settings(use_empty=True)
 s=bpy.context.scene;s.render.engine='CYCLES';s.cycles.device='CPU';s.cycles.samples=16;s.cycles.use_denoising=True
+s.render.threads_mode='FIXED';s.render.threads=2
 s.cycles.max_bounces=6;s.cycles.diffuse_bounces=3;s.cycles.glossy_bounces=2
 s.world=bpy.data.worlds.new('Office ambient');s.world.use_nodes=True
 s.world.node_tree.nodes['Background'].inputs[0].default_value=(.035,.035,.035,1)
@@ -32,38 +33,45 @@ for o in list(s.objects):
     if mode in (9,10) or emit or metal>.5 or 'city' in name.lower() or 'sky' in name.lower():continue
     if not o.data.uv_layers:continue
     if len(o.data.uv_layers)!=1:raise RuntimeError('Unexpected UV layout '+o.name)
-    uv0=o.data.uv_layers[0];uv0.active_render=True
+    uv0_name=o.data.uv_layers[0].name;o.data.uv_layers[uv0_name].active_render=True
     # Weld coincident UV seams only for the temporary chart generation? No:
     # preserve all original faces and normals, and use Smart UV on the real mesh.
-    uv1=o.data.uv_layers.new(name='LightmapUV',do_init=False)
-    o.data.uv_layers.active=uv1
+    o.data.uv_layers.new(name='LightmapUV',do_init=False)
+    o.data.uv_layers.active=o.data.uv_layers['LightmapUV']
     bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o
     bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.smart_project(angle_limit=math.radians(66),island_margin=.012)
     bpy.ops.object.mode_set(mode='OBJECT')
     # Keep the base-color texture bound to UV0 even during UV1 baking.
-    uv0.active_render=True
-    o.data.uv_layers.active=uv1
+    o.data.uv_layers[uv0_name].active_render=True
+    o.data.uv_layers.active=o.data.uv_layers['LightmapUV']
     size=512 if any(x in name.lower() for x in ('floor','plaster','walnut','marble')) else 256
     duplicate=mat.copy();o.data.materials[0]=duplicate
     nodes=duplicate.node_tree.nodes
     for node in list(nodes):
         if node.type=='TEX_IMAGE' and not node.inputs['Vector'].is_linked:
-            coord=nodes.new('ShaderNodeUVMap');coord.uv_map=uv0.name
+            coord=nodes.new('ShaderNodeUVMap');coord.uv_map=uv0_name
             duplicate.node_tree.links.new(coord.outputs['UV'],node.inputs['Vector'])
     img=bpy.data.images.new(f'OfficeBake_{len(targets):03d}',width=size,height=size,float_buffer=True,alpha=False)
     img.colorspace_settings.name='Linear Rec.709'
     node=nodes.new('ShaderNodeTexImage');node.image=img;nodes.active=node
-    targets.append(o);temporary.append((o,mat,duplicate,node,img,uv0.name))
+    targets.append(o);temporary.append((o,mat,duplicate,node,img,uv0_name))
     entries.append({'node':o.name,'file':f'lightmap-{len(entries):03d}.exr','uvChannel':1,'intensity':1,'size':size,'colorSpace':'linear-srgb'})
 assert len(targets)>=10, f'Only {len(targets)} bake targets'
 s.render.bake.use_pass_color=False;s.render.bake.use_pass_direct=True;s.render.bake.use_pass_indirect=True;s.render.bake.margin=4
-bpy.ops.object.select_all(action='DESELECT')
-for o in targets:o.select_set(True)
-bpy.context.view_layer.objects.active=targets[0]
-print('Baking',len(targets),'actual office batches',flush=True)
-bpy.ops.object.bake(type='DIFFUSE',uv_layer='LightmapUV')
+print('Baking',len(targets),'actual office batches sequentially',flush=True)
+# UV-layer RNA references can become invalid on allocation or edit-mode
+# changes. Reacquire by name, update the depsgraph, then bake one target.
+bpy.context.view_layer.update()
 for entry,(o,mat,dup,node,img,uv0) in zip(entries,temporary):
+    bpy.ops.object.select_all(action='DESELECT')
+    o.select_set(True);bpy.context.view_layer.objects.active=o
+    o.data.uv_layers.active=o.data.uv_layers['LightmapUV']
+    o.data.uv_layers[uv0].active_render=True
+    dup.node_tree.nodes.active=node
+    bpy.context.view_layer.update()
+    print('BAKE TARGET:',o.name,flush=True)
+    bpy.ops.object.bake(type='DIFFUSE',uv_layer='LightmapUV')
     values=list(img.pixels)[0::4]
     assert max(values)>0.00001,'Empty lightmap '+o.name
     img.filepath_raw=str(out/entry['file']);img.file_format='OPEN_EXR';img.save()

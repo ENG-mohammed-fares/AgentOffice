@@ -52,6 +52,10 @@ jobs:
         if: matrix.task == 'bake'
         run: |
           "$RUNNER_TEMP/blender-4.5.3-linux-x64/blender" -b --factory-startup --python-exit-code 1 --python assets/agile-office/bake-office.py -- assets/agile-office output
+      - name: Preserve Blender crash trace
+        if: failure() && matrix.task == 'bake'
+        run: |
+          if [ -f /tmp/blender.crash.txt ]; then tail -100 /tmp/blender.crash.txt; fi
       - uses: actions/upload-artifact@v6
         with:
           name: office-${{ matrix.task }}-candidate

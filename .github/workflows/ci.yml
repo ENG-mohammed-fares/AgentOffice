@@ -132,13 +132,20 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Unit tests - identity and update policy
-        working-directory: app
-        run: node --test scripts/identity.test.cjs
+      - name: Validate coverage reporter
+        run: node --test scripts/coverage-report.test.cjs
 
-      - name: Office renderer performance policy tests
-        working-directory: app
-        run: node --test scripts/office-performance.test.mjs
+      - name: Unit tests with production-source code coverage
+        run: node scripts/run-coverage.cjs
+
+      - name: Upload code coverage reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: agentoffice-code-coverage
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Package local KTX2 transcoder
         working-directory: app

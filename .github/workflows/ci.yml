@@ -15,7 +15,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  office-ktx2:
+    name: Build verified compressed office textures
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Generate office asset from versioned source
+        run: |
+          python -m pip install "numpy==2.3.5" "scipy==1.17.0" "trimesh==4.11.1" "Pillow==12.3.0"
+          python assets/agile-office/build_scene.py
+          python assets/agile-office/export_glb.py
+          mkdir -p compressed
+      - name: Verify and install KTX Software 4.4.2
+        run: |
+          curl -fL --retry 2 https://github.com/KhronosGroup/KTX-Software/releases/download/v4.4.2/KTX-Software-4.4.2-Linux-x86_64.deb -o "$RUNNER_TEMP/ktx.deb"
+          echo "ca635ed489d8bf54fac8d7687056c651193de0740830a7738cc034adc63e3027  $RUNNER_TEMP/ktx.deb" | sha256sum -c -
+          sudo apt-get install -y "$RUNNER_TEMP/ktx.deb"
+      - name: Encode and validate actual base color maps
+        run: python assets/agile-office/compress-ktx2.py assets/agile-office/office.glb compressed/office-ktx2.glb
+      - uses: actions/upload-artifact@v6
+        with:
+          name: agentoffice-compressed-textures
+          path: compressed/
+          if-no-files-found: error
+          retention-days: 14
+
   windows-validation:
+    needs: office-ktx2
     name: Windows build and tests
     runs-on: windows-latest
     timeout-minutes: 45
@@ -58,6 +90,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Office dependency installation failed.' }
           python scripts/apply-agile-office.py
           if ($LASTEXITCODE -ne 0) { throw 'Office asset preparation failed.' }
+
+      - name: Bundle the verified compressed asset
+        uses: actions/download-artifact@v7
+        with:
+          name: agentoffice-compressed-textures
+          path: app/public/office
+      - name: Validate compressed and original geometry
+        run: python assets/agile-office/verify-ktx2.py app/public/office
 
       - name: Check JavaScript syntax
         shell: pwsh

@@ -6,7 +6,7 @@ AgentOffice is an experimental Windows application that combines local work mana
 
 ## What's new in 1.6.15
 
-Office rendering is event-driven and pauses while idle or hidden. Static shadow maps are calculated once. Adaptive resolution reduces rendering cost during motion and restores full resolution at rest. Safe opaque material batching and conditional instancing preserve the source model and transparent glass. Local KTX2 decoder support is prepared; full texture conversion and office lightmaps require separate asset verification.
+Office rendering is event-driven and pauses while idle or hidden. Static shadow maps are calculated once. Adaptive resolution reduces rendering cost during motion and restores full resolution at rest. Safe opaque material batching and conditional instancing preserve the source model and transparent glass. All 14 office base-color maps are built as validated UASTC KTX2, loaded from the local package, with original GLB fallback. Office lightmaps are a separate experimental bake and are not enabled.
 
 ## What's new in 1.6.14
 

@@ -15,7 +15,9 @@ let server, win;
 const previewDir=process.env.AGENTOFFICE_PREVIEW_DIR;
 const previewMode=Boolean(previewDir);
 const preset=process.env.AGENTOFFICE_GRAPHICS_PRESET||'balanced';
-const bakedCandidate=process.env.AGENTOFFICE_BAKED_CANDIDATE==='1';
+const bakedMode=process.env.AGENTOFFICE_BAKED_CANDIDATE;
+assert.ok(!bakedMode||['1','ktx2'].includes(bakedMode),'Invalid baked candidate mode');
+const bakedCandidate=bakedMode==='ktx2'?'compressed':bakedMode==='1';
 assert.ok(['balanced','high','performance'].includes(preset),'Invalid graphics preset');
 const page = `<!doctype html><meta charset="utf-8"><title>AgentOffice renderer benchmark</title>
 <style>html,body,#host{width:100%;height:100%;margin:0;overflow:hidden}canvas{display:block;width:100%;height:100%}</style>
@@ -122,7 +124,7 @@ async function run(){
     assert.ok(t.frames>0,'No camera-transition frames');
     assert.equal(t.idleExtraFrames,0,'Unexpected idle rendering after transition');
   }
-  if(bakedCandidate){assert.equal(result.textureFormat,'baked-candidate');assert.ok(result.initial.bakedMeshes>0);}
+  if(bakedCandidate){assert.equal(result.textureFormat,bakedCandidate==='compressed'?'baked-ktx2':'baked-candidate');assert.ok(result.initial.bakedMeshes>0);}
   else if(process.env.AGENTOFFICE_REQUIRE_KTX2==='1')assert.equal(result.textureFormat,'ktx2');
 }
 app.whenReady().then(run).then(()=>finish(0),error=>{console.error(error);finish(1);});

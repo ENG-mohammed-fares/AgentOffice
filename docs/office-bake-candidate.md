@@ -34,3 +34,7 @@ This approach was adapted from the supplied Andrew Wan tutorial (combined baking
 ### Material classification regression
 
 Blender 4.0.2 returned zero eligible targets under imported Principled socket checks. The classifier now reads the original glTF material factors, alpha modes and extensions, resolves exact imported mesh names, and emits material-selection.json even when selection fails. Synthetic regression fixtures protect matte, reflective, transparent and emissive classification. The workflow checks these before executing the expensive bake. This is a targeted correction, not a successful bake claim.
+
+## Compressed hybrid candidate
+
+A separate workflow downloads the exact successful hybrid bake artifact from run 45665153041, verifies its model SHA-256 against the bake report and reuses the existing strict UASTC KTX2 compressor. It verifies node, mesh, material and accessor metadata, and byte equality of all non-image buffer views. This avoids re-baking or modifying the accepted source. Any unsupported texture semantics fail rather than being reinterpreted as sRGB. The artifact remains experimental. Copy the resulting office-baked-ktx2.glb into the prepared office directory, then set AGENTOFFICE_BAKED_CANDIDATE=ktx2 for the benchmark. Missing or invalid compressed assets fail explicitly rather than generating misleading fallback results. Normal app startup still uses the original verified PBR pipeline. Compare on identical hardware, and review the actual atlas and all camera views before adopting the candidate.

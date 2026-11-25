@@ -36,7 +36,7 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
   class XHR{
     open(_method,url){this.url=url;requests.push(url)}
     send(){queueMicrotask(()=>{
-      this.status=fallback&&this.url.endsWith('office-ktx2.glb')?404:200;
+      this.status=fallback&&this.url.endsWith('-ktx2.glb')?404:200;
       this.response=this.responseType==='text'?'// decoder fixture source length exceeds twenty':new ArrayBuffer(32);
       this.onload();
     })}
@@ -113,4 +113,17 @@ test('experimental baked path requests only its explicit asset and keeps PBR gla
  assert.deepEqual(f.requests,['file:///fixture/office/office-baked.glb']);
  assert.equal(f.glass.receiveShadow,true);
  renderer.dispose();
+});
+
+test('compressed baked benchmark reuses Basis decoding and never silently falls back',async()=>{
+ const f=await fixture({bakedCandidate:'compressed'});
+ const renderer=await f.mount();
+ assert.equal(f.host.dataset.textureFormat,'baked-ktx2');
+ assert.equal(renderer.metrics().bakedMeshes,1);
+ assert.equal(f.decoderDisposed,1);
+ assert.ok(f.requests[0].endsWith('/office-baked-ktx2.glb'));
+ renderer.dispose();
+ const bad=await fixture({bakedCandidate:'compressed',fallback:true});
+ await assert.rejects(bad.mount(),/Office model unavailable/);
+ assert.equal(bad.requests.length,1);
 });

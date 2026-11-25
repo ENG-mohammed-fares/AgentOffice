@@ -22,7 +22,7 @@ function readGLB(url,responseType='arraybuffer'){
 // XHR handles the packaged Electron file: scheme. Blob-backed decoder assets
 // also avoid depending on browser fetch support for local file URLs.
 async function loadOfficeModel(renderer,url,isCancelled,bakedCandidate){
-  if(bakedCandidate){
+  if(bakedCandidate===true){
     const candidate=new URL('office-baked.glb',url).href;
     const raw=await readGLB(candidate);
     if(isCancelled())throw Error('Office cancelled');
@@ -30,7 +30,7 @@ async function loadOfficeModel(renderer,url,isCancelled,bakedCandidate){
   }
   let decoder,jsURL,wasmURL,timer,expired=false;
   try{
-    const packedURL=new URL('office-ktx2.glb',url).href;
+    const packedURL=new URL(bakedCandidate==='compressed'?'office-baked-ktx2.glb':'office-ktx2.glb',url).href;
     const data=await readGLB(packedURL);
     if(isCancelled())throw Error('Office cancelled');
     const basis=new URL('../basis/',url).href;
@@ -48,9 +48,9 @@ async function loadOfficeModel(renderer,url,isCancelled,bakedCandidate){
       if(expired){model.scene.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)for(const m of Array.isArray(o.material)?o.material:[o.material]){for(const t of Object.values(m))if(t?.isTexture)t.dispose();m.dispose();}});throw Error('Office decode deadline exceeded');}
       return model;
     }),new Promise((_,reject)=>{timer=setTimeout(()=>{expired=true;reject(Error('Compressed texture decode timeout'));},20000)})]);
-    return {gltf,format:'ktx2'};
+    return {gltf,format:bakedCandidate==='compressed'?'baked-ktx2':'ktx2'};
   }catch(err){
-    if(isCancelled())throw err;
+    if(isCancelled()||bakedCandidate==='compressed')throw err;
     console.warn('Compressed office unavailable; using original PBR textures',err?.message);
   }finally{clearTimeout(timer);decoder?.dispose();if(jsURL)URL.revokeObjectURL(jsURL);if(wasmURL)URL.revokeObjectURL(wasmURL);}
   const raw=await readGLB(url);

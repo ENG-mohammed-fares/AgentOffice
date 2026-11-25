@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
 const appDir = path.join(root, 'app');
 const out = fs.mkdtempSync(path.join(os.tmpdir(), 'agentoffice-benchmark-'));
-const html = path.join(appDir, 'scripts', '.office-benchmark-' + process.pid + '.html');
+const html = path.join(appDir, 'scripts', 'office-benchmark-' + process.pid + '.html');
 const reportPath = path.resolve(process.env.AGENTOFFICE_PERF_REPORT || path.join(root, 'office-performance-report.json'));
 let server, win;
 const page = `<!doctype html><meta charset="utf-8"><title>AgentOffice renderer benchmark</title>

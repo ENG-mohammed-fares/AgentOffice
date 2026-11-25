@@ -1,19 +1,24 @@
 # SonarCloud Quality Gate
 
-Project: ENG-mohammed-fares_AgentOffice
-Organization: eng-mohammed-fares
+Project: ENG-mohammed-fares_AgentOffice. Organization: eng-mohammed-fares.
 
-The reusable Windows CI invokes the official scanner pinned to the verified v7 commit after unit-test coverage. It imports coverage/lcov.info against the prepared app sources and waits up to 300 seconds for the server-side gate. Failed analysis, absent token, failed gate, or timeout fails CI. The release workflow passes SONAR_TOKEN explicitly; its verification and publishing jobs already depend on successful CI. No release bypass is added.
+## Required branch alignment
 
-## Activation checklist before merging
+The SonarCloud Free-plan primary branch is **development**, matching this repository's trusted CI and PR target. GitHub main and the public distribution channel are unchanged. On 2026-11-25 the old Sonar-only unanalysed development record was removed and the Sonar primary branch renamed from main to development. This repairs the non-main-branch entitlement error without payment. Do not rename it back or run branch analyses for release branches under this plan. PR results alone do not establish post-merge branch success.
 
-1. Verify the existing project and organization in SonarCloud.
-2. Verify repository Actions secret SONAR_TOKEN; rotate any previously exposed token. Never put the value into source or chat.
-3. In SonarCloud Administration > Analysis Method disable automatic analysis if it is enabled, and use CI-based analysis to import LCOV.
-4. Verify the subscription supports analysis of development and PRs targeting development. The Free plan only supports the Sonar main branch and PRs targeting it. If eligible, align the Sonar main branch with development using supported project settings; if unavailable, do not purchase a plan without approval. Legacy OSS plans may support multiple branches, but eligibility must be checked.
-5. Verify the project uses the Sonar way quality gate, or an explicitly approved equivalent. Verify its new-code definition and coverage conditions in the dashboard. Do not claim an 80% result until actually measured.
-6. Inspect the draft PR CI and SonarCloud results; verify actual LCOV import and gate status. Merge the prerequisite coverage change first, and recheck this change against the resulting development branch.
+CI checks the live primary-branch setting before the expensive Windows build and fails closed with an actionable message if it drifts. The scanner still waits for the real server-side Quality Gate. Token absence, API failure, scanner failure, gate failure and timeout remain blocking. Automatic analysis is off; CI imports measured coverage. Never expose SONAR_TOKEN in source, URLs, logs or chat.
 
-Trusted in-repository PRs targeting development and production runs must pass the gate. Other feature pushes do not run the scanner. Fork PRs receive ordinary CI only and must undergo trusted review before integration. No pull_request_target workflow or secret exposure to fork PRs is introduced.
+## Analysis scope migration
 
-The generated app tree is not fully tracked in Git. Sonar may lack blame information for extracted or copied files; check new-code attribution before relying on PR metrics. This is not yet a verified live gate, and the project dashboard, branch configuration, token status and account plan still require confirmation. Existing CI checks remain mandatory. No release-version change.
+The service's new scope UX ignores sonar.sources, sonar.tests and sonar.test.inclusions. The scanner explicitly warned about this on run 45609838791 attempt 2. Keep exclusions explicit: compiled outputs, third-party public assets, test harnesses and overlay fragments already analyzed in their prepared runtime destinations. Do not exclude live runtime modules or build/release scripts to make coverage pass. Canonical tracked office/crash overlays are analyzed once and accept measured coverage only after byte-equality checks against their prepared copies. The retired studio/icons dashboard modules are removed from the prepared app only after checking that the new main no longer imports them; the immutable baseline ZIP is retained.
+
+## Execution evidence
+
+- Node unit tests produce coverage/sonar-lcov.info against byte-verified canonical sources.
+- The existing real Electron authentication smoke test records V8 coverage for main-process modules and precise renderer execution. A locked v8-to-istanbul converter maps an unminified verification bundle through its source maps back to original application modules, then applies the same canonical byte checks. Conversion regression tests execute real V8 fixtures, preserve uncovered branches, check merging, verify source-map locations and reject absent evidence or changed overlay bytes.
+- Python preparation/validation commands run under coverage.py, including the nested auth overlays. The Linux asset job measures real scene generation, GLB export and KTX compression, and transfers portable XML to the Windows scanner. Relative paths are required across operating systems. Both reports remain in scope; no synthetic hit counts are generated.
+- Pester reports actual execution of signing/publication policy and package-secret scans. Unexecuted lines remain uncovered. Combined reports are preserved as CI artifacts.
+
+The coverage tooling and profiler hooks exist only in test harnesses. The final minified production bundle is rebuilt without source maps after conversion and must pass the real smoke test again before packaging. Minified multi-module source maps can inflate unmapped ranges, so they are never used as execution evidence. Production Electron keeps sandboxing, context isolation, web security and the same identity/update channels. Localized UI text flagged as a hard-coded password must be reviewed with a specific justification, never hidden by disabling a credential rule. Other security findings must be fixed or individually verified.
+
+The Sonar way gate and its 80% new-code coverage requirement remain unchanged. Do not reset the new-code period to hide legacy changes, fake coverage, use continue-on-error, or publish when an applicable gate fails. Public release eligibility still requires exact candidate provenance, a newer eligible version and actual trusted Authenticode signing.

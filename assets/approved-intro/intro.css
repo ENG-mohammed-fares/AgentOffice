@@ -11,7 +11,7 @@
 
 
 #startupIntro{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse at 50% 44%,#4b3024 0%,#28231f 32%,#191b19 74%);color:#f4f1eb;isolation:isolate;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 280ms cubic-bezier(.22,1,.36,1),visibility 280ms;}
-#startupIntro::before{content:"";position:absolute;inset:0;background-image:linear-gradient(#fff07 1px,transparent 1px),linear-gradient(90deg,#fff07 1px,transparent 1px);background-size:52px 52px;mask-image:radial-gradient(ellipse,#000 0%,transparent 70%);z-index:-1;opacity:.6}
+#startupIntro::before{content:"";position:absolute;inset:0;background-image:linear-gradient(#ffffff07 1px,transparent 1px),linear-gradient(90deg,#ffffff07 1px,transparent 1px);background-size:52px 52px;mask-image:radial-gradient(ellipse,#000 0%,transparent 70%);z-index:-1;opacity:.6}
 .intro-wait #startupIntro{visibility:visible;opacity:1;pointer-events:auto;transition:none}
 .intro-crossfade #startupIntro{visibility:visible;opacity:0;pointer-events:none;transition:opacity 280ms cubic-bezier(.22,1,.36,1)}
 #startupIntro .splash-inner{width:min(440px,90vw);text-align:center;position:relative}

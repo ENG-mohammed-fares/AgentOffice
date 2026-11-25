@@ -31,9 +31,9 @@ jobs:
           python-version: '3.12'
       - name: Generate office asset from versioned source
         run: |
-          python -m pip install --only-binary :all: "numpy==2.3.5" "scipy==1.17.0" "trimesh==4.11.1" "Pillow==12.3.0"
-          python assets/agile-office/build_scene.py
-          python assets/agile-office/export_glb.py
+          python -m pip install --only-binary :all: "numpy==2.3.5" "scipy==1.17.0" "trimesh==4.11.1" "Pillow==12.3.0" "coverage==7.10.7"
+          python -m coverage run --branch --source=scripts,assets/agile-office assets/agile-office/build_scene.py
+          python -m coverage run --append --branch --source=scripts,assets/agile-office assets/agile-office/export_glb.py
           mkdir -p compressed
       - name: Verify and install KTX Software 4.4.2
         run: |
@@ -41,7 +41,9 @@ jobs:
           echo "ca635ed489d8bf54fac8d7687056c651193de0740830a7738cc034adc63e3027  $RUNNER_TEMP/ktx.deb" | sha256sum -c -
           sudo apt-get install -y "$RUNNER_TEMP/ktx.deb"
       - name: Encode and validate actual base color maps
-        run: python assets/agile-office/compress-ktx2.py assets/agile-office/office.glb compressed/office-ktx2.glb
+        run: |
+          python -m coverage run --append --branch --source=scripts,assets/agile-office assets/agile-office/compress-ktx2.py assets/agile-office/office.glb compressed/office-ktx2.glb
+          python -m coverage xml -o compressed/office-assets-coverage.xml
       - uses: actions/upload-artifact@v6
         with:
           name: agentoffice-compressed-textures
@@ -60,6 +62,21 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+
+      - name: Verify SonarCloud primary branch before building
+        if: github.repository == 'ENG-mohammed-fares/AgentOffice' && (github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
+        shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) { throw 'SONAR_TOKEN is required.' }
+          try {
+            $branches = Invoke-RestMethod -Uri 'https://sonarcloud.io/api/project_branches/list?project=ENG-mohammed-fares_AgentOffice' -Headers @{Authorization="Bearer $env:SONAR_TOKEN"}
+          } catch { throw 'Cannot verify SonarCloud primary branch; check token access and service availability.' }
+          $primary = @($branches.branches | Where-Object { $_.isMain -eq $true })
+          if ($primary.Count -ne 1 -or $primary[0].name -ne 'development') {
+            throw 'SonarCloud must use development as Main Branch on the Free plan. Align the project branch settings; do not bypass Quality Gate or change GitHub release branches.'
+          }
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -85,7 +102,7 @@ jobs:
       - name: Validate and extract source archive
         shell: pwsh
         run: |
-          python scripts/ci-prepare.py
+          python -m coverage run --append --branch --source=scripts,assets/agile-office scripts/ci-prepare.py
           if ($LASTEXITCODE -ne 0) { throw 'Source archive validation failed.' }
 
       - name: Apply branding and authentication source
@@ -93,9 +110,9 @@ jobs:
         run: |
           python -m pip install --only-binary :all: --disable-pip-version-check "Pillow>=11,<13"
           if ($LASTEXITCODE -ne 0) { throw 'Pillow install failed.' }
-          python scripts/apply-branding.py
+          python -m coverage run --append --branch --source=scripts,assets/agile-office scripts/apply-branding.py
           if ($LASTEXITCODE -ne 0) { throw 'Branding failed.' }
-          python scripts/apply-auth.py
+          python -m coverage run --append --branch --source=scripts,assets/agile-office scripts/apply-auth.py
           if ($LASTEXITCODE -ne 0) { throw 'Authentication preparation failed.' }
 
       - name: Build the authenticated office assets
@@ -103,7 +120,7 @@ jobs:
         run: |
           python -m pip install --only-binary :all: --disable-pip-version-check "numpy==2.3.5" "scipy==1.17.0" "trimesh==4.11.1" "Pillow==12.3.0"
           if ($LASTEXITCODE -ne 0) { throw 'Office dependency installation failed.' }
-          python scripts/apply-agile-office.py
+          python -m coverage run --append --branch --source=scripts,assets/agile-office scripts/apply-agile-office.py
           if ($LASTEXITCODE -ne 0) { throw 'Office asset preparation failed.' }
 
       - name: Bundle the verified compressed asset
@@ -111,11 +128,24 @@ jobs:
         with:
           name: agentoffice-compressed-textures
           path: app/public/office
+      - name: Import geometry-build execution coverage
+        shell: pwsh
+        run: Move-Item app/public/office/office-assets-coverage.xml coverage/office-assets-coverage.xml
       - name: Validate compressed and original geometry
-        run: python assets/agile-office/verify-ktx2.py app/public/office
+        run: python -m coverage run --append --branch --source=scripts,assets/agile-office assets/agile-office/verify-ktx2.py app/public/office
 
       - name: Install local crash monitoring
-        run: python scripts/apply-crash-monitor.py
+        run: python -m coverage run --append --branch --source=scripts,assets/agile-office scripts/apply-crash-monitor.py
+
+      - name: Apply reviewed quality fixes and execution instrumentation
+        run: python -m coverage run --append --branch --source=scripts,assets/agile-office scripts/apply-quality-fixes.py
+
+      - name: Install locked coverage conversion tooling
+        working-directory: scripts/coverage-tools
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Verify execution coverage conversion with real V8 fixtures
+        run: node --test --experimental-test-coverage "--test-coverage-include=scripts/coverage-tools/convert.cjs" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/execution-tooling-lcov.info scripts/execution-coverage.test.cjs
 
       - name: Check JavaScript syntax
         shell: pwsh
@@ -195,9 +225,9 @@ jobs:
           Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.js public/basis/
           Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.wasm public/basis/
 
-      - name: Production Vite build
+      - name: Source-mapped execution coverage build
         working-directory: app
-        run: npm run build --ignore-scripts
+        run: npm run build --ignore-scripts -- --sourcemap --minify false
 
       - name: Check renderer benchmark syntax
         run: node --check scripts/office-runtime-benchmark.cjs
@@ -223,6 +253,24 @@ jobs:
           retention-days: 14
 
       - name: Electron authentication smoke tests
+        working-directory: app
+        env:
+          NODE_V8_COVERAGE: ${{ github.workspace }}/coverage/runtime-v8
+          AGENTOFFICE_EXECUTION_COVERAGE: ${{ github.workspace }}/coverage/runtime-renderer
+        run: npx --no-install electron scripts/auth-smoke.cjs
+
+      - name: Import actual Electron execution coverage
+        shell: pwsh
+        run: |
+          node scripts/coverage-tools/convert.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Execution coverage conversion failed.' }
+          Get-ChildItem app/dist -Recurse -Filter *.map | Remove-Item
+
+      - name: Rebuild the original optimized production bundle
+        working-directory: app
+        run: npm run build --ignore-scripts
+
+      - name: Verify final production bundle with the real authentication smoke test
         working-directory: app
         run: npx --no-install electron scripts/auth-smoke.cjs
 
@@ -308,7 +356,7 @@ jobs:
 
       - name: Prepare candidate manifest and verify update metadata
         shell: pwsh
-        run: python scripts/release-candidate.py create
+        run: python -m coverage run --append --branch --source=scripts,assets/agile-office scripts/release-candidate.py create
 
       - name: Upload Windows candidate for QA
         uses: actions/upload-artifact@v6
@@ -329,6 +377,17 @@ jobs:
             throw 'Commit the reviewed package-lock.json from the dependency-lock artifact before release.'
           }
 
+      - name: Refresh actual Python execution report
+        run: python -m coverage xml -o coverage/python-coverage.xml
+
+      - name: Preserve combined execution evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: agentoffice-combined-coverage
+          path: coverage/
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Require SonarCloud credentials for trusted development analysis
         if: github.repository == 'ENG-mohammed-fares/AgentOffice' && (github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
         shell: pwsh
@@ -343,7 +402,13 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
             throw 'SONAR_TOKEN is required for development Quality Gate.'
           }
-          if (!(Test-Path coverage/sonar-lcov.info)) { throw 'Canonical coverage report missing.' }
+          $requiredReports = @('coverage/sonar-lcov.info','coverage/tooling-lcov.info','coverage/execution-lcov.info','coverage/execution-tooling-lcov.info','coverage/python-coverage.xml','coverage/office-assets-coverage.xml','coverage/powershell-sonar.xml')
+          foreach ($report in $requiredReports) {
+            if (!(Test-Path $report -PathType Leaf) -or (Get-Item $report).Length -eq 0) { throw "Required measured coverage report missing or empty: $report" }
+          }
+          $actual = (Get-FileHash app/scripts/collect-renderer.cjs -Algorithm SHA256).Hash
+          $canonical = (Get-FileHash scripts/coverage-tools/collect-renderer.cjs -Algorithm SHA256).Hash
+          if ($actual -ne $canonical) { throw 'Generated Electron test collector is not identical to its source.' }
 
       - name: SonarCloud analysis and blocking Quality Gate
         if: github.repository == 'ENG-mohammed-fares/AgentOffice' && (github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
@@ -351,3 +416,4 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
+

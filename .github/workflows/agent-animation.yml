@@ -1,0 +1,22 @@
+name: Agent character controller tests
+on:
+  push:
+    branches: ['feat/agent-character-animation']
+  pull_request:
+    paths:
+      - 'assets/agile-office/agent-animation*.mjs'
+      - '.github/workflows/agent-animation.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - run: node --test assets/agile-office/agent-animation.test.mjs

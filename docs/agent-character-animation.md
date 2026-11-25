@@ -1,0 +1,9 @@
+# Agent character animation foundation
+
+Independent feature branch from PR #20, not the hybrid baked asset experiment. Based on the supplied movement tutorial: use an explicit Three.js AnimationMixer, crossfade named clips, avoid root-motion-driven drift, and separate movement from animation and agent state.
+
+The controller receives a character root, an actual AnimationMixer and Three.js LoopRepeat/LoopOnce constants. It requires Idle and accepts optional named clips Walk, Typing, Thinking, Review, Meeting, Talk, Error and Celebrate. The animation asset must be retargeted to the actual rig; root translation channels are rejected when explicitly identified by the asset manifest. Missing optional clips return false instead of faking playback. The pure route follower uses explicit safe waypoints in world X/Z and delta time, but has no obstacle detection, seating or autonomous routing. Task status mapping only represents the existing local task store, not actual AI execution.
+
+The seven uploaded source GLBs have rigs but no embedded animation clips; they are not committed or loaded by this branch. The current office roles list Software Architect while the supplied model list has AI Engineer. Resolve this intentionally rather than silently changing the role or assigning an unrelated model. Preserve model identity. Before deployment, retarget licensed animations, validate skeleton compatibility and root-motion tracks per rig, create a manifest, verify scale/forward axis and seated pose at each station, and add real renderer lifecycle, visibility and GPU acceptance tests. Animation does not automatically run on the current office render loop. This is a tested controller foundation, not a completed character integration or release.
+
+Run: node --test assets/agile-office/agent-animation.test.mjs

@@ -20,8 +20,8 @@ concurrency:
 jobs:
   office-ktx2:
     name: Build verified compressed office textures
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
         with:
@@ -47,8 +47,12 @@ jobs:
       - name: Measure actual Blender bake execution (review assets only)
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y blender python3-coverage
-          PYTHONPATH=/usr/lib/python3/dist-packages blender --background --factory-startup --python-use-system-env --python-exit-code 1 --python scripts/test_office_bake_execution.py
+          # Blender uses the distribution Python, not actions/setup-python.
+          sudo apt-get install --no-install-recommends -y blender python3-numpy python3-coverage
+          export PYTHONPATH=/usr/lib/python3/dist-packages
+          blender --version
+          blender --background --factory-startup --python-use-system-env --python-exit-code 1 --python-expr "import sys, numpy, coverage; print('Blender Python:', sys.version, 'NumPy:', numpy.__version__, 'coverage:', coverage.__version__)"
+          blender --background --factory-startup --python-use-system-env --python-exit-code 1 --python scripts/test_office_bake_execution.py
           test -s compressed/office-bake-coverage.xml
       - uses: actions/upload-artifact@v6
         with:

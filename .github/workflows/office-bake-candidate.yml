@@ -42,7 +42,7 @@ jobs:
       - name: Render native Full HD views and bake diffuse lighting
         run: |
           mkdir -p office-candidates
-          blender --background --factory-startup --python-exit-code 1 --python assets/agile-office/bake-office-candidate.py -- --source assets/agile-office/office.glb --layout assets/agile-office/scene.json --output office-candidates --samples 16 --atlas 1024
+          blender --background --factory-startup --python-exit-code 1 --python assets/agile-office/bake-office-candidate.py -- --source assets/agile-office/office.glb --layout assets/agile-office/scene.json --output office-candidates --samples 32 --atlas 1024
       - name: Verify native previews and encode candidate WebP files
         run: |
           python - <<'PY'

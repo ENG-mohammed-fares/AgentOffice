@@ -69,7 +69,8 @@ def setup_scene(source, layout, samples):
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
     scene.cycles.samples = samples
-    scene.cycles.use_denoising = True
+    # Ubuntu's packaged Cycles lacks OpenImageDenoiser. Use raw samples.
+    scene.cycles.use_denoising = False
     scene.cycles.max_bounces = 6
     scene.render.resolution_x, scene.render.resolution_y = RESOLUTION
     scene.render.resolution_percentage = 100

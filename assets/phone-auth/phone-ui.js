@@ -35,10 +35,10 @@ async function send(){
   catch(err){notice=cloudError(err);bad=true}
   finally{pending=false;busy=false;update();if(sent)el('phoneCode').focus()}
 }
-el('phoneResend').onclick=()=>{if(available&&!pending&&Date.now()>=resendAt)send()};
+el('phoneResend').onclick=()=>{if(available&&!pending&&Date.now()>=resendAt)void send().catch(err=>{notice=cloudError(err);bad=true;update()})};
 el('phoneForm').onsubmit=async event=>{
   event.preventDefault();if(pending||!available)return;
-  if(!sent)return send();
+  if(!sent){await send();return}
   const code=digits(el('phoneCode').value.trim());if(!/^\d{6}$/.test(code)){notice='expired';bad=true;update();return}
   pending=true;busy=true;update();
   try{const user=await session.auth.phoneVerify(number,code);clearInterval(timer);session.enter(user)}

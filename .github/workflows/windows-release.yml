@@ -31,6 +31,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       EXPECTED_RUN_ID: ${{ github.run_id }}
+      AGENTOFFICE_SIGNING_PUBLISHER: ${{ vars.AGENTOFFICE_SIGNING_PUBLISHER }}
+      AGENTOFFICE_SIGNING_THUMBPRINT: ${{ vars.AGENTOFFICE_SIGNING_THUMBPRINT }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -61,6 +63,8 @@ jobs:
             'eligible=false' >> $env:GITHUB_OUTPUT
             exit 0
           }
+          . ./scripts/verify-code-signing.ps1
+          Assert-AgentOfficeSignedFile -Path "candidate/AgentOffice-Setup-$version-x64.exe" -ExpectedPublisher $env:AGENTOFFICE_SIGNING_PUBLISHER -ExpectedThumbprint $env:AGENTOFFICE_SIGNING_THUMBPRINT
           'eligible=true' >> $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@v6
         if: steps.verify.outputs.eligible == 'true'
@@ -81,8 +85,13 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       EXPECTED_RUN_ID: ${{ github.run_id }}
+      AGENTOFFICE_SIGNING_PUBLISHER: ${{ vars.AGENTOFFICE_SIGNING_PUBLISHER }}
+      AGENTOFFICE_SIGNING_THUMBPRINT: ${{ vars.AGENTOFFICE_SIGNING_THUMBPRINT }}
       EXPECTED_VERSION: ${{ needs.verify.outputs.version }}
     steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v7
         with:
           name: verified-release-candidate
@@ -108,6 +117,8 @@ jobs:
             $hash = (Get-FileHash -Algorithm SHA256 "candidate/$name").Hash.ToLowerInvariant()
             if ($hash -ne $manifest.sha256.PSObject.Properties[$name].Value) { throw "Hash mismatch: $name" }
           }
+          . ./scripts/verify-code-signing.ps1
+          Assert-AgentOfficeSignedFile -Path "candidate/$exe" -ExpectedPublisher $env:AGENTOFFICE_SIGNING_PUBLISHER -ExpectedThumbprint $env:AGENTOFFICE_SIGNING_THUMBPRINT
           $tag = "v$version"
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -eq 0) { throw 'Release or draft already exists; never overwrite.' }

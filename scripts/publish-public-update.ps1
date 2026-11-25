@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$destination = 'ENG-mohammed-fares/AgentOffice-Releases'
+$destination = 'ENG-mohammed-fares/AgentOffice'
 $source = 'ENG-mohammed-fares/AgentOffice'
 if ($env:GITHUB_REPOSITORY -ne $source -or $env:GITHUB_REF -ne 'refs/heads/development') { throw 'Unexpected release source.' }
 if ([string]::IsNullOrWhiteSpace($env:RELEASE_TOKEN)) { throw 'Configure the public distribution repository token.' }
@@ -21,7 +21,7 @@ function Assert-SourceHead {
         $head = gh api "repos/$source/git/ref/heads/development" --jq '.object.sha'
         if ($LASTEXITCODE -ne 0 -or $head -ne $env:GITHUB_SHA) { throw 'Source changed; build a new candidate.' }
         $latest = gh api "repos/$source/releases/latest" | ConvertFrom-Json
-        if ($LASTEXITCODE -ne 0 -or $latest.tag_name -notmatch '^v\d+\.\d+\.\d+$' -or [version]$version -le [version]($latest.tag_name.Substring(1))) { throw 'Version must exceed the legacy private stable release.' }
+        if ($LASTEXITCODE -ne 0 -or $latest.tag_name -notmatch '^v\d+\.\d+\.\d+$' -or [version]$version -le [version]($latest.tag_name.Substring(1))) { throw 'Version must exceed the current stable release.' }
     } finally { $env:GH_TOKEN = $env:RELEASE_TOKEN }
 }
 function Assert-PublicVersion {
@@ -33,9 +33,8 @@ function Assert-PublicVersion {
 $env:GH_TOKEN = $env:RELEASE_TOKEN
 Assert-SourceHead
 $repo = Invoke-RestMethod -Uri "https://api.github.com/repos/$destination"
-if ($repo.full_name -ne $destination -or $repo.private -ne $false -or $repo.default_branch -ne 'main') { throw 'Expected a separate public distribution repository initialized on main.' }
-$target = gh api "repos/$destination/git/ref/heads/main" --jq '.object.sha'
-if ($LASTEXITCODE -ne 0 -or $target -notmatch '^[0-9a-f]{40}$') { throw 'Missing distribution repository initial commit.' }
+if ($repo.full_name -ne $destination -or $repo.private -ne $false) { throw 'Expected the public AgentOffice source repository.' }
+$target = $env:GITHUB_SHA
 Assert-PublicVersion
 gh release view $tag --repo $destination *> $null
 if ($LASTEXITCODE -eq 0) { throw 'Existing release or draft: never overwrite.' }

@@ -86,7 +86,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 15
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -99,7 +99,7 @@ jobs:
         shell: pwsh
         env:
           SOURCE_TOKEN: ${{ github.token }}
-          RELEASE_TOKEN: ${{ secrets.AGENTOFFICE_RELEASE_TOKEN }}
+          RELEASE_TOKEN: ${{ github.token }}
           EXPECTED_RUN_ID: ${{ github.run_id }}
           EXPECTED_VERSION: ${{ needs.verify.outputs.version }}
         run: ./scripts/publish-public-update.ps1

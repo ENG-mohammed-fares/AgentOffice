@@ -26,10 +26,10 @@ def assets(directory, version):
         raise RuntimeError("Missing or empty updater assets")
     metadata = (directory / "latest.yml").read_text(encoding="utf-8")
     def field(key):
-        m = re.search(r"^" + re.escape(key) + r":\s*([^\r\n]+)", metadata, re.M)
-        if not m:
-            raise RuntimeError(f"Missing updater metadata: {key}")
-        return m.group(1).strip().strip("'\"")
+        matches = re.findall(r"^" + re.escape(key) + r":[ \t]*([^\r\n]*)$", metadata, re.M)
+        if len(matches) != 1:
+            raise RuntimeError(f"Missing or ambiguous updater metadata: {key}")
+        return matches[0].strip().strip("'\"")
     if field("version") != version or field("path") != exe:
         raise RuntimeError("Updater version or filename mismatch")
     expected = base64.b64encode(digest(directory / exe, "sha512").digest()).decode("ascii")

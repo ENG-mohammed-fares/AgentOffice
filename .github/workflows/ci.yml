@@ -71,6 +71,17 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Test release validation and collect Python coverage
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "coverage==7.10.7"
+          if ($LASTEXITCODE -ne 0) { throw 'Coverage tooling installation failed.' }
+          New-Item -ItemType Directory -Force coverage | Out-Null
+          python -m coverage run --branch --source=scripts -m unittest discover -s scripts -p test_release_validation.py -v
+          if ($LASTEXITCODE -ne 0) { throw 'Release validation regression tests failed.' }
+          python -m coverage xml -o coverage/python-coverage.xml
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path coverage/python-coverage.xml)) { throw 'Python coverage report missing.' }
+
       - name: Validate and extract source archive
         shell: pwsh
         run: |

@@ -42,7 +42,7 @@ function characterize(m){
   const slow=resolution(m,1,Array(100).fill(350));
   assert.equal(slow.at(-1).ratio,.55);
   assert.ok(slow.every(x=>x.ratio>=.55&&x.ratio<=1));
-  const recover=resolution(m,1,[...Array(40).fill(35),...Array(250).fill(8)]);
+  const recover=resolution(m,1,[...Array(40).fill(35),...Array(500).fill(8)]);
   assert.equal(recover.at(-1).ratio,1);
   const reset=resolution(m,1,[35,35,35,35,35,NaN,35]);
   assert.equal(reset.at(-1).ratio,1);

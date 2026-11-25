@@ -461,9 +461,38 @@ jobs:
           if ($actual -ne $canonical) { throw 'Generated Electron test collector is not identical to its source.' }
 
       - name: SonarCloud analysis and blocking Quality Gate
+        id: sonar_scan
         if: github.repository == 'ENG-mohammed-fares/AgentOffice' && (github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
         uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
 
+      # Read-only diagnostics on the trusted PR; the failed blocking gate remains failed.
+      - name: Report exact failed Sonar conditions and affected source locations
+        if: failure() && steps.sonar_scan.outcome == 'failure' && github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository && github.repository == 'ENG-mohammed-fares/AgentOffice'
+        shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PR: ${{ github.event.pull_request.number }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:SONAR_PR -notmatch '^[0-9]+$') { throw 'Invalid PR number' }
+          $project = 'ENG-mohammed-fares_AgentOffice'
+          $base = 'https://sonarcloud.io/api/'
+          $headers = @{ Authorization = "Bearer $env:SONAR_TOKEN" }
+          $pr = $env:SONAR_PR
+          try {
+            $status = Invoke-RestMethod -Uri "${base}qualitygates/project_status?projectKey=$project&pullRequest=$pr" -Headers $headers -TimeoutSec 30
+            $status.projectStatus.conditions | Select-Object metricKey,status,actualValue,errorThreshold | ConvertTo-Json -Depth 4
+          } catch { Write-Warning 'Quality condition details unavailable from Sonar API.' }
+          try {
+            $issues = Invoke-RestMethod -Uri "${base}issues/search?componentKeys=$project&pullRequest=$pr&resolved=false&ps=100" -Headers $headers -TimeoutSec 30
+            $issues.issues | Select-Object rule,component,line,type,severity,impacts | ConvertTo-Json -Depth 6
+            Write-Host "Sonar unresolved issues returned: $($issues.issues.Count) of $($issues.total)"
+          } catch { Write-Warning 'Issue locations unavailable from Sonar API.' }
+          try {
+            $metrics = 'new_coverage,new_lines_to_cover,new_uncovered_lines,new_duplicated_lines_density'
+            $measures = Invoke-RestMethod -Uri "${base}measures/component_tree?component=$project&pullRequest=$pr&metricKeys=$metrics&qualifiers=FIL&ps=500" -Headers $headers -TimeoutSec 30
+            $measures.components | Select-Object path,measures | ConvertTo-Json -Depth 6
+          } catch { Write-Warning 'File-level measures unavailable from Sonar API.' }

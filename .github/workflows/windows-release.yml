@@ -31,6 +31,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       EXPECTED_RUN_ID: ${{ github.run_id }}
+      AGENTOFFICE_SIGNING_PUBLISHER: ${{ vars.AGENTOFFICE_SIGNING_PUBLISHER }}
+      AGENTOFFICE_SIGNING_THUMBPRINT: ${{ vars.AGENTOFFICE_SIGNING_THUMBPRINT }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -61,6 +63,8 @@ jobs:
             'eligible=false' >> $env:GITHUB_OUTPUT
             exit 0
           }
+          . ./scripts/verify-code-signing.ps1
+          Assert-AgentOfficeSignedFile -Path "candidate/AgentOffice-Setup-$version-x64.exe" -ExpectedPublisher $env:AGENTOFFICE_SIGNING_PUBLISHER -ExpectedThumbprint $env:AGENTOFFICE_SIGNING_THUMBPRINT
           'eligible=true' >> $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@v6
         if: steps.verify.outputs.eligible == 'true'
@@ -71,59 +75,28 @@ jobs:
           retention-days: 7
 
   publish:
-    name: Publish stable release
+    name: Publish signed public update assets
     needs: verify
     if: needs.verify.outputs.eligible == 'true' && github.ref == 'refs/heads/development' && github.repository == 'ENG-mohammed-fares/AgentOffice'
     runs-on: windows-latest
     timeout-minutes: 15
     permissions:
-      contents: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      EXPECTED_RUN_ID: ${{ github.run_id }}
-      EXPECTED_VERSION: ${{ needs.verify.outputs.version }}
+      contents: read
     steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v7
         with:
           name: verified-release-candidate
           path: candidate
-      - name: Publish immutable tested artifacts
+      - name: Publish only verified public distribution assets
         shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $version = $env:EXPECTED_VERSION
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid version.' }
-          $manifest = Get-Content candidate/manifest.json -Raw | ConvertFrom-Json
-          if ($manifest.commit -ne $env:GITHUB_SHA -or $manifest.version -ne $version -or "$($manifest.run_id)" -ne $env:EXPECTED_RUN_ID -or $manifest.ref -ne 'refs/heads/development' -or $manifest.locked -ne $true) { throw 'Manifest mismatch.' }
-          function Assert-Eligible {
-            $head = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/heads/development" --jq '.object.sha'
-            if ($LASTEXITCODE -ne 0 -or $head -ne $env:GITHUB_SHA) { throw 'Development changed; use newer candidate.' }
-            $latest = gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" | ConvertFrom-Json
-            if ($LASTEXITCODE -ne 0 -or $latest.tag_name -notmatch '^v\d+\.\d+\.\d+$' -or [version]$version -le [version]($latest.tag_name.Substring(1))) { throw 'Version no longer eligible.' }
-          }
-          Assert-Eligible
-          $exe = "AgentOffice-Setup-$version-x64.exe"
-          $names = @($exe, "$exe.blockmap", 'latest.yml')
-          foreach ($name in $names) {
-            $hash = (Get-FileHash -Algorithm SHA256 "candidate/$name").Hash.ToLowerInvariant()
-            if ($hash -ne $manifest.sha256.PSObject.Properties[$name].Value) { throw "Hash mismatch: $name" }
-          }
-          $tag = "v$version"
-          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
-          if ($LASTEXITCODE -eq 0) { throw 'Release or draft already exists; never overwrite.' }
-          $files = @($names | ForEach-Object { "candidate/$_" })
-          $notes = "Automated stable release from development commit $env:GITHUB_SHA; successful CI run $env:GITHUB_RUN_ID."
-          gh release create $tag @files candidate/manifest.json --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "AgentOffice $version" --notes $notes --draft
-          if ($LASTEXITCODE -ne 0) { throw 'Draft upload failed.' }
-          $draft = gh release view $tag --repo $env:GITHUB_REPOSITORY --json isDraft,assets,tagName,targetCommitish | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or -not $draft.isDraft -or $draft.tagName -ne $tag -or $draft.targetCommitish -ne $env:GITHUB_SHA -or $draft.assets.Count -ne 4) { throw 'Draft validation failed.' }
-          foreach ($name in ($names + @('manifest.json'))) {
-            $asset = @($draft.assets | Where-Object { $_.name -eq $name })
-            if ($asset.Count -ne 1 -or $asset[0].size -ne (Get-Item "candidate/$name").Length) { throw "Asset mismatch: $name" }
-          }
-          Assert-Eligible
-          gh release edit $tag --repo $env:GITHUB_REPOSITORY --draft=false --latest
-          if ($LASTEXITCODE -ne 0) { throw 'Publication failed.' }
-          $published = gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or $published.tag_name -ne $tag -or $published.draft -or $published.prerelease) { throw 'Publication verification failed.' }
-          Write-Host "Published: $($published.html_url)"
+        env:
+          SOURCE_TOKEN: ${{ github.token }}
+          RELEASE_TOKEN: ${{ secrets.AGENTOFFICE_RELEASE_TOKEN }}
+          EXPECTED_RUN_ID: ${{ github.run_id }}
+          EXPECTED_VERSION: ${{ needs.verify.outputs.version }}
+          AGENTOFFICE_SIGNING_PUBLISHER: ${{ vars.AGENTOFFICE_SIGNING_PUBLISHER }}
+          AGENTOFFICE_SIGNING_THUMBPRINT: ${{ vars.AGENTOFFICE_SIGNING_THUMBPRINT }}
+        run: ./scripts/publish-public-update.ps1

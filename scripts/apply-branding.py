@@ -54,6 +54,10 @@ html.write_text(markup, encoding='utf-8')
 
 config = APP / 'electron-builder.config.cjs'
 settings = config.read_text(encoding='utf-8')
+repo_setting = "const repository = process.env.AGENTOFFICE_REPO || process.env.GITHUB_REPOSITORY || 'ENG-mohammed-fares/AgentOffice';"
+if repo_setting not in settings:
+    raise RuntimeError('Updater repository source anchor not found')
+settings = settings.replace(repo_setting, "const repository = 'ENG-mohammed-fares/AgentOffice';")
 if "'build/icon.png'" not in settings:
     settings = settings.replace("'electron/**/*',", "'electron/**/*',\n    'build/icon.png',")
 config.write_text(settings, encoding='utf-8')

@@ -1,6 +1,6 @@
 # AgentOffice | Engineering
 
-**Private source repository — authorized maintainers and collaborators only.**
+**Public source repository and Windows release channel.**
 
 AgentOffice is an experimental Windows desktop workspace with a live 3D office. The planned team of seven autonomous AI agents is not connected yet.
 
@@ -8,10 +8,9 @@ AgentOffice is an experimental Windows desktop workspace with a live 3D office. 
 
 | Repository | Purpose |
 | --- | --- |
-| AgentOffice (this private repository) | Source, architecture, implementation, QA, internal documentation and build/release automation |
-| [AgentOffice-Releases](https://github.com/ENG-mohammed-fares/AgentOffice-Releases) (public) | End-user documentation, official Windows installers and update metadata when published |
+| [AgentOffice](https://github.com/ENG-mohammed-fares/AgentOffice) | Source, CI, official Windows releases and update metadata |
 
-Do not copy source archives, credentials, internal logs, private build artifacts or repository history into the distribution repository. Its README and support documentation are written for customers rather than developers.
+Do not commit credentials, internal logs or private build artifacts. The public release contains only the tested installer, blockmap and update metadata.
 
 ## Engineering workflow
 
@@ -37,6 +36,6 @@ Never place privileged API keys in desktop bundles, public environment variables
 
 ## Distribution and licensing
 
-End users should be directed to the [public distribution repository](https://github.com/ENG-mohammed-fares/AgentOffice-Releases/releases), not this private repository. The public channel is created but publication requires verified integration, scoped distribution access and trusted signing. Earlier private releases are not a public download channel.
+End users can download the latest installer from [AgentOffice releases](https://github.com/ENG-mohammed-fares/AgentOffice/releases). The development workflow publishes a newer version only after CI, SonarCloud, security scans and candidate integrity checks pass. Windows may show an unknown publisher warning for an unsigned installer.
 
 See [LICENSE](LICENSE) and [historical MIT notice](docs/legacy-mit-notice.txt). Previously granted rights and third-party licenses remain unaffected.

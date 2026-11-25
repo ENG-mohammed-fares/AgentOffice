@@ -286,7 +286,7 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GITHUB_REPOSITORY: ${{ github.repository }}
-          AGENTOFFICE_REPO: ENG-mohammed-fares/AgentOffice-Releases
+          AGENTOFFICE_REPO: ENG-mohammed-fares/AgentOffice
         run: npx --no-install electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never
 
       - name: Verify packaged public update feed

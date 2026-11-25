@@ -1,0 +1,15 @@
+# Separate public update channel
+
+The private source remains ENG-mohammed-fares/AgentOffice. The public distribution repository ENG-mohammed-fares/AgentOffice-Releases has been created and contains end-user documentation only. Never fork or copy private source into it. The build uses the existing AGENTOFFICE_REPO configuration and verifies the packaged app-update.yml. A release-only fine-grained token for the destination (Contents: write, only that repository) belongs in the private repository Actions secret AGENTOFFICE_RELEASE_TOKEN, never in the application, Git history or chat.
+
+The proposed development release workflow publishes only the tested signed installer, blockmap and latest.yml to that destination, checks the original private candidate manifest and hashes, downloads the draft assets to verify their bytes and validates the final public release. The private candidate manifest remains private. The public release tag points to the distribution repository's own main commit, not a private source commit. A new version must exceed the old private stable release and any latest public stable release.
+
+This draft depends on a real trusted signing provider (PR #7) and integration with the security gate (PR #8) and SonarCloud gate (PR #4). Preserve those release prerequisites when resolving workflow changes. The existing production packaging is unsigned; therefore the new signature guard intentionally blocks public distribution until a trusted signature and publisher are configured. No publication, credential creation or version bump was performed. Do not merge this draft until the complete workflow has been reviewed and tested. Existing installed copies targeting the old private feed need a one-time manual installation of a correctly signed public-channel build. Test subsequent automatic updates with an isolated Windows installation, including signed installer identity, downloaded update integrity and normal idle/restart behavior.
+
+## Branch protection
+
+GitHub rejected ruleset access with HTTP 403 on the private free repository. Native enforcement is unavailable on this plan. Do not substitute CI for branch protection, or make the source public to restore it. A verified student may be eligible for GitHub Pro through GitHub Education; confirm entitlement and then configure rulesets for main/development. Until then keep write access restricted and use independent review procedurally.
+
+## Documentation separation
+
+End-user documentation is maintained in [AgentOffice-Releases](https://github.com/ENG-mohammed-fares/AgentOffice-Releases). Its first public installer is pending. This document remains private engineering material; do not mirror it publicly.

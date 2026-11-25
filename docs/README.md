@@ -1,7 +1,13 @@
 # Internal engineering documentation
 
-This directory is private. Do not mirror these materials into the public distribution repository.
+These documents are private. Do not copy them into the public distribution repository.
 
-Start with the [engineering README](../README.md), [release policy](../RELEASE-POLICY.md), [authentication setup](../AUTH-SETUP.md), [security policy](../SECURITY.md), [historical changelog](../CHANGELOG.md), and [deferred backlog](../DEFERRED.md). The active quality documentation is being consolidated in [PR #10](https://github.com/ENG-mohammed-fares/AgentOffice/pull/10); check that branch for coverage, performance, review, crash monitoring, signing, local security and public-update-channel details.
+- [Engineering README](../README.md) · [Release policy](../RELEASE-POLICY.md) · [Authentication configuration](../AUTH-SETUP.md) · [Security policy](../SECURITY.md) · [Deferred backlog](../DEFERRED.md) · [Historical changelog](../CHANGELOG.md)
+- [Integration](foundation-integration.md) · [Performance testing](performance-testing.md) · [Coverage](code-coverage.md) · [SonarCloud gate](sonarcloud-quality-gate.md) · [Code review](code-review.md)
+- [Crash monitoring](crash-monitoring.md) · [Signing](code-signing.md) · [Private repository security](private-repository-security.md) · [Public update channel](public-update-channel.md)
 
-End-user documentation lives separately at [AgentOffice-Releases](https://github.com/ENG-mohammed-fares/AgentOffice-Releases).
+End-user instructions are maintained separately at [AgentOffice-Releases](https://github.com/ENG-mohammed-fares/AgentOffice-Releases). The integration candidate is not a production release.
+
+- [Engineering lessons and prevention log](engineering-lessons.md)
+
+- [Refactoring and maintainability gate](refactoring-quality.md)

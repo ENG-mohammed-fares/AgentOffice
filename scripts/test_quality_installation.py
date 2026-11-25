@@ -36,7 +36,11 @@ class QualityInstallation(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             self.prepare(root)
+            intro = root / "app/src/loading-intro.html"
+            canonical = intro.read_text(encoding="utf-8")
+            self.assertIn('<html lang="en">', canonical)
             quality.apply(root)
+            self.assertEqual(intro.read_text(encoding="utf-8"), canonical)
             main = (root / "app/electron/main.cjs").read_text(encoding="utf-8")
             self.assertIn("sandbox: true", main)
             self.assertIn("webSecurity: true", main)

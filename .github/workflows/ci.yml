@@ -126,6 +126,18 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Syntax check failed: $($file.FullName)" }
           }
 
+      - name: Refactoring Quality Gate
+        run: node --experimental-vm-modules scripts/refactoring-gate.mjs
+
+      - name: Upload refactoring verification evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: agentoffice-refactoring-report
+          path: refactoring-report/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Install dependencies
         working-directory: app
         shell: pwsh

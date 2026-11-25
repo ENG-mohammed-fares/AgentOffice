@@ -9,3 +9,5 @@ These documents are private. Do not copy them into the public distribution repos
 End-user instructions are maintained separately at [AgentOffice-Releases](https://github.com/ENG-mohammed-fares/AgentOffice-Releases). The integration candidate is not a production release.
 
 - [Engineering lessons and prevention log](engineering-lessons.md)
+
+- [Refactoring and maintainability gate](refactoring-quality.md)

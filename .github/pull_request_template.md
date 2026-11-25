@@ -21,3 +21,7 @@
 - [ ] Confirm release impact and rollback plan.
 
 An author checklist or AI-generated comment is not an independent approval.
+
+## Refactoring changes
+- [ ] For behavior-preserving changes, confirm the refactoring gate and affected regression tests pass.
+- [ ] For intentional behavior changes, document the expected change and obtain review before changing characterization expectations or baselines.

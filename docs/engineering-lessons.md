@@ -17,3 +17,7 @@ Record verified problems, their cause, the fix, its regression protection, and e
 - Use real prepared sources and real coverage; distinguish fixture, smoke, hosted and physical-device tests. Do not lower security/quality gates or exclude production code to manufacture passing scores.
 - Inspect the resulting diff, CI result, relevant security findings and release provenance. Record unresolved details and follow-up work without claiming a fix.
 - Keep production release and privacy prerequisites intact, and document operational changes in the relevant repository.
+
+## Refactoring prevention
+
+Use characterization before edits, differential tests against a fixed baseline, targeted mutation checks and architecture boundary checks. Preserve real production tests; a surviving mutation requires an improved test or reviewed justification, not a fake kill. The first scoped gate is implemented; its CI evidence is pending.

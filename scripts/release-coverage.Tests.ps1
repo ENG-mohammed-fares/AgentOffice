@@ -108,15 +108,17 @@ Describe 'Public release orchestration (isolated; no external writes)' {
         Should -Invoke Get-AuthenticodeSignature -Times 0 -Exactly
     }
     It 'retries stale public metadata without recreating or republishing the release' {
-        $script:publicChecks = 0
+        Set-Content -LiteralPath 'fixture-public-checks.txt' -Value '0' -Encoding ascii
         Mock Start-Sleep {}
         Mock Invoke-WebRequest {
             $body = @{tag_name='v1.6.15'}
             if (Test-Path 'fixture-cli-state.json') {
                 $state = Get-Content 'fixture-cli-state.json' -Raw | ConvertFrom-Json
                 if ($state.published) {
-                    $script:publicChecks++
-                    if ($script:publicChecks -gt 1) {
+                    $checks = [int](Get-Content -LiteralPath 'fixture-public-checks.txt' -Raw)
+                    $checks += 1
+                    Set-Content -LiteralPath 'fixture-public-checks.txt' -Value $checks -Encoding ascii
+                    if ($checks -gt 1) {
                         $body = @{tag_name='v1.6.16';draft=$false;prerelease=$false;assets=$state.assets;html_url='https://github.com/ENG-mohammed-fares/AgentOffice/releases/tag/v1.6.16'}
                     }
                 }
@@ -129,7 +131,7 @@ Describe 'Public release orchestration (isolated; no external writes)' {
         $state.creates | Should -Be 1
         $state.edits | Should -Be 1
         $state.downloads | Should -Be 1
-        $script:publicChecks | Should -Be 2
+        [int](Get-Content -LiteralPath 'fixture-public-checks.txt' -Raw) | Should -Be 2
         Should -Invoke Start-Sleep -Times 1 -Exactly
     }
     It 'rejects an invalid draft without publishing it' {

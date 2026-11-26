@@ -57,6 +57,8 @@ Describe 'Public release orchestration (isolated; no external writes)' {
         # Fail closed if the production script ever attempts an unmocked network
         # operation. Only the narrowly matched fixture operations are allowed.
         Mock Invoke-RestMethod { throw 'Unexpected network call in release fixture' }
+        Mock Invoke-WebRequest { throw 'Unexpected public HTTP call in release fixture' }
+        Mock gh { throw 'Unexpected GitHub CLI call in release fixture' }
         Mock Get-AuthenticodeSignature {
             $cert=[pscustomobject]@{Subject='CN=Fixture';Thumbprint=('a'*40)}
             [pscustomobject]@{Status='Valid';SignatureType='Authenticode';SignerCertificate=$cert;TimeStamperCertificate=$cert}
@@ -124,13 +126,15 @@ Describe 'Public release orchestration (isolated; no external writes)' {
                 default { throw 'Unexpected gh fixture operation' }
             }
         }
-        Mock Invoke-RestMethod {
-            $status = 200
-            Set-Variable -Name $StatusCodeVariable -Value $status -Scope 1
-            if (-not $script:published) { return @{tag_name='v1.6.15'} }
-            $script:publicChecks++
-            if ($script:publicChecks -eq 1) { return @{tag_name='v1.6.15'} }
-            return @{tag_name='v1.6.16';draft=$false;prerelease=$false;assets=$script:assets;html_url='https://github.com/ENG-mohammed-fares/AgentOffice/releases/tag/v1.6.16'}
+        Mock Invoke-WebRequest {
+            $body = @{tag_name='v1.6.15'}
+            if ($script:published) {
+                $script:publicChecks++
+                if ($script:publicChecks -gt 1) {
+                    $body = @{tag_name='v1.6.16';draft=$false;prerelease=$false;assets=$script:assets;html_url='https://github.com/ENG-mohammed-fares/AgentOffice/releases/tag/v1.6.16'}
+                }
+            }
+            return [pscustomobject]@{StatusCode=200;Content=($body | ConvertTo-Json -Depth 5)}
         } -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ENG-mohammed-fares/AgentOffice/releases/latest' }
         Mock Invoke-RestMethod { return @{full_name='ENG-mohammed-fares/AgentOffice';private=$false} } -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ENG-mohammed-fares/AgentOffice' }
         & (Join-Path $PSScriptRoot 'publish-public-update.ps1')

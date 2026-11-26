@@ -2,7 +2,7 @@ import './style.css';
 import './agile-office.css';
 import {mountAuth} from './auth.js';
 import {mountLoadingIntro} from './loading-intro.js';
-import {mountTaskPanel} from './office-task-panel.mjs';
+import {mountTaskPanel,mountOfficeControls} from './office-task-panel.mjs';
 import layout from './agile-layout.json';
 
 const desktop=window.agentOfficeDesktop;
@@ -51,7 +51,7 @@ function mountWorkspace(user){
   graphics.onchange=()=>{renderer?.setGraphicsPreset(graphics.value);if(!diagnostics.hidden)refreshMetrics();};
   el('office-diagnostics-toggle').onclick=()=>{diagnostics.hidden=!diagnostics.hidden;el('office-diagnostics-toggle').setAttribute('aria-expanded',String(!diagnostics.hidden));if(!diagnostics.hidden)refreshMetrics();};
   el('office-metrics-refresh').onclick=refreshMetrics;
-  const initialView=()=>{poster.src=url('view-'+index+'.webp');poster.hidden=false;poster.removeAttribute('aria-hidden');};
+  const initialView=()=>{const still=[0,1,1,2][index]??0;poster.src=url('view-'+still+'.webp');poster.hidden=false;poster.removeAttribute('aria-hidden');};
   initialView();app.replaceChildren(stage);
   const activity=new Map();
   const disposeTasks=mountTaskPanel(stage,user,{roles:layout.roles,onActivity:(role,state)=>{activity.set(role,state);renderer?.setAgentState(role,state);}});

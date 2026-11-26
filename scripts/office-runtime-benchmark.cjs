@@ -149,7 +149,7 @@ async function run(){
     const destination=path.resolve(previewDir);
     const views=[];
     fs.mkdirSync(destination,{recursive:true});
-    for(const index of [0,1,2]){
+    for(const index of [0,1,2,3]){
       lastStage='capture-view-'+index;
       const metrics=await win.webContents.executeJavaScript('window.previewView('+index+')');
       if(!characterReview)assert.ok(metrics.width>=1920&&metrics.height>=1080,'Actual rendering buffer is below Full HD; select High or use a larger display.');

@@ -141,6 +141,7 @@ async function run(){
     assert.ok(result.ok,result.error);
     if(characterReview){
       assert.equal(result.initial.characters,7);
+      assert.equal(result.initial.meetingAvailable,true);
       assert.equal(result.initial.characterLabels,7);
       assert.ok(result.initial.proceduralJoints>=91,'Rig-audited secondary joints were not animated');
       assert.equal(result.initial.roleScreens,13);

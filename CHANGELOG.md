@@ -2,6 +2,10 @@
 
 Historical descriptions do not establish current public availability or production readiness.
 
+## What's new in 1.6.17
+
+Release candidate: adds seven rigged animated office avatars, separately movable chairs, seated work and meeting transitions, graphics presets, shader warm-up and local rendering diagnostics. Adds canonical asset verification, documentation conventions, actual Blender bake execution coverage and additional regression tests. Hybrid baked lighting and native Full HD preview candidates remain experimental; the production office retains its existing validated asset path. Software-renderer CI passed for the integration candidate; physical-device FPS, natural motion/contact fidelity and installed update migration are not yet verified.
+
 ## What's new in 1.6.15
 
 Office rendering is event-driven and pauses while idle or hidden. Static shadow maps are calculated once. Adaptive resolution reduces rendering cost during motion and restores full resolution at rest. Safe opaque material batching and conditional instancing preserve the source model and transparent glass. All 14 office base-color maps are built as validated UASTC KTX2, loaded from the local package, with original GLB fallback. Office lightmaps are a separate experimental bake and are not enabled.

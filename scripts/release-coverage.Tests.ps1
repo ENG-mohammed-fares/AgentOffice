@@ -94,6 +94,49 @@ Describe 'Public release orchestration (isolated; no external writes)' {
         { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*Fixture source head reached*'
         Should -Invoke Get-AuthenticodeSignature -Times 0 -Exactly
     }
+    It 'retries stale public metadata without recreating or republishing the release' {
+        $script:published = $false
+        $script:created = $false
+        $script:publicChecks = 0
+        $script:assets = @($script:names | ForEach-Object {
+            @{name=$_;size=(Get-Item -LiteralPath "candidate/$_").Length;browser_download_url="https://github.com/ENG-mohammed-fares/AgentOffice/releases/download/v1.6.16/$_"}
+        })
+        Mock Start-Sleep {}
+        Mock gh {
+            $global:LASTEXITCODE = 0
+            $command = $args -join ' '
+            switch -Regex ($command) {
+                '^api .*git/ref/heads/development' { return 'fixture-sha' }
+                '^api .*releases/latest' { return '{"tag_name":"v1.6.15"}' }
+                '^release view.*--json' { return (@{isDraft=$true;tagName='v1.6.16';assets=$script:assets} | ConvertTo-Json -Depth 5) }
+                '^release view' { $global:LASTEXITCODE = 1; return }
+                '^release create' { $script:created = $true; return }
+                '^release download' {
+                    $directory = $args[-1]
+                    foreach ($name in $script:names) { Copy-Item -LiteralPath "candidate/$name" -Destination $directory }
+                    return
+                }
+                '^release edit' {
+                    if (-not $script:created) { throw 'Fixture publication without creation' }
+                    $script:published = $true
+                    return
+                }
+                default { throw 'Unexpected gh fixture operation' }
+            }
+        }
+        Mock Invoke-RestMethod {
+            $status = 200
+            Set-Variable -Name $StatusCodeVariable -Value $status -Scope 1
+            if (-not $script:published) { return @{tag_name='v1.6.15'} }
+            $script:publicChecks++
+            if ($script:publicChecks -eq 1) { return @{tag_name='v1.6.15'} }
+            return @{tag_name='v1.6.16';draft=$false;prerelease=$false;assets=$script:assets;html_url='https://github.com/ENG-mohammed-fares/AgentOffice/releases/tag/v1.6.16'}
+        } -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ENG-mohammed-fares/AgentOffice/releases/latest' }
+        Mock Invoke-RestMethod { return @{full_name='ENG-mohammed-fares/AgentOffice';private=$false} } -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ENG-mohammed-fares/AgentOffice' }
+        & (Join-Path $PSScriptRoot 'publish-public-update.ps1')
+        $script:publicChecks | Should -Be 2
+        Should -Invoke Start-Sleep -Times 1 -Exactly
+    }
     It 'rejects a mismatched provenance manifest before publication' {
         $env:EXPECTED_RUN_ID='different'
         { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*Candidate manifest mismatch*'

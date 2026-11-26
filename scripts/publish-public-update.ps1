@@ -57,10 +57,23 @@ try {
     Assert-PublicVersion
     gh release edit $tag --repo $destination --draft=false --latest
     if ($LASTEXITCODE -ne 0) { throw 'Public release publication failed.' }
-    $latest = Invoke-RestMethod -Uri "https://api.github.com/repos/$destination/releases/latest"
-    if ($latest.tag_name -ne $tag -or $latest.draft -or $latest.prerelease) { throw 'Public release verification failed.' }
-    foreach ($name in $names) {
-        if (@($latest.assets | Where-Object { $_.name -eq $name -and $_.browser_download_url -like "https://github.com/$destination/releases/download/$tag/*" }).Count -ne 1) { throw "Public asset missing: $name" }
+    # The unauthenticated latest-release endpoint can lag after a draft is
+    # published. Retry verification only, never creation or publication.
+    $verified = $false
+    for ($attempt = 0; $attempt -lt 12; $attempt++) {
+        $latest = Invoke-RestMethod -Uri "https://api.github.com/repos/$destination/releases/latest" -Headers @{'Cache-Control'='no-cache'} -TimeoutSec 15 -SkipHttpErrorCheck -StatusCodeVariable status
+        if ($status -eq 200 -and $latest.tag_name -eq $tag -and -not $latest.draft -and -not $latest.prerelease) {
+            $missing = @($names | Where-Object {
+                $name = $_
+                @($latest.assets | Where-Object { $_.name -eq $name -and $_.browser_download_url -eq "https://github.com/$destination/releases/download/$tag/$name" -and $_.size -eq (Get-Item -LiteralPath "candidate/$name").Length }).Count -ne 1
+            })
+            if ($missing.Count -eq 0 -and $latest.assets.Count -eq $names.Count) {
+                $verified = $true
+                break
+            }
+        }
+        if ($attempt -lt 11) { Start-Sleep -Seconds 5 }
     }
+    if (-not $verified) { throw 'Public release verification failed after bounded retries; inspect existing release before retrying publication.' }
     Write-Host "Verified public distribution release: $($latest.html_url)"
 } finally { Remove-Item -LiteralPath $tmp -Recurse -Force }

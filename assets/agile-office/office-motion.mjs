@@ -133,7 +133,7 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
     }
   };
 }
-// One mover at a time through the narrow glass doorway; others stay seated.
+// Meeting preparation and destination seating overlap; only the doorway segment is single-occupancy.
 // Each avatar owns its own chair, so queued agents cannot share seats.
 /**
  * Serializes travel through the narrow doorway and supports requests to return to desks.

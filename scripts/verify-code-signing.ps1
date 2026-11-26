@@ -4,7 +4,7 @@ Set-StrictMode -Version Latest
 function Assert-AgentOfficeSignature {
     param(
         [Parameter(Mandatory)] $Signature,
-        [Parameter(Mandatory)] [string] $ExpectedPublisher,
+        [Parameter(Mandatory)] [AllowNull()] [AllowEmptyString()] [string] $ExpectedPublisher,
         [string] $ExpectedThumbprint = ''
     )
     if ([string]::IsNullOrWhiteSpace($ExpectedPublisher)) {

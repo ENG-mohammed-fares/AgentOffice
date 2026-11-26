@@ -258,6 +258,84 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-QUALITY-003",
+      "source": "Owner: تابع ونفذ الباقي دون ان تتعارض مع انزال الاصدار الجديد — 2026-11-26",
+      "story": "As a maintainer, I want to reject malformed story references and unsupported evidence regardless of completion status, so that engineering evidence remains trustworthy.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A valid linked implementation change",
+          "when": "Traceability validation runs",
+          "then": "The structural gate accepts it"
+        },
+        {
+          "id": "AC-02",
+          "given": "Missing story, malformed criteria or unsupported completion",
+          "when": "Traceability validation runs",
+          "then": "The gate fails with a diagnostic"
+        }
+      ],
+      "scope": "reject malformed story references and unsupported evidence regardless of completion status",
+      "constraints": "Preserve all quality/security/release controls",
+      "assumptions": "Review checks meaning and pre-code chronology",
+      "dependencies": "Existing canonical RTM validator",
+      "impact": "CI/documentation only; no release or runtime change",
+      "status": "in progress",
+      "implementation": [
+        "scripts/validate_traceability.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_repository_matrix",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-QUALITY-004",
+      "source": "Owner: تابع ونفذ الباقي دون ان تتعارض مع انزال الاصدار الجديد — 2026-11-26",
+      "story": "As a maintainer, I want to maintain experiment, recovery and hardware acceptance contracts without affecting release delivery, so that engineering evidence remains trustworthy.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A valid linked implementation change",
+          "when": "Traceability validation runs",
+          "then": "The structural gate accepts it"
+        },
+        {
+          "id": "AC-02",
+          "given": "Missing story, malformed criteria or unsupported completion",
+          "when": "Traceability validation runs",
+          "then": "The gate fails with a diagnostic"
+        }
+      ],
+      "scope": "maintain experiment, recovery and hardware acceptance contracts without affecting release delivery",
+      "constraints": "Preserve all quality/security/release controls",
+      "assumptions": "Review checks meaning and pre-code chronology",
+      "dependencies": "Existing canonical RTM validator",
+      "impact": "CI/documentation only; no release or runtime change",
+      "status": "in progress",
+      "implementation": [],
+      "tests": [
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_repository_matrix",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
     }
   ]
 }

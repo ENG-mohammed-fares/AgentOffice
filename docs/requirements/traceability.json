@@ -346,7 +346,7 @@
       "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), sections 7 and 16.",
       "owner": "Product owner / maintainer",
       "decision": "accepted",
-      "acceptance": "Every monitor displays clear, distinct, role-appropriate content: Product Owner roadmap/backlog; Frontend code and UI preview; AI Engineer agent workflow and evaluation; Backend API/database/logs; QA test results and bugs; DevOps CI/CD and terminal; Scrum Master sprint board. Multi-monitor roles use different content on each display. Preserve monitor geometry, aspect ratio, and readable texture resolution; no unnecessary third-party branding.",
+      "acceptance": "Every monitor displays distinct, role-appropriate content; multi-monitor roles receive different content per display. Each illustrative dashboard visibly carries a SIMULATION marker so static example values cannot be mistaken for live operational data. Preserve monitor geometry, aspect ratio and readable texture resolution.",
       "implementation": [
         "assets/agile-office/build_scene.py",
         "assets/agile-office/screen-content.mjs",
@@ -1009,11 +1009,11 @@
           "id": "AC-03",
           "given": "The office is rendered at Full HD from each authored camera",
           "when": "Screens are inspected",
-          "then": "Content remains correctly oriented, legible and within the existing monitor geometry"
+          "then": "Content remains correctly oriented and legible within the existing monitor geometry, and every static dashboard is visibly marked SIMULATION"
         }
       ],
       "scope": "Generate lightweight original screen graphics for the seven roles and every monitor, with separate variants for multi-monitor roles.",
-      "constraints": "Do not redesign furniture or resize/reposition monitors; avoid unnecessary third-party logos or runtime dependencies.",
+      "constraints": "Do not redesign furniture or resize/reposition monitors; avoid unnecessary third-party logos or runtime dependencies. Static example values must be marked SIMULATION.",
       "assumptions": "Screen surfaces can use lightweight CanvasTexture overlays placed just in front of the authored display panels.",
       "dependencies": "Canonical build_scene monitor coordinates, generated agile-layout metadata and Three.js renderer.",
       "impact": "Workstation display realism only.",
@@ -1127,7 +1127,7 @@
           "id": "AC-06",
           "given": "Live character rendering is ready",
           "when": "The user explicitly starts or ends the meeting demo",
-          "then": "The meeting queue receives a Boolean request and the accessible control reflects the state; the demo is disabled when the seven-character roster is unavailable"
+          "then": "The meeting queue receives a Boolean request only when all seven characters and the complete movable-chair map are ready; the accessible control reflects state and remains disabled otherwise"
         }
       ],
       "scope": "Overlap preparation and standing for all seven avatars while preserving serialized reservation of the narrow doorway; measure complete meeting and return duration.",
@@ -1241,7 +1241,7 @@
           "then": "Existing verified default PBR assets and fallback remain unchanged"
         }
       ],
-      "scope": "Fix chair participation in bake, strengthen actual Blender integration checks, preserve genuine native previews and hybrid candidate artifacts.",
+      "scope": "Maintain original PBR runtime rendering while producing a review-only static light-bake candidate, four native 1920x1080 camera captures, and repeatable renderer diagnostics. Do not enable baked assets by default before visual and real-hardware sign-off.",
       "constraints": "Do not ship unreviewed lightmaps or change release version. No fabricated screenshots or performance claims.",
       "assumptions": "Cycles hide_render excludes chair meshes from rendered illumination; visual inspection and hardware comparison remain necessary.",
       "dependencies": "Canonical GLB generation, actual Cycles integration test and existing CI asset job.",
@@ -1249,12 +1249,25 @@
       "status": "in progress",
       "implementation": [
         "assets/agile-office/bake-office-candidate.py",
-        ".github/workflows/ci.yml"
+        ".github/workflows/ci.yml",
+        "scripts/test_office_bake_execution.py",
+        "scripts/office-runtime-benchmark.cjs",
+        "docs/office-light-bake-review-1.6.18.md"
       ],
       "tests": [
         {
           "path": "scripts/test_office_bake_execution.py",
           "id": "run_bake_coverage",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/test_office_bake_execution.py",
+          "id": "test_candidate_bake_preserves_source_triangle_count_and_exports_four_native_previews",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/office-runtime-benchmark.cjs",
+          "id": "capture-view-0",
           "level": "integration"
         }
       ],

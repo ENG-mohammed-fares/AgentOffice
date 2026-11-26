@@ -78,7 +78,7 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
   function completeSeat(){setPosition(seat.at);rotation.y=yawFor(seat.forward);setOffset(seat,0);setPose(seatedPose());enter('seated');}
   completeSeat();
   return {
-    get phase(){return phase;},get location(){return seat.id;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},
+    get phase(){return phase;},get location(){return seat.id;},get atDesk(){return phase==='seated'&&seat===plan.desk;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},
     requestMeeting(value){desired=value?plan.meeting:plan.desk;},
     setActivity(value){activity=value;if(phase==='seated')setPose(seatedPose());},
     update(seconds){

@@ -6,20 +6,10 @@ const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const {convert} = require('./coverage-tools/convert.cjs');
+const {overlays:canonicalOverlays} = require('./run-coverage.cjs');
 function fixture() {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'agentoffice-execution-'));
-  const aliases={
-    'app/src/main.js':'assets/agile-office/main.js',
-    'app/src/agile-renderer.js':'assets/agile-office/agile-renderer.js',
-    'app/src/agile-office.css':'assets/agile-office/agile-office.css',
-    'app/src/office-performance.mjs':'assets/agile-office/office-performance.mjs',
-    'app/src/office-batching.mjs':'assets/agile-office/office-batching.mjs',
-    'app/src/office-tasks.mjs':'assets/agile-office/office-tasks.mjs',
-    'app/src/office-task-panel.mjs':'assets/agile-office/office-task-panel.mjs',
-    'app/src/agent-animation.mjs':'assets/agile-office/agent-animation.mjs',
-    'app/src/office-characters.mjs':'assets/agile-office/office-characters.mjs',
-    'app/src/office-motion.mjs':'assets/agile-office/office-motion.mjs',
-    'app/electron/crash-monitor.cjs':'assets/crash-monitor/crash-monitor.cjs'};
+  const aliases=canonicalOverlays;
   for(const file of Object.entries(aliases).flat()) {
     fs.mkdirSync(path.dirname(path.join(root,file)),{recursive:true});
     fs.writeFileSync(path.join(root,file),'// identical fixture overlay\n');

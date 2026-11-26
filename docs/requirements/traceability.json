@@ -388,6 +388,63 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-REL-001",
+      "source": "Owner request 2026-11-26: اصلحه واعده; failed CI 45768123240 draft validation; Owner 2026-11-26 explicitly requests 1.6.17 as-is, deferring unfinished graphics improvements to the following release.",
+      "story": "As the owner, I want an isolated native CLI regression test for verified release publication, so that the release gate reliably catches real failures instead of mock artifacts.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A local draft with exact fixture assets",
+          "when": "The publication script queries its metadata and validates downloaded bytes",
+          "then": "The draft is accepted only with correct tag, draft state, sizes and hashes."
+        },
+        {
+          "id": "AC-02",
+          "given": "Stale public metadata following publication",
+          "when": "The public verification runs",
+          "then": "Only verification retries; creation and publication occur once."
+        },
+        {
+          "id": "AC-03",
+          "given": "A malformed draft or changed downloaded bytes",
+          "when": "Publication checks execute",
+          "then": "No publish command occurs and the script fails."
+        }
+      ],
+      "scope": "Release 1.6.17 from the integrated development baseline including verified KTX2 and CI heartbeat; exclude PR #30, #31, #32 and subsequent graphics experiments. Preserve isolated PowerShell publication regression tests.",
+      "constraints": "Keep blocking automated CI, security, SonarCloud and exact candidate provenance. Owner explicitly defers remaining physical GPU, visual contact and installed-device validation; do not claim these passed. No unreviewed graphics assets in default runtime.",
+      "assumptions": "Prior failure is consistent with mock argument/exit handling; native fixture will establish actual behavior.",
+      "dependencies": "PR #26 and #27 integrated; release verification and publication tests; current development and reconciled PR gates.",
+      "impact": "Release tooling only; version remains candidate until approved.",
+      "status": "in progress",
+      "implementation": [
+        "release-version.txt",
+        "scripts/publish-public-update.ps1"
+      ],
+      "tests": [
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "retries stale public metadata without recreating or republishing the release",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "rejects an invalid draft without publishing it",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "rejects tampered downloaded bytes without publishing them",
+          "level": "integration"
+        }
+      ],
+      "evidence": []
     }
   ]
 }

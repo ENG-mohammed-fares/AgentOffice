@@ -24,8 +24,17 @@ function Assert-SourceHead {
         if ($LASTEXITCODE -ne 0 -or $latest.tag_name -notmatch '^v\d+\.\d+\.\d+$' -or [version]$version -le [version]($latest.tag_name.Substring(1))) { throw 'Version must exceed the current stable release.' }
     } finally { $env:GH_TOKEN = $env:RELEASE_TOKEN }
 }
+function Get-PublicReleaseResponse {
+    # Return status and parsed metadata together rather than using caller-scoped variables.
+    $result = Invoke-WebRequest -Uri "https://api.github.com/repos/$destination/releases/latest" -Headers @{'Cache-Control'='no-cache'} -TimeoutSec 15 -SkipHttpErrorCheck
+    $metadata = $null
+    if ($result.StatusCode -eq 200) { $metadata = $result.Content | ConvertFrom-Json }
+    return @{StatusCode=[int]$result.StatusCode; Metadata=$metadata}
+}
 function Assert-PublicVersion {
-    $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$destination/releases/latest" -SkipHttpErrorCheck -StatusCodeVariable status
+    $public = Get-PublicReleaseResponse
+    $status = $public.StatusCode
+    $response = $public.Metadata
     if ($status -eq 200) {
         if ($response.tag_name -notmatch '^v\d+\.\d+\.\d+$' -or [version]$version -le [version]($response.tag_name.Substring(1))) { throw 'Version must exceed the public stable release.' }
     } elseif ($status -ne 404) { throw "Cannot verify public stable version: HTTP $status" }
@@ -57,10 +66,24 @@ try {
     Assert-PublicVersion
     gh release edit $tag --repo $destination --draft=false --latest
     if ($LASTEXITCODE -ne 0) { throw 'Public release publication failed.' }
-    $latest = Invoke-RestMethod -Uri "https://api.github.com/repos/$destination/releases/latest"
-    if ($latest.tag_name -ne $tag -or $latest.draft -or $latest.prerelease) { throw 'Public release verification failed.' }
-    foreach ($name in $names) {
-        if (@($latest.assets | Where-Object { $_.name -eq $name -and $_.browser_download_url -like "https://github.com/$destination/releases/download/$tag/*" }).Count -ne 1) { throw "Public asset missing: $name" }
+    # The unauthenticated latest-release endpoint can lag after a draft is
+    # published. Retry verification only, never creation or publication.
+    $verified = $false
+    for ($attempt = 0; $attempt -lt 12; $attempt++) {
+        $public = Get-PublicReleaseResponse
+        $latest = $public.Metadata
+        if ($public.StatusCode -eq 200 -and $latest.tag_name -eq $tag -and -not $latest.draft -and -not $latest.prerelease) {
+            $missing = @($names | Where-Object {
+                $name = $_
+                @($latest.assets | Where-Object { $_.name -eq $name -and $_.browser_download_url -eq "https://github.com/$destination/releases/download/$tag/$name" -and $_.size -eq (Get-Item -LiteralPath "candidate/$name").Length }).Count -ne 1
+            })
+            if ($missing.Count -eq 0 -and $latest.assets.Count -eq $names.Count) {
+                $verified = $true
+                break
+            }
+        }
+        if ($attempt -lt 11) { Start-Sleep -Seconds 5 }
     }
+    if (-not $verified) { throw 'Public release verification failed after bounded retries; inspect existing release before retrying publication.' }
     Write-Host "Verified public distribution release: $($latest.html_url)"
 } finally { Remove-Item -LiteralPath $tmp -Recurse -Force }

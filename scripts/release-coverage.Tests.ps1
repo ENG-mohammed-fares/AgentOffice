@@ -29,7 +29,7 @@ Describe 'Real packaged secret scan' {
 Describe 'Public release orchestration (isolated; no external writes)' {
     BeforeEach {
         $script:previousEnv = @{}
-        foreach ($key in @('GITHUB_REPOSITORY','GITHUB_REF','RELEASE_TOKEN','SOURCE_TOKEN','GH_TOKEN','EXPECTED_VERSION','GITHUB_SHA','EXPECTED_RUN_ID','AGENTOFFICE_SIGNING_PUBLISHER','AGENTOFFICE_SIGNING_THUMBPRINT','RUNNER_TEMP')) {
+        foreach ($key in @('GITHUB_REPOSITORY','GITHUB_REF','RELEASE_TOKEN','SOURCE_TOKEN','GH_TOKEN','EXPECTED_VERSION','GITHUB_SHA','EXPECTED_RUN_ID','AGENTOFFICE_SIGNING_PUBLISHER','AGENTOFFICE_SIGNING_THUMBPRINT','RUNNER_TEMP','PATH')) {
             $script:previousEnv[$key] = [Environment]::GetEnvironmentVariable($key, 'Process')
         }
         $env:GITHUB_REPOSITORY='ENG-mohammed-fares/AgentOffice'
@@ -57,6 +57,19 @@ Describe 'Public release orchestration (isolated; no external writes)' {
         # Fail closed if the production script ever attempts an unmocked network
         # operation. Only the narrowly matched fixture operations are allowed.
         Mock Invoke-RestMethod { throw 'Unexpected network call in release fixture' }
+        Mock Invoke-WebRequest { throw 'Unexpected public HTTP call in release fixture' }
+        # Use an actual native command shim so PowerShell receives real exit codes.
+        # The shim is local-only and rejects every unrecognised command.
+        $shim = Join-Path $script:fixtureRoot 'bin'
+        New-Item -ItemType Directory -Path $shim | Out-Null
+        $python = (Get-Command python -CommandType Application | Select-Object -First 1).Source
+        $fixture = Join-Path $PSScriptRoot 'test_release_cli_fixture.py'
+        $launcher = Join-Path $shim 'gh.cmd'
+        Set-Content -LiteralPath $launcher -Encoding ascii -Value ('@"{0}" "{1}" %*' -f $python, $fixture)
+        $env:PATH = "$shim;$env:PATH"
+        if ((Get-Command gh -CommandType Application | Select-Object -First 1).Source -ne $launcher) {
+            throw 'Local release CLI shim must take precedence over the real CLI.'
+        }
         Mock Get-AuthenticodeSignature {
             $cert=[pscustomobject]@{Subject='CN=Fixture';Thumbprint=('a'*40)}
             [pscustomobject]@{Status='Valid';SignatureType='Authenticode';SignerCertificate=$cert;TimeStamperCertificate=$cert}
@@ -93,6 +106,51 @@ Describe 'Public release orchestration (isolated; no external writes)' {
         Mock gh { throw 'Fixture source head reached' }
         { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*Fixture source head reached*'
         Should -Invoke Get-AuthenticodeSignature -Times 0 -Exactly
+    }
+    It 'retries stale public metadata without recreating or republishing the release' {
+        Set-Content -LiteralPath 'fixture-public-checks.txt' -Value '0' -Encoding ascii
+        Mock Start-Sleep {}
+        Mock Invoke-WebRequest {
+            $body = @{tag_name='v1.6.15'}
+            if (Test-Path 'fixture-cli-state.json') {
+                $state = Get-Content 'fixture-cli-state.json' -Raw | ConvertFrom-Json
+                if ($state.published) {
+                    $checks = [int](Get-Content -LiteralPath 'fixture-public-checks.txt' -Raw)
+                    $checks += 1
+                    Set-Content -LiteralPath 'fixture-public-checks.txt' -Value $checks -Encoding ascii
+                    if ($checks -gt 1) {
+                        $body = @{tag_name='v1.6.16';draft=$false;prerelease=$false;assets=$state.assets;html_url='https://github.com/ENG-mohammed-fares/AgentOffice/releases/tag/v1.6.16'}
+                    }
+                }
+            }
+            return [pscustomobject]@{StatusCode=200;Content=($body | ConvertTo-Json -Depth 5)}
+        } -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ENG-mohammed-fares/AgentOffice/releases/latest' }
+        Mock Invoke-RestMethod { return @{full_name='ENG-mohammed-fares/AgentOffice';private=$false} } -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ENG-mohammed-fares/AgentOffice' }
+        & (Join-Path $PSScriptRoot 'publish-public-update.ps1')
+        $state = Get-Content 'fixture-cli-state.json' -Raw | ConvertFrom-Json
+        $state.creates | Should -Be 1
+        $state.edits | Should -Be 1
+        $state.downloads | Should -Be 1
+        [int](Get-Content -LiteralPath 'fixture-public-checks.txt' -Raw) | Should -Be 2
+        Should -Invoke Start-Sleep -Times 1 -Exactly
+    }
+    It 'rejects an invalid draft without publishing it' {
+        Set-Content -LiteralPath 'fixture-mode.txt' -Value 'bad-draft'
+        Mock Invoke-WebRequest { [pscustomobject]@{StatusCode=200;Content='{"tag_name":"v1.6.15"}'} } -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ENG-mohammed-fares/AgentOffice/releases/latest' }
+        Mock Invoke-RestMethod { @{full_name='ENG-mohammed-fares/AgentOffice';private=$false} } -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ENG-mohammed-fares/AgentOffice' }
+        { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*Distribution draft validation failed*'
+        $state = Get-Content 'fixture-cli-state.json' -Raw | ConvertFrom-Json
+        $state.creates | Should -Be 1
+        $state.edits | Should -Be 0
+    }
+    It 'rejects tampered downloaded bytes without publishing them' {
+        Set-Content -LiteralPath 'fixture-mode.txt' -Value 'bad-bytes'
+        Mock Invoke-WebRequest { [pscustomobject]@{StatusCode=200;Content='{"tag_name":"v1.6.15"}'} } -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ENG-mohammed-fares/AgentOffice/releases/latest' }
+        Mock Invoke-RestMethod { @{full_name='ENG-mohammed-fares/AgentOffice';private=$false} } -ParameterFilter { $Uri -eq 'https://api.github.com/repos/ENG-mohammed-fares/AgentOffice' }
+        { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*Uploaded hash mismatch*'
+        $state = Get-Content 'fixture-cli-state.json' -Raw | ConvertFrom-Json
+        $state.downloads | Should -Be 1
+        $state.edits | Should -Be 0
     }
     It 'rejects a mismatched provenance manifest before publication' {
         $env:EXPECTED_RUN_ID='different'

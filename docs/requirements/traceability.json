@@ -1689,6 +1689,63 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-REL-003",
+      "source": "PR #37 candidate implementation and exact-head CI evidence, 2026-11-26; signing-policy conflict remains explicitly unresolved.",
+      "story": "As the release owner, I need the candidate's Authenticode verification behavior isolated and traceable while the signing policy remains unresolved, so that the conflicting gate cannot be mistaken for approval to publish.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "The configured trusted publisher is absent.",
+          "when": "The release orchestration validates a Windows candidate.",
+          "then": "The candidate is rejected before any public release API call."
+        },
+        {
+          "id": "AC-02",
+          "given": "The installer is unsigned, invalid, untrusted, has the wrong publisher, or lacks a trusted timestamp.",
+          "when": "The Authenticode policy is evaluated.",
+          "then": "The verification fails closed and the candidate is not published."
+        },
+        {
+          "id": "AC-03",
+          "given": "The isolated signature-policy tests pass.",
+          "when": "The candidate's engineering status is reviewed.",
+          "then": "Only the tested policy behavior is recorded; no production signing provider, owner approval, or release eligibility is inferred."
+        }
+      ],
+      "scope": "Trace the release-only Authenticode helper and its Windows release-workflow integration introduced in the 1.6.18 candidate. This story records the current implementation while the signing-policy discrepancy remains unresolved; it does not authorize a public release.",
+      "constraints": "Preserve the current SRS constraint that mandatory signing is not approved until the owner explicitly reconciles the conflicting policy. Do not buy a provider, create or distribute a production certificate, publish 1.6.18, bypass release gates, or mark this story verified.",
+      "assumptions": "The current candidate intentionally fails closed when trusted publisher configuration is absent, but the product-level signing decision is unresolved.",
+      "dependencies": "Explicit owner reconciliation of the SRS and release-policy discrepancy; a trusted production signing provider only if mandatory signing is approved; exact-head Windows validation.",
+      "impact": "Release eligibility and publication only; no runtime office behavior changes.",
+      "status": "in progress",
+      "implementation": [
+        ".github/workflows/windows-release.yml",
+        "scripts/verify-code-signing.ps1"
+      ],
+      "tests": [
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "rejects a directory and a real unsigned executable",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "rejects a missing trusted publisher before inspecting or publishing the candidate",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "rejects an unsigned or untrusted installer before any release API access",
+          "level": "integration"
+        }
+      ],
+      "evidence": []
     }
   ]
 }

@@ -1,10 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mountTaskPanel} from '../src/office-task-panel.mjs';
+import {mountTaskPanel,mountOfficeControls} from '../src/office-task-panel.mjs';
 
 // Minimal DOM contract fixture; Electron smoke remains the real browser check.
 class Element {
-  constructor(tag){this.tag=tag;this.children=[];this.attributes={};this.value='';this.textContent='';this.hidden=false;this.focused=false}
+  constructor(tag){this.tag=tag;this.children=[];this.attributes={};this.value='';this.textContent='';this.hidden=false;this.focused=false;this.disabled=false}
   append(...nodes){this.children.push(...nodes);if(this.tag==='select'&&!this.value)this.value=this.children[0]?.value||''}
   replaceChildren(...nodes){this.children=nodes.flatMap(n=>n.tag==='fragment'?n.children:[n])}
   setAttribute(key,value){this.attributes[key]=value}
@@ -48,4 +48,29 @@ test('storage denial is visible, task status remains usable, guest does not pers
   assert.match(el('task-feedback').textContent,/Could not save/);f.dispose();
   const guest=fixture({user:{guest:true,id:'ignored'}});
   guest.el('task-title').value='Guest';guest.submit();assert.equal(guest.db.size,0);guest.dispose();
+});
+
+test('four authored camera views never start a meeting; explicit meeting demo requests reset on teardown',()=>{
+  const ids=['office-workspace','office-overview','office-team','office-meeting','office-meeting-demo','office-meeting-demo-status'];
+  const nodes=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
+  const views=[],requests=[];
+  const c=mountOfficeControls({querySelector:key=>nodes[key.slice(1)]},
+    {onView:index=>views.push(index),onMeeting:value=>requests.push(value)});
+  const demo=nodes['office-meeting-demo'];
+  assert.equal(demo.disabled,true);
+  for(const id of ids.slice(0,4))nodes[id].onclick();
+  assert.deepEqual(views,[0,1,2,3]);assert.deepEqual(requests,[]);
+  c.setAvailable(true);assert.equal(demo.disabled,false);
+  demo.onclick();assert.equal(demo.attributes['aria-pressed'],'true');
+  nodes['office-overview'].onclick();nodes['office-team'].onclick();
+  assert.deepEqual(requests,[true]);
+  demo.onclick();assert.equal(demo.attributes['aria-pressed'],'false');
+  assert.deepEqual(requests,[true,false]);
+  demo.onclick();c.setAvailable(false);
+  assert.deepEqual(requests,[true,false,true,false]);
+  assert.equal(demo.disabled,true);demo.onclick();assert.equal(requests.length,4);
+  c.setAvailable(true);demo.onclick();const oldClick=demo.onclick;c.dispose();oldClick();
+  assert.deepEqual(requests,[true,false,true,false,true,false]);
+  assert.ok(ids.slice(0,4).every(id=>nodes[id].onclick===null));
+  assert.equal(demo.onclick,null);c.dispose();c.setAvailable(true);assert.equal(demo.disabled,true);
 });

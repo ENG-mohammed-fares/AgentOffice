@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {rosterPlan,loadCharacterRoster,CLIPS,seatedClips} from '../src/office-characters.mjs';
+import {rosterPlan,loadCharacterRoster,CLIPS,seatedClips,identityForRole,mouseReach,workstationReach} from '../src/office-characters.mjs';
 const roster=Array.from({length:7},(_,i)=>({role:'Role '+i,file:'character-'+String.fromCharCode(97+i)+'.glb',station:i}));
 const stations=Array.from({length:7},(_,i)=>[i*3,2,0]);
 test('roster requires distinct roles, filenames and stations, with contained local asset paths',()=>{
@@ -11,11 +11,12 @@ test('roster requires distinct roles, filenames and stations, with contained loc
  }
  assert.throws(()=>rosterPlan(roster.slice(1),stations),/Expected seven/);
 });
-function fixture({missing=false,skinned=true}={}){
+function fixture({missing=false,skinned=true,withHead=false}={}){
  let disposed=0,loaded=0;
  const read=async url=>{assert.ok(url.startsWith('https://example.test/office/characters/'));return new ArrayBuffer(32)};
  const loader={async parseAsync(){loaded++;const scene=new THREE.Group(),geometry=new THREE.BoxGeometry(.4,1.7,.4);geometry.addEventListener('dispose',()=>disposed++);
  const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial());mesh.isSkinnedMesh=skinned;scene.add(mesh);
+ if(withHead){const head=new THREE.Bone();head.name='Head';head.position.y=.65;scene.add(head);}
  const animations=(missing?['Idle']:CLIPS).map(name=>new THREE.AnimationClip(name,1,[]));return {scene,animations}}};
  return {read,loader,get loaded(){return loaded},get disposed(){return disposed}};
 }
@@ -58,4 +59,80 @@ test('seated clips preserve hip and leg tracks while using actual animated upper
  assert.equal(a.tracks.find(t=>t.name==='Hips.position').times[1],2);
  assert.equal(a.tracks.find(t=>t.name==='LeftHand.position').values[1],Math.fround(.88));
  assert.ok(b.tracks.some(t=>t.name==='RightHand.position'));assert.equal(sitting.tracks[0].times[1],1);
+});
+
+test('role identities use first names only and render bold names beside regular role titles',async()=>{
+ const expected=[['Product Owner','Luca'],['Frontend Developer','Sara'],['AI Engineer','Aiko'],['Backend Developer','Diego'],['QA Engineer','Arjun'],['DevOps Engineer','Kwame'],['Scrum Master','Freja']];
+ assert.deepEqual(expected.map(([role])=>identityForRole(role)?.firstName),expected.map(([,name])=>name));
+ assert.equal(identityForRole('Unknown'),null);
+ const f=fixture({withHead:true}),drawn=[];
+ const canvasFactory=()=>({
+  width:0,height:0,
+  getContext(){return {
+   font:'',measureText(value){return {width:value.length*18};},
+   clearRect(){},beginPath(){},roundRect(){},fill(){},stroke(){},
+   fillText(value){drawn.push({value,font:this.font});}
+  }}
+ });
+ const identityRoster=expected.map(([role],station)=>({role,file:'identity-'+String.fromCharCode(97+station)+'.glb',station}));
+ const layer=await loadCharacterRoster({...base,roster:identityRoster,read:f.read,loader:f.loader,canvasFactory});
+ assert.equal(layer.labels,7);assert.equal(layer.group.children.length,14);
+ assert.equal(layer.meetingAvailable,false,'meeting demo requires the complete movable-chair map');
+ const root=layer.group.children.find(x=>x.name==='Product Owner');
+ const label=layer.group.children.find(x=>x.name==='Identity Luca · Product Owner');
+ assert.ok(root&&label,'each character has a role identity sprite');
+ layer.update(.05);
+ for(const [role,name] of expected){
+  const avatar=layer.group.children.find(x=>x.name===role),tag=layer.group.children.find(x=>x.name==='Identity '+name+' · '+role);
+  const crown=new THREE.Box3().setFromObject(avatar,true).max.y;
+  assert.ok(tag.scale.y<=.148&&tag.scale.x<=.85+1e-9,'complete identity should remain compact');
+  assert.equal(tag.center.x,.5);assert.equal(tag.center.y,0);
+  assert.ok(tag.position.y>=crown+.139,'lower label edge must clear the crown');
+ }
+ const before=label.position.clone();root.position.x+=1;layer.update(.05);
+ assert.ok(Math.abs(label.position.x-before.x-1)<1e-6,'identity sprite follows its avatar root');
+ const head=root.getObjectByName('Head')||root.getObjectByName('head');
+ if(head){const headBefore=label.position.y;head.position.y+=.1;layer.update(.05);assert.ok(label.position.y>headBefore+.05,'identity sprite follows head animation while standing or walking');}
+ assert.ok(drawn.some(x=>x.value==='  ·  '&&x.font.startsWith('400 ')),'separator must be a regular-weight middle dot');
+ for(const [role,name] of expected){
+  assert.ok(drawn.some(x=>x.value===name&&x.font.startsWith('700 ')),role+' first name must be bold');
+  assert.ok(drawn.some(x=>x.value===role&&x.font.startsWith('400 ')),role+' title must be regular');
+ }
+ layer.dispose();
+});
+test('both arms reach separate positions on the same mouse interaction surface',()=>{
+ const root=new THREE.Group();
+ function arm(side,shoulderX,foreX,handX){
+  const upper=new THREE.Bone();upper.name=side+'Arm';upper.position.set(shoulderX,1.3,0);root.add(upper);
+  const fore=new THREE.Bone();fore.name=side+'ForeArm';fore.position.set(foreX,-.25,0);upper.add(fore);
+  const hand=new THREE.Bone();hand.name=side+'Hand';hand.position.set(handX,-.2,0);fore.add(hand);
+  return hand;
+ }
+ const left=arm('Left',-.25,.25,.2),right=arm('Right',.57,-.25,-.2);
+ root.updateWorldMatrix(true,true);
+ const reach=mouseReach(root,{mouse:{x:.16,z:0}});
+ reach();
+ const leftTarget=new THREE.Vector3(.07,.885,0),rightTarget=new THREE.Vector3(.25,.885,0);
+ assert.ok(left.getWorldPosition(new THREE.Vector3()).distanceTo(leftTarget)<.2);
+ assert.ok(right.getWorldPosition(new THREE.Vector3()).distanceTo(rightTarget)<.2);
+});
+
+test('workstation reach places both wrists at keyboard targets without changing bone lengths',()=>{
+ const root=new THREE.Group(),seat={keyboard:{x:0,z:0},mouse:{x:.35,z:0},forward:{x:0,z:-1}};
+ function arm(side,x){
+  const upper=new THREE.Bone();upper.name=side+'Arm';upper.position.set(x,1.2,.4);root.add(upper);
+  const fore=new THREE.Bone();fore.name=side+'ForeArm';fore.position.set(0,-.25,-.2);upper.add(fore);
+  const hand=new THREE.Bone();hand.name=side+'Hand';hand.position.set(0,-.18,-.22);fore.add(hand);
+  return {fore,hand};
+ }
+ const left=arm('Left',-.18),right=arm('Right',.18);root.updateWorldMatrix(true,true);
+ const lengths=[left.fore.position.length(),left.hand.position.length(),right.fore.position.length(),right.hand.position.length()];
+ const reach=workstationReach(root,seat);reach('typing');
+ assert.ok(left.hand.getWorldPosition(new THREE.Vector3()).distanceTo(new THREE.Vector3(-.09,.9045,.052))<.005);
+ assert.ok(right.hand.getWorldPosition(new THREE.Vector3()).distanceTo(new THREE.Vector3(.09,.9045,.052))<.005);
+ reach('pointing');
+ assert.ok(right.hand.getWorldPosition(new THREE.Vector3()).distanceTo(new THREE.Vector3(.35,.914,0))<.005);
+ assert.deepEqual([left.fore.position.length(),left.hand.position.length(),right.fore.position.length(),right.hand.position.length()],lengths);
+ const before=right.hand.getWorldPosition(new THREE.Vector3());reach(null);
+ assert.ok(right.hand.getWorldPosition(new THREE.Vector3()).distanceTo(before)<1e-9);
 });

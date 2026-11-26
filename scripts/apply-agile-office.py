@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory(prefix='agentoffice-model-') as tmp:
         subprocess.run([sys.executable,str(work/name)],check=True,cwd=work,timeout=180)
     scene=json.loads((work/'scene.json').read_text(encoding='utf-8'))
     assert len(scene['roles'])==7 and len(scene['stations'])==7
-    assert len(scene['lights'])==29 and len(scene['cameras'])==3
+    assert len(scene['lights'])==29 and len(scene['cameras'])==4
     raw=(work/'office.glb').read_bytes()
     assert struct.unpack_from('<4sII',raw)==(b'glTF',2,len(raw))
     n,tag=struct.unpack_from('<I4s',raw,12)
@@ -24,22 +24,24 @@ with tempfile.TemporaryDirectory(prefix='agentoffice-model-') as tmp:
     target=app/'public'/'office'
     target.mkdir(parents=True,exist_ok=True)
     (target/'office.glb').write_bytes(raw)
-    for i in range(3):
-        image=base64.b64decode((assets/f'view-{i}.webp.b64').read_text().strip(),validate=True)
+    # Reuse the approved wide-office still for Team View until fresh native captures replace all four placeholders.
+    for i,source_index in enumerate((0,1,1,2)):
+        image=base64.b64decode((assets/f'view-{source_index}.webp.b64').read_text().strip(),validate=True)
         assert image.startswith(b'RIFF') and image[8:12]==b'WEBP'
         (target/f'view-{i}.webp').write_bytes(image)
-    layout={k:scene[k] for k in ('lights','cameras','roles','stations')}
+    layout={k:scene[k] for k in ('lights','cameras','roles','stations','screens')}
     characters=stage_characters(assets,target/'characters')
     if characters:
         layout['characters']=characters
     (app/'src'/'agile-layout.json').write_text(json.dumps(layout),encoding='utf-8')
-for src,dest in [('main.js','main.js'),('agile-renderer.js','agile-renderer.js'),('agile-office.css','agile-office.css'),('office-performance.mjs','office-performance.mjs'),('office-batching.mjs','office-batching.mjs'),('office-tasks.mjs','office-tasks.mjs'),('office-task-panel.mjs','office-task-panel.mjs'),('office-characters.mjs','office-characters.mjs'),('agent-animation.mjs','agent-animation.mjs'),('office-motion.mjs','office-motion.mjs')]:
+for src,dest in [('main.js','main.js'),('agile-renderer.js','agile-renderer.js'),('agile-office.css','agile-office.css'),('office-performance.mjs','office-performance.mjs'),('office-batching.mjs','office-batching.mjs'),('office-tasks.mjs','office-tasks.mjs'),('office-task-panel.mjs','office-task-panel.mjs'),('office-characters.mjs','office-characters.mjs'),('screen-content.mjs','screen-content.mjs'),('agent-animation.mjs','agent-animation.mjs'),('office-motion.mjs','office-motion.mjs')]:
     shutil.copyfile(assets/src,app/'src'/dest)
 shutil.copyfile(assets/'office-performance.test.mjs',app/'scripts'/'office-performance.test.mjs')
 shutil.copyfile(assets/'office-tasks.test.mjs',app/'scripts'/'office-tasks.test.mjs')
 shutil.copyfile(assets/'office-task-panel.test.mjs',app/'scripts'/'office-task-panel.test.mjs')
 shutil.copyfile(root/'scripts'/'agent-animation.test.mjs',app/'scripts'/'agent-animation.test.mjs')
 shutil.copyfile(root/'scripts'/'office-characters.test.mjs',app/'scripts'/'office-characters.test.mjs')
+shutil.copyfile(root/'scripts'/'screen-content.test.mjs',app/'scripts'/'screen-content.test.mjs')
 shutil.copyfile(root/'scripts'/'office-motion.test.mjs',app/'scripts'/'office-motion.test.mjs')
 # Keep original authentication fixture coverage; assert the new destination.
 path=app/'scripts'/'auth-smoke.cjs'
@@ -50,23 +52,52 @@ new=old+'''
     assert.equal(await read('Boolean(document.querySelector("#agile-office"))'),true,'new office opens after intro');
     assert.equal(await read('Boolean(document.querySelector(".dashboard-grid, .rail, #content"))'),false,'legacy dashboard removed');
     await until('document.querySelector("#office-poster")?.complete && document.querySelector("#office-poster")?.naturalWidth > 0','packaged office render available');
+    // The runtime initialization deadline is 60 seconds; authentication
+    // smoke permits slow software rendering, but never accepts a stuck loader.
+    const officeDeadline=Date.now()+75000;
+    while(await read('document.querySelector("#office-loading")?.getAttribute("aria-busy")')!=='false' && Date.now()<officeDeadline)
+      await new Promise(resolve=>setTimeout(resolve,250));
+    assert.equal(await read('document.querySelector("#office-loading")?.getAttribute("aria-busy")'),'false',
+      'office initialization did not settle: '+await read('document.querySelector("#office-loading-message")?.textContent'));
+    if(await read('document.querySelector("#agile-office")?.dataset.officeFailed==="true"')){
+      assert.equal(await read('document.querySelector("#office-loading-continue").hidden'),false);
+      await read('document.querySelector("#office-loading-continue").click()');
+    }
+    assert.equal(await read('document.querySelector("#agile-office")?.dataset.officeReady'),'true');
+    assert.equal(await read('document.querySelector("#office-loading").getAttribute("aria-hidden")'),'true');
     await read('document.querySelector("#office-diagnostics-toggle").click()');
     assert.equal(await read('document.querySelector("#office-diagnostics").hidden'),false);
     await read('document.querySelector("#office-metrics-refresh").click()');
     assert.ok(await read('document.querySelector("#office-metrics").textContent.length > 0'));
     await read('document.querySelector("#office-graphics").value="performance"; document.querySelector("#office-graphics").dispatchEvent(new Event("change"))');
     await read('document.querySelector("#office-graphics").value="balanced"; document.querySelector("#office-graphics").dispatchEvent(new Event("change")); document.querySelector("#office-diagnostics-toggle").click()');
+    await read('document.querySelector("#office-overview").click()');
+    assert.equal(await read('document.querySelector("#office-title").textContent'),'Overview');
+    assert.equal(await read('document.querySelector("#office-meeting-demo").getAttribute("aria-pressed")'),'false');
+    await read('document.querySelector("#office-team").click()');
+    assert.equal(await read('document.querySelector("#office-title").textContent'),'Team View');
     await read('document.querySelector("#office-meeting").click()');
     assert.equal(await read('document.querySelector("#office-title").textContent'),'Meeting Room');
+    assert.equal(await read('document.querySelector("#office-meeting-demo").getAttribute("aria-pressed")'),'false');
     await read('document.querySelector("#office-workspace").click()');
-    assert.equal(await read('document.querySelector("#office-title").textContent'),'Agile Workspace');
+    assert.equal(await read('document.querySelector("#office-title").textContent'),'Desk View');
+    assert.equal(await read('document.querySelector("#office-meeting-demo").getAttribute("aria-pressed")'),'false');
     await read('document.querySelector("#office-tasks-toggle").click()');
     assert.equal(await read('document.querySelector("#office-tasks").hidden'),false);
     await read('document.querySelector("#office-task-title").value="QA smoke task"; document.querySelector("#office-task-form").requestSubmit()');
     assert.equal(await read('document.querySelector("#office-task-list").textContent.includes("QA smoke task")'),true);
     await read('document.querySelector("#office-demo-toggle").click()');
     assert.equal(await read('document.querySelector("#office-demo-toggle").getAttribute("aria-pressed")'),'true');
-    await read('document.querySelector("#office-demo-toggle").click();document.querySelector("#office-task-close").click()');
+    await read('document.querySelector("#office-demo-toggle").click()');
+    const meetingAvailable=await read('Boolean(document.querySelector("#office-meeting-demo") && !document.querySelector("#office-meeting-demo").disabled)');
+    if(meetingAvailable){
+      await read('document.querySelector("#office-meeting-demo").click()');
+      assert.equal(await read('document.querySelector("#office-meeting-demo").getAttribute("aria-pressed")'),'true');
+      await read('document.querySelector("#office-meeting-demo").click()');
+    }else{
+      assert.equal(await read('document.querySelector("#office-meeting-demo").getAttribute("aria-pressed")'),'false');
+    }
+    await read('document.querySelector("#office-task-close").click()');
 '''
 text=text.replace(old,new,1)
 assert text.count('.rail-person strong')==3

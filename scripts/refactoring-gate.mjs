@@ -81,13 +81,21 @@ function architecture(){
   assert.ok(!/\b(?:window|document|process|fetch|XMLHttpRequest)\b/.test(pure),'Pure policy has environment dependency');
   const three=s=>s==='three'||s.startsWith('three/addons/');
   enforceImports(read('app/src/office-batching.mjs'),three);
-  enforceImports(read('app/src/agile-renderer.js'),s=>three(s)||['./agile-layout.json','./office-performance.mjs','./office-batching.mjs','./office-characters.mjs'].includes(s));
+  enforceImports(read('app/src/agile-renderer.js'),s=>three(s)||['./agile-layout.json','./office-performance.mjs','./office-batching.mjs','./office-characters.mjs','./screen-content.mjs'].includes(s));
+  // Role-specific screen textures are isolated in one Three.js-only renderer module.
+  enforceImports(read('app/src/screen-content.mjs'),s=>s==='three');
   enforceImports(read('app/src/office-characters.mjs'),s=>s==='three'||s==='three/addons/loaders/GLTFLoader.js'||['./agent-animation.mjs','./office-motion.mjs'].includes(s));
   const animation=read('app/src/agent-animation.mjs');
   enforceImports(animation,()=>false);
   assert.ok(!/\b(?:window|document|process|fetch|XMLHttpRequest)\b/.test(animation),'Animation policy has environment dependency');
   const main=read('app/src/main.js');
-  enforceImports(main,s=>['./style.css','./agile-office.css','./auth.js','./loading-intro.js','./office-task-panel.mjs','./agile-layout.json'].includes(s),{dynamic:true});
+  // Startup deadlines share the pure policy module checked above. The heavy
+  // renderer must still be loaded dynamically after authentication.
+  const officeEntryImport=s=>['./style.css','./agile-office.css','./auth.js','./loading-intro.js','./office-task-panel.mjs','./agile-layout.json','./office-performance.mjs'].includes(s);
+  enforceImports(main,officeEntryImport,{dynamic:true});
+  enforceImports("import {makeStartupDeadline} from './office-performance.mjs';",officeEntryImport);
+  assert.throws(()=>enforceImports("import './agile-renderer.js';",officeEntryImport),assert.AssertionError);
+  assert.throws(()=>enforceImports("import fs from 'node:fs';",officeEntryImport),assert.AssertionError);
   const dynamic=[...main.matchAll(/\bimport\s*\(\s*(['"])([^'"]+)\1\s*\)/g)].map(m=>m[2]);
   assert.deepEqual(dynamic,['./agile-renderer.js']);
   assert.equal((main.match(/\bimport\s*\(/g)||[]).length,dynamic.length,'Computed renderer import is not allowed');

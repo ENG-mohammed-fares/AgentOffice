@@ -10,3 +10,17 @@ html,body,#app{width:100%;height:100%;margin:0}#app{min-height:100dvh}
 .agile-office .office-graphics-label{font-size:12px;display:flex;align-items:center;gap:5px}.agile-office #office-graphics{font:inherit;color:#f1e8d9;background:#211d18;border:1px solid #887761;border-radius:6px;padding:8px}.agile-office #office-diagnostics{position:absolute;z-index:3;left:28px;top:78px;max-width:min(420px,calc(100% - 56px));max-height:65%;overflow:auto;padding:14px;background:#1c1916f5;border:1px solid #887761;border-radius:9px}.agile-office #office-diagnostics h2{font-size:14px;margin:0 0 8px}.agile-office #office-metrics{font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere}
 
 .agile-office #office-live{opacity:0;pointer-events:none;transition:opacity 180ms ease-out}.agile-office[data-render-mode=live] #office-live{opacity:1;pointer-events:auto}@media(prefers-reduced-motion:reduce){.agile-office #office-live{transition:none}}
+
+.agile-office:not([data-office-ready="true"]) #office-poster,.agile-office:not([data-office-ready="true"]) #office-live{filter:blur(7px);transform:scale(1.012);transition:filter 180ms ease-out,transform 180ms ease-out}
+.agile-office[data-office-ready="true"] #office-poster,.agile-office[data-office-ready="true"] #office-live{filter:none;transform:none}
+.agile-office #office-loading{position:absolute;inset:0;z-index:5;display:grid;place-items:center;padding:24px;box-sizing:border-box;background:#100e0b35;backdrop-filter:blur(1.5px);transition:opacity 180ms ease-out}
+.agile-office #office-loading[aria-hidden="true"]{opacity:0;pointer-events:none}
+.agile-office .office-loading-card{display:grid;justify-items:center;gap:11px;width:min(330px,calc(100% - 36px));padding:24px 26px;box-sizing:border-box;border:1px solid #b7a38e66;border-radius:12px;background:#171412e8;box-shadow:0 18px 60px #0008;text-align:center;backdrop-filter:blur(14px)}
+.agile-office .office-loading-spinner{width:30px;height:30px;border:2px solid #b7a38e55;border-top-color:#edb579;border-radius:50%;animation:office-loading-spin .9s linear infinite}
+.agile-office #office-loading-title{font-size:14px;font-weight:600;color:#fff}
+.agile-office #office-loading-message{margin:0;color:#ddd3c3;font-size:12px;line-height:1.5}
+.agile-office #office-loading-continue{margin-top:5px}
+@keyframes office-loading-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.agile-office .office-loading-spinner{animation:none}.agile-office #office-loading,.agile-office #office-live,.agile-office #office-poster{transition:none}}
+
+.agile-office #office-loading[aria-busy="false"] .office-loading-spinner{display:none;animation:none}

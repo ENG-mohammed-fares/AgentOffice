@@ -7,6 +7,7 @@ import {makeFrameScheduler,makeResolutionController,graphicsPixelRatio,makeFrame
 import {optimizeStaticMeshes} from './office-batching.mjs';
 import {KTX2Loader} from 'three/addons/loaders/KTX2Loader.js';
 import {loadCharacterRoster} from './office-characters.mjs';
+import {createRoleScreens} from './screen-content.mjs';
 
 const v=p=>new THREE.Vector3(p[0],p[2],-p[1]);
 const cameras=layout.cameras.map(c=>({position:v(c.pos),target:v(c.target),fov:2*Math.atan(Math.tan(c.fov*Math.PI/360)/(16/9))*180/Math.PI}));
@@ -134,6 +135,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     }
     if(chairs.size&&chairs.size!==15)throw Error('Incomplete movable chair geometry');
     stats=optimizeStaticMeshes(model);
+     const screens=createRoleScreens({screens:layout.screens,stations:layout.stations});scene.add(screens.group);
     const report=()=>{host.dataset.frames=String(++frames);host.dataset.drawCalls=String(renderer.info.render.calls);host.dataset.triangles=String(renderer.info.render.triangles);host.dataset.pixelRatio=resolution.ratio.toFixed(2);host.dataset.batchesBefore=String(stats.before);host.dataset.batchesAfter=String(stats.after);host.dataset.instances=String(stats.instances);};
     let qualityCap=maxRatio();
     const sizeToHost=()=>{const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);renderer.setDrawingBufferSize(w,h,resolution.ratio);camera.aspect=w/h;camera.updateProjectionMatrix();};
@@ -146,9 +148,10 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
       if(!['high','balanced','performance'].includes(value)||value===selectedPreset)return;
       selectedPreset=value;qualityCap=maxRatio();resolution=makeResolutionController(qualityCap,{stable:true});sizeToHost();frameScheduler.request();
     }
+    let activeCameraIndex=Math.max(0,Math.min(cameras.length-1,getInitialIndex()));
     function setCamera(c){camera.position.copy(c.position);target.copy(c.target);camera.fov=c.fov;camera.updateProjectionMatrix();camera.lookAt(target);}
     function go(i,instant=false){
-      const c=cameras[i];if(!c)return;
+      const c=cameras[i];if(!c)return false;activeCameraIndex=i;
       if(instant||reduced()){setCamera(c);move=null;}
       else{
         // Avoid a straight flight through the glass partition. The actual doorway
@@ -158,7 +161,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
         if(crossing){const a=c.position.x>3.05?2.45:3.65,b=c.position.x>3.05?3.65:2.45;pts.push(new THREE.Vector3(a,1.68,2.25),new THREE.Vector3(b,1.68,2.25));}
         pts.push(c.position.clone());move={start:performance.now(),duration:crossing?2100:950,path:new THREE.CatmullRomCurve3(pts,false,'centripetal'),from:target.clone(),to:c.target.clone(),fov:camera.fov,endFov:c.fov};
       }
-      lastFrame=0;settleFrames=0;frameScheduler.request();
+      lastFrame=0;settleFrames=0;frameScheduler.request();return true;
     }
     function draw(now){
       if(disposed)return;
@@ -217,6 +220,6 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     }
     function setAgentState(role,state){activity.set(role,state);return characters?.setState(role,state)??false;}
     function setMeeting(value){meetingRequested=Boolean(value);characters?.setMeeting?.(meetingRequested);}
-    return {go,dispose,ready,setGraphicsPreset,setAgentState,setMeeting,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,characters:characters?.count??0,seated:characters?.seated??0,meetingSeated:characters?.meetingSeated??0,movableChairs:chairs.size,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
+    return {go,dispose,ready,setGraphicsPreset,setAgentState,setMeeting,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,roleScreens:screens.count,cameraCount:cameras.length,cameraIndex:activeCameraIndex,characters:characters?.count??0,seated:characters?.seated??0,meetingSeated:characters?.meetingSeated??0,movableChairs:chairs.size,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
   }catch(err){dispose();throw err;}
 }

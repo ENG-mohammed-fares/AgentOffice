@@ -342,7 +342,7 @@ def main():
         raise ValueError("Candidate output contains symbolic links")
     original = glb_summary(source)
     if original["triangles"] != EXPECTED_TRIANGLES:
-        raise ValueError("Original office triangle count changed")
+        raise ValueError(f"Original office triangle count changed: expected {EXPECTED_TRIANGLES}, got {original['triangles']}")
     layout = json.loads(layout_path.read_text(encoding="utf-8"))
     scene = setup_scene(source, layout, args.samples)
     if not args.combined:

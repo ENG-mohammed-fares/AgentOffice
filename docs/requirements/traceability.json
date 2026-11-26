@@ -331,6 +331,38 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-CI-002",
+      "source": "Owner request 2026-11-26: monitor tests, consolidate branches and close superseded PRs without conflicts.",
+      "story": "As the owner, I want all retained fixes reconciled against one tested development revision so obsolete PRs can close without losing changes.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "The verified asset changes from PR #24 overlap CI heartbeat",
+          "when": "The changes are reconciled",
+          "then": "The explicit GLB validation and test fixtures, stable sorting locale and coverage source are preserved alongside heartbeat."
+        },
+        {
+          "id": "AC-02",
+          "given": "The combined revision targets development",
+          "when": "Mandatory CI executes",
+          "then": "The story gate, production build, security and blocking SonarCloud all execute without lowering thresholds."
+        }
+      ],
+      "scope": "Consolidate PR #24 with heartbeat in PR #27; close superseded PRs after verifying retained changes; keep release version separate.",
+      "constraints": "No production publication from this quality PR; no bypass or loss of coverage, tests or canonical source.",
+      "assumptions": "PR #26 is already merged; exact integrated revision needs fresh gates.",
+      "dependencies": "PR #24 verifier and fixtures; PR #27 heartbeat; merged #26 RTM.",
+      "impact": "CI and office validation; no version bump.",
+      "status": "ready",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
     }
   ]
 }

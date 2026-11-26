@@ -125,7 +125,7 @@ async function run(){
   await build(config);
   server=await preview({...config,preview:{host:'127.0.0.1',port:4173,strictPort:false}});
   const port=server.httpServer.address().port;
-  win=new BrowserWindow({width:ciReview?800:previewMode?1920:1280,height:ciReview?450:previewMode?1080:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
+  win=new BrowserWindow({width:previewMode?1920:ciReview?800:1280,height:previewMode?1080:ciReview?450:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
   win.webContents.on('console-message',(_event,details,legacyMessage)=>{
     const message=typeof details==='object'?details.message:legacyMessage;
     if(typeof message!=='string')return;

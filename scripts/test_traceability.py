@@ -38,6 +38,7 @@ class TraceabilityTests(unittest.TestCase):
         matrix = json.loads((root / 'docs/requirements/traceability.json').read_text(encoding='utf-8'))
         validate_changes(matrix, ['scripts/validate_traceability.py'])
         validate_changes(matrix, ['docs/README.md'])
+        validate_changes(matrix, ['.github/workflows/windows-release.yml', 'scripts/verify-code-signing.ps1'])
         with self.assertRaisesRegex(ValueError, 'story'):
             validate_changes(matrix, ['assets/agile-office/unmapped.js'])
         for mutate in ('missing', 'duplicate', 'criteria', 'requirement', 'done', 'test'):

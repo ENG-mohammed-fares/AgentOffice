@@ -445,6 +445,44 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-CI-003",
+      "source": "Owner: الان نبدأ العمل على التحديث القادم; PR #32 Windows run 45776830449 failed with UnicodeDecodeError in test_traceability.py.",
+      "story": "As a maintainer, I want multilingual user stories decoded consistently in Windows and Linux tests so that valid Arabic requirements do not break release verification.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Canonical UTF-8 traceability JSON with Arabic text",
+          "when": "Windows regression tests read it",
+          "then": "The test reads valid JSON using explicit UTF-8 rather than the host code page"
+        },
+        {
+          "id": "AC-02",
+          "given": "Verified meeting and walking fixes and a review-only bake candidate",
+          "when": "The combined 1.6.18 branch builds",
+          "then": "All existing CI, SonarCloud and security gates run against the exact integrated revision"
+        }
+      ],
+      "scope": "Correct the Windows test decoding bug and integrate PR #30, #31 and #32 after v1.6.17 publication.",
+      "constraints": "Keep release-version 1.6.17 until next release is accepted. Preserve all previous stories, tests, gates and original default PBR assets.",
+      "assumptions": "The exact Windows logs identify implicit read_text encoding as the failure; production validator already specifies UTF-8.",
+      "dependencies": "Published v1.6.17, PRs #30–32, canonical RTM.",
+      "impact": "Regression test portability and integration; no new public release.",
+      "status": "ready",
+      "implementation": [],
+      "tests": [
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_story_change_contract",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
     }
   ]
 }

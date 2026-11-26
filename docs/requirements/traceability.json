@@ -30,12 +30,19 @@
       "acceptance": "See docs/requirements/srs.md scenario FR-OFFICE-001",
       "implementation": [
         "assets/agile-office/main.js",
-        "assets/agile-office/agile-renderer.js"
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/bake-office-candidate.py",
+        ".github/workflows/ci.yml"
       ],
       "tests": [
         {
           "path": "scripts/renderer-lifecycle.test.mjs",
           "id": "original-model fallback, reduced motion, and load errors preserve cleanup",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/test_office_bake_execution.py",
+          "id": "run_bake_coverage",
           "level": "integration"
         }
       ],
@@ -190,6 +197,21 @@
         {
           "path": "scripts/office-motion.test.mjs",
           "id": "destination chair is pulled gradually before stepping into the seat space",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "waypoint travel turns in place then accelerates and stops without overshoot",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "rear desk route clears the planter proxy in both travel directions",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "meeting reversal while walking returns all avatars without seat sharing",
           "level": "unit"
         }
       ],
@@ -1129,6 +1151,196 @@
         {
           "path": "assets/agile-office/office-task-panel.test.mjs",
           "id": "four authored camera views never start a meeting; explicit meeting demo requests reset on teardown",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-MOTION-001",
+      "source": "Owner: اكمل ما هو غير مكتمل; doing_0 rendering master prompt sections 5–7, 12.",
+      "story": "As a workspace user, I want avatars to face their travel direction before walking, start and stop smoothly, and avoid the known planter obstruction on their route.",
+      "priority": "P1",
+      "requirements": [
+        "FR-MOTION-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A waypoint behind or to the side of an avatar",
+          "when": "Travel advances",
+          "then": "The avatar turns at bounded angular speed without translating sideways, then accelerates toward the target and brakes to a stop"
+        },
+        {
+          "id": "AC-02",
+          "given": "The canonical rear desk and planter coordinates",
+          "when": "Its meeting route is generated",
+          "then": "The route clears the planter proxy by the documented agent radius in both directions"
+        },
+        {
+          "id": "AC-03",
+          "given": "A meeting or return request",
+          "when": "The queue runs including a reversed request",
+          "then": "Agents complete transitions without snapping, overshooting, or sharing chairs and resume desk activity"
+        }
+      ],
+      "scope": "Bounded heading, acceleration and braking; correct one known static obstacle route; extend existing motion regression tests.",
+      "constraints": "Preserve office and identities, existing chair sequence, quality gates, auth and release version. No claim of full dynamic collision avoidance or foot contact.",
+      "assumptions": "Planter proxy radius 0.27 m based on build_scene.py; avatar clearance radius 0.22 m is an engineering estimate, not measured rig clearance.",
+      "dependencies": "Existing office-motion state machine and authored scene coordinates.",
+      "impact": "Visual travel and navigation; no actual agent execution changes.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/office-motion.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "waypoint travel turns in place then accelerates and stops without overshoot",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "rear desk route clears the planter proxy in both travel directions",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "meeting reversal while walking returns all avatars without seat sharing",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-RENDER-001",
+      "source": "Owner: لاتُبقي أي شيء غير مكتمل; doing_0 master rendering prompt sections 9–10 and 14.",
+      "story": "As a workspace user, I want static lighting candidates to exclude movable-chair shadows and native Full HD renders to be preserved for review, so that office graphics can be validated before promotion.",
+      "priority": "P1",
+      "requirements": [
+        "FR-OFFICE-001",
+        "NFR-PERF-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Imported canonical office with independently movable chair meshes",
+          "when": "Cycles bakes the static lightmap",
+          "then": "Chair meshes are hidden from the bake and restored afterward, while exported geometry retains all original chair nodes"
+        },
+        {
+          "id": "AC-02",
+          "given": "Actual Blender diffuse and combined execution",
+          "when": "The asset job completes",
+          "then": "Four verified 1920x1080 PNGs, atlas and model candidates and both mode reports are preserved as review-only artifacts tied to the run"
+        },
+        {
+          "id": "AC-03",
+          "given": "Unreviewed experimental lightmaps and previews",
+          "when": "The app is packaged",
+          "then": "Existing verified default PBR assets and fallback remain unchanged"
+        }
+      ],
+      "scope": "Fix chair participation in bake, strengthen actual Blender integration checks, preserve genuine native previews and hybrid candidate artifacts.",
+      "constraints": "Do not ship unreviewed lightmaps or change release version. No fabricated screenshots or performance claims.",
+      "assumptions": "Cycles hide_render excludes chair meshes from rendered illumination; visual inspection and hardware comparison remain necessary.",
+      "dependencies": "Canonical GLB generation, actual Cycles integration test and existing CI asset job.",
+      "impact": "Review-only lighting and evidence pipeline; no default runtime changes.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/bake-office-candidate.py",
+        ".github/workflows/ci.yml"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_office_bake_execution.py",
+          "id": "run_bake_coverage",
+          "level": "integration"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-QUALITY-003",
+      "source": "Owner: تابع ونفذ الباقي دون ان تتعارض مع انزال الاصدار الجديد — 2026-11-26",
+      "story": "As a maintainer, I want to reject malformed story references and unsupported evidence regardless of completion status, so that engineering evidence remains trustworthy.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A valid linked implementation change",
+          "when": "Traceability validation runs",
+          "then": "The structural gate accepts it"
+        },
+        {
+          "id": "AC-02",
+          "given": "Missing story, malformed criteria or unsupported completion",
+          "when": "Traceability validation runs",
+          "then": "The gate fails with a diagnostic"
+        }
+      ],
+      "scope": "reject malformed story references and unsupported evidence regardless of completion status",
+      "constraints": "Preserve all quality/security/release controls",
+      "assumptions": "Review checks meaning and pre-code chronology",
+      "dependencies": "Existing canonical RTM validator",
+      "impact": "CI/documentation only; no release or runtime change",
+      "status": "in progress",
+      "implementation": [
+        "scripts/validate_traceability.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_story_rejects_invalid_metadata_before_completion",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_changed_paths_require_active_stories",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-QUALITY-004",
+      "source": "Owner: تابع ونفذ الباقي دون ان تتعارض مع انزال الاصدار الجديد — 2026-11-26",
+      "story": "As a maintainer, I want to maintain experiment, recovery and hardware acceptance contracts without affecting release delivery, so that engineering evidence remains trustworthy.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A valid linked implementation change",
+          "when": "Traceability validation runs",
+          "then": "The structural gate accepts it"
+        },
+        {
+          "id": "AC-02",
+          "given": "Missing story, malformed criteria or unsupported completion",
+          "when": "Traceability validation runs",
+          "then": "The gate fails with a diagnostic"
+        }
+      ],
+      "scope": "maintain experiment, recovery and hardware acceptance contracts without affecting release delivery",
+      "constraints": "Preserve all quality/security/release controls",
+      "assumptions": "Review checks meaning and pre-code chronology",
+      "dependencies": "Existing canonical RTM validator",
+      "impact": "CI/documentation only; no release or runtime change",
+      "status": "in progress",
+      "implementation": [
+        "docs/engineering/acceptance-runbooks.md",
+        "docs/README.md"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_repository_matrix",
           "level": "unit"
         }
       ],

@@ -178,6 +178,132 @@
   ],
   "stories": [
     {
+      "id": "US-CI-005",
+      "source": "Owner request 2026-11-26: Blender is re-executed on unrelated code changes.",
+      "story": "As the maintainer, I want a verified exact-input cache for review-only Blender bake results on pull requests, so unrelated code edits avoid repeated expensive rendering while trusted development builds still bake the scene.",
+      "priority": "P1",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Canonical office inputs and Blender toolchain are identical",
+          "when": "A pull request restores a cache",
+          "then": "Verify source identity and every cached output digest before reusing the bake coverage and review assets."
+        },
+        {
+          "id": "AC-02",
+          "given": "Inputs differ or cache is missing or invalid",
+          "when": "The CI bake step runs",
+          "then": "Execute the real Blender integration and write a fresh manifest, without falling back to older keys."
+        },
+        {
+          "id": "AC-03",
+          "given": "A development branch build is eligible for publication",
+          "when": "The office asset job runs",
+          "then": "Execute Blender regardless of any available cache and keep all quality and security gates."
+        }
+      ],
+      "scope": "Review-only Blender bake cache in CI; generated asset/source/tool identity and output integrity checks.",
+      "constraints": "No asset cache may bypass the development release bake; no Sonar coverage, security, source or publication gate change.",
+      "assumptions": "GitHub cache is an acceleration hint, not a source of release provenance; a failed verification triggers a real bake.",
+      "dependencies": "Existing versioned office source and pinned bake arguments, Blender Linux runner, GitHub Actions cache.",
+      "impact": "Shorter PR validation after an exact-input cache hit; development release remains a fresh bake.",
+      "status": "in progress",
+      "implementation": [
+        "scripts/office_bake_cache.py",
+        ".github/workflows/ci.yml"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_office_bake_cache.py",
+          "id": "test_cache_rejects_changed_inputs_and_tampered_outputs",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_office_bake_cache.py",
+          "id": "test_invalid_report_preview_and_inventory",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_office_bake_cache.py",
+          "id": "test_cli_operations_and_failure",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-CI-004",
+      "source": "Owner request 2026-11-26: apply the independent CI/CD review, begin with measurement and low-risk dependency caching without weakening release gates.",
+      "story": "As the maintainer, I want reproducible CI timing reports and safe npm download caching, so that release delays can be measured and reduced without changing quality decisions.",
+      "priority": "P1",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Recent completed workflow runs are available",
+          "when": "The timing report is generated",
+          "then": "Report runner queue, job and run durations with sample counts and p50/p90, without claiming an unmeasured speedup."
+        },
+        {
+          "id": "AC-02",
+          "given": "The timing API lacks a timestamp or a run is incomplete",
+          "when": "The report is generated",
+          "then": "Exclude incomplete samples explicitly rather than inventing durations."
+        },
+        {
+          "id": "AC-03",
+          "given": "The lockfile is unchanged",
+          "when": "CI restores npm's download cache",
+          "then": "Continue to use npm ci and retain every existing coverage, security, Windows and Sonar gate."
+        },
+        {
+          "id": "AC-04",
+          "given": "Timing CLI inputs or API response identifiers are invalid",
+          "when": "The collector is invoked",
+          "then": "Reject traversal inputs, send the token only to the fixed GitHub API endpoint and write only the fixed report output; cover success and failure paths."
+        }
+      ],
+      "scope": "Read-only workflow timing report on demand and daily; npm download cache in existing CI.",
+      "constraints": "No path-filter bypass, no generated-asset cache, no change to release publication or quality thresholds; preserve existing workflow during active release validation.",
+      "assumptions": "The default branch can query Actions with read-only token; missing API data is reported as missing.",
+      "dependencies": "GitHub Actions read API and Python standard library.",
+      "impact": "CI observability and dependency download performance only; no runtime or release version change.",
+      "status": "in progress",
+      "implementation": [
+        "scripts/ci_timing_report.py",
+        ".github/workflows/ci-timings.yml",
+        ".github/workflows/ci.yml"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_ci_timing_report.py",
+          "id": "test_summary_handles_incomplete_runs_and_percentiles",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_ci_timing_report.py",
+          "id": "test_collect_pagination_and_reject_invalid_ids",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_ci_timing_report.py",
+          "id": "test_cli_fixed_output_and_fail_closed",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_ci_timing_report.py",
+          "id": "test_fetch_json_rejects_redirect",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
       "id": "US-QUALITY-001",
       "source": "Owner quality completion prompt, 2026-11-26; summary: record stories before code and enforce traceability.",
       "story": "As a maintainer, I want owner requests recorded as stories before coding, so that intent and acceptance remain reviewable.",

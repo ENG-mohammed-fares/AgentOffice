@@ -21,7 +21,7 @@ function createProceduralJointMotion(root){
   let elapsed=0;
   return {count:entries.length,update(dt,state){
     elapsed+=dt;
-    const activity=state==='walking'?1.35:state==='thinking'?.8:state==='talking'?1.15:1;
+    const activity=state==='walking'?1.35:state==='thinking'?0.8:state==='talking'?1.15:1;
     for(const item of entries){
       const wave=Math.sin(elapsed*(item.kind==='thumb'?3.1:1.15)+item.phase);
       const fine=Math.sin(elapsed*2.05+item.phase*.7);

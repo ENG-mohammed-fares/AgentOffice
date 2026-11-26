@@ -136,7 +136,7 @@ test('compressed baked benchmark reuses Basis decoding and never silently falls 
 test('workspace readiness resolves only after the first usable character frame',async()=>{
  const f=await fixture({characterRoster:[{}]});
  const renderer=await f.mount();let readiness=null;renderer.ready.then(value=>{readiness=value;});for(let i=0;i<8;i++)await Promise.resolve();
- assert.equal(renderer.metrics().characters,7);assert.equal(f.compiled,2);assert.equal(readiness,null,'readiness must wait for a usable character frame');
+ assert.equal(renderer.metrics().characters,7);assert.equal(renderer.metrics().characterLabels,7);assert.equal(renderer.metrics().proceduralJoints,91);assert.equal(f.compiled,2);assert.equal(readiness,null,'readiness must wait for a usable character frame');
  f.tick(100);assert.deepEqual(await renderer.ready,{ok:true,characters:7,labels:7,meetingAvailable:true});
  assert.equal(renderer.setAgentState('QA Engineer','working'),true);
  assert.deepEqual(f.characterStates.at(-1),['QA Engineer','working']);

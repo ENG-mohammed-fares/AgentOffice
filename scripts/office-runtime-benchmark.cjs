@@ -19,7 +19,7 @@ const characterReview=process.env.AGENTOFFICE_CHARACTER_REVIEW==='1';
 const seatedReview=process.env.AGENTOFFICE_SEATED_REVIEW==='1';
 const ciReview=characterReview&&process.env.CI==='true';
 assert.ok(!characterReview||previewMode,'Character review requires a screenshot destination');
-const preset=process.env.AGENTOFFICE_GRAPHICS_PRESET||'balanced';
+const preset=process.env.AGENTOFFICE_GRAPHICS_PRESET||(previewMode?'high':'balanced');
 const bakedMode=process.env.AGENTOFFICE_BAKED_CANDIDATE;
 assert.ok(!bakedMode||['1','ktx2'].includes(bakedMode),'Invalid baked candidate mode');
 const bakedCandidate=bakedMode==='ktx2'?'compressed':bakedMode==='1';
@@ -89,7 +89,7 @@ window.benchmarkResult=(async()=>{
     await sleep(1000);
     const initialIdleFrames=count()-initialFrames;
     const transitions=[];
-    for(const index of [2,0,2,0]){
+    for(const index of [1,2,3,0]){
       const before=count(),times=[],started=performance.now();
       const observer=new MutationObserver(()=>times.push(performance.now()));
       observer.observe(host,{attributes:true,attributeFilter:['data-frames']});
@@ -125,7 +125,7 @@ async function run(){
   await build(config);
   server=await preview({...config,preview:{host:'127.0.0.1',port:4173,strictPort:false}});
   const port=server.httpServer.address().port;
-  win=new BrowserWindow({width:ciReview?800:previewMode&&!characterReview?1920:1280,height:ciReview?450:previewMode&&!characterReview?1080:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
+  win=new BrowserWindow({width:ciReview?800:previewMode?1920:1280,height:ciReview?450:previewMode?1080:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
   win.webContents.on('console-message',(_event,details,legacyMessage)=>{
     const message=typeof details==='object'?details.message:legacyMessage;
     if(typeof message!=='string')return;
@@ -152,11 +152,11 @@ async function run(){
     for(const index of [0,1,2,3]){
       lastStage='capture-view-'+index;
       const metrics=await win.webContents.executeJavaScript('window.previewView('+index+')');
-      if(!characterReview)assert.ok(metrics.width>=1920&&metrics.height>=1080,'Actual rendering buffer is below Full HD; select High or use a larger display.');
+      assert.ok(metrics.width>=1920&&metrics.height>=1080,'Actual rendering buffer is below Full HD; select High or use a larger display.');
       else {assert.equal(metrics.characters,7);if(seatedReview)assert.equal(metrics.seated,7);assert.ok(metrics.width>0&&metrics.height>0);}
       const shot=await win.webContents.capturePage();
       const {width,height}=shot.getSize();
-      if(!characterReview)assert.ok(width>=1920&&height>=1080,'Captured viewport is below Full HD.');
+      assert.ok(width>=1920&&height>=1080,'Captured viewport is below Full HD.');
       else assert.ok(width>0&&height>0);
       fs.writeFileSync(path.join(destination,'view-'+index+'.png'),shot.toPNG(),{flag:'wx'});
       views.push({index,width,height,...metrics});

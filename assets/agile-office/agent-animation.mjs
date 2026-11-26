@@ -6,6 +6,8 @@ const stateClips=Object.freeze({idle:'Idle',walking:'Walk',working:'Typing',thin
  * Adds subtle, deterministic secondary motion to joints found static by the 1.6.18 rig audit.
  * Source clips remain authoritative for keyed joints; this only addresses neck, shoulders,
  * wrists, thumbs, toe bases and eye joints with small local rotations after mixer evaluation.
+ * @param {THREE.Object3D} root - Character hierarchy to inspect for supported skeletal joints.
+ * @returns {{count:number,update(dt:number,state:string):void}} Deterministic secondary-motion controller.
  */
 function createProceduralJointMotion(root){
   const entries=[];

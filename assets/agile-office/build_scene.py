@@ -124,7 +124,17 @@ def monitor(x,y,a,mx,my,w=.64,kind=0):
    hh=.04+random.random()*.10;B('metrics bars',x,y,a,(mx-w*.33+j*w*.085,my-.028,1.02+hh/2),(.031,.002,hh),35 if j%2 else 37,0)
 def lamp(x,y,a,lx,ly):
  C('lamp base',x,y,a,(lx,ly,.83),(lx,ly,.855),.105,5,nseg=24);C('lamp stem',x,y,a,(lx,ly,.855),(lx,ly,1.16),.018,5);C('brass dome',x,y,a,(lx,ly,1.17),(lx,ly,1.23),.17,5,.15,32);C('brass crown',x,y,a,(lx,ly,1.23),(lx,ly,1.32),.15,5,.028,32);C('lamp diffuser',x,y,a,(lx,ly,1.162),(lx,ly,1.17),.145,8,nseg=24);light(tr(x,y,a,lx,ly,1.15),tr(x,y,a,lx-.15,ly-.15,.82),.19,.19,9,(1,.73,.40))
-roles=['Product Owner','Frontend Developer','Software Architect','Backend Developer','QA Engineer','DevOps Engineer','Scrum Master'];stations=[(-5.95,2.9,0),(-3,2.9,0),(-.05,2.9,0),(-5.95,-.15,0),(-2.35,-.15,0),(.65,-.15,0),(-3.7,-3.22,0)]
+roles=['Product Owner','Frontend Developer','AI Engineer','Backend Developer','QA Engineer','DevOps Engineer','Scrum Master'];stations=[(-5.95,2.9,0),(-3,2.9,0),(-.05,2.9,0),(-5.95,-.15,0),(-2.35,-.15,0),(.65,-.15,0),(-3.7,-3.22,0)]
+screen_specs=[
+ ('Product Owner',[(-.15,.12,.76,'roadmap')]),
+ ('Frontend Developer',[(-.31,.13,.58,'code'),(.31,.13,.58,'preview')]),
+ ('AI Engineer',[(-.31,.13,.58,'workflow'),(.31,.13,.58,'evaluation')]),
+ ('Backend Developer',[(-.47,.14,.44,'api'),(0,.14,.44,'database'),(.47,.14,.44,'logs')]),
+ ('QA Engineer',[(-.31,.13,.58,'tests'),(.31,.13,.58,'bugs')]),
+ ('DevOps Engineer',[(-.31,.13,.58,'pipeline'),(.31,.13,.58,'terminal')]),
+ ('Scrum Master',[(-.15,.12,.76,'board')])
+]
+screens=[{'role':role,'station':i,'monitors':[{'x':mx,'y':my,'width':width,'variant':variant} for mx,my,width,variant in monitors]} for i,(role,monitors) in enumerate(screen_specs)]
 for i,(x,y,a) in enumerate(stations):
  role=roles[i];w=2.03 if i==6 else 1.82;R(role+' desk top',x,y,a,(0,0,.80),(w,.84,.095),1 if i in (0,1,4,6) else 40,.025)
  if i in (0,2,4,6):
@@ -192,8 +202,8 @@ for role,(x,y,a) in zip(roles,stations):
  sign(role,(x+.265,y-.444,.759),(1,0,0),(0,0,1),.43,38)
 sign('SPRINT PLANNING',(6.93,-5.055,2.54),(-1,0,0),(0,0,1),2.72,38)
 
-cameras=[{'name':'Agile Workspace','pos':[-.35,-4.95,1.70],'target':[-3.05,2.75,1.43],'fov':90},{'name':'Workspace and city','pos':[-7.15,-4.88,1.72],'target':[-.5,2.4,1.48],'fov':91},{'name':'Meeting Room','pos':[5.52,4.98,1.68],'target':[5.52,-3.90,1.48],'fov':83}]
-(P/'scene.json').write_text(json.dumps(dict(materials=materials,objects=objects,lights=lights,cameras=cameras,roles=roles,stations=stations),separators=(',',':')))
+cameras=[{'name':'Desk View','pos':[-.35,-4.95,1.70],'target':[-3.05,2.75,1.43],'fov':90},{'name':'Overview','pos':[-7.15,-4.88,1.72],'target':[-.5,2.4,1.48],'fov':91},{'name':'Team View','pos':[2.0,-4.88,1.72],'target':[-2.2,2.4,1.48],'fov':91},{'name':'Meeting Room','pos':[5.52,4.98,1.68],'target':[5.52,-3.90,1.48],'fov':83}]
+(P/'scene.json').write_text(json.dumps(dict(materials=materials,objects=objects,lights=lights,cameras=cameras,roles=roles,stations=stations,screens=screens),separators=(',',':')))
 with open(P/'scene.dat','w') as f:
  f.write(str(len(materials))+'\n')
  for name,col,r,metal,tex,e in materials:f.write(' '.join(map(str,(*col,r,metal,tex,e)))+'\n')

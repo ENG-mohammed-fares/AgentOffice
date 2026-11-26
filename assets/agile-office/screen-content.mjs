@@ -112,6 +112,13 @@ function draw(ctx,placement){
     case 'board':board(ctx);break;default:table(ctx,'WORKSPACE',[['Status','Ready','ACTIVE',palette.green]]);
   }
 }
+/**
+ * Resolves monitor overlays from role-keyed layout metadata and station-local transforms.
+ * @param {object[]} screens - Role/station mapping with one or more validated monitor variants.
+ * @param {number[][]} stations - Authored station x/y/heading tuples in Blender coordinates.
+ * @returns {object[]} Monitor placements in Three.js world coordinates.
+ * @throws {TypeError|Error} If arrays, stations, roles or monitor variants are invalid.
+ */
 export function screenPlacements(screens,stations){
   if(!Array.isArray(screens)||!Array.isArray(stations))throw new TypeError('Screen layout and station arrays are required');
   const roles=new Set(),slots=new Set(),placements=[];
@@ -132,6 +139,12 @@ export function screenPlacements(screens,stations){
   }
   return placements;
 }
+/**
+ * Creates owned, role-specific monitor textures and meshes for the live office scene.
+ * @param {object} options - Screen metadata, station transforms and optional rendering test doubles.
+ * @returns {{group:THREE.Group,count:number}} Scene group and number of generated monitor overlays.
+ * @throws {Error} If canvas rendering or geometry construction fails; partially created resources are disposed.
+ */
 export function createRoleScreens({screens,stations,THREEImpl=THREE,canvasFactory=()=>document.createElement('canvas')}={}){
   const placements=screenPlacements(screens??[],stations??[]),group=new THREEImpl.Group(),owned=[];
   group.name='AgentOffice role-specific monitor content';

@@ -32,7 +32,7 @@ for i,(name,verts,faces,m) in enumerate(s['objects']):
  for a in range(3):
   inds=axis==a;u,w=[(2,1),(2,0),(0,1)][a] if mode==1 else [(1,2),(0,2),(0,1)][a];uv[inds,0]=p[inds,u]*.60;uv[inds,1]=p[inds,w]*.60
  if mode==10:uv[:,0]=(p[:,0]+75)/150;uv[:,1]=np.clip((p[:,2]+24)/70,0,1)
- group=next((role for role in s['roles'] if name.startswith(role)),None)
+ group=name.split(' ',1)[0] if name.startswith('Chair_') else next((role for role in s['roles'] if name.startswith(role)),None)
  key=(m,group or ('Glass' if mode==9 else 'Environment'))
  # Y-up as required by glTF, (x,z,-y) keeps handedness.
  pos=p[:,[0,2,1]].copy();pos[:,2]*=-1;normal=n[:,[0,2,1]].copy();normal[:,2]*=-1

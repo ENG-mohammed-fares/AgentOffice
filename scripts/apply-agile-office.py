@@ -1,6 +1,7 @@
 """Replace only the authenticated workspace, preserving auth/intro/updater."""
 from pathlib import Path
 import base64, json, shutil, struct, subprocess, sys, tempfile
+from character_assets import stage_characters
 root=Path(__file__).resolve().parents[1]
 app=root/'app'
 assets=root/'assets'/'agile-office'
@@ -27,12 +28,19 @@ with tempfile.TemporaryDirectory(prefix='agentoffice-model-') as tmp:
         image=base64.b64decode((assets/f'view-{i}.webp.b64').read_text().strip(),validate=True)
         assert image.startswith(b'RIFF') and image[8:12]==b'WEBP'
         (target/f'view-{i}.webp').write_bytes(image)
-    (app/'src'/'agile-layout.json').write_text(json.dumps({k:scene[k] for k in ('lights','cameras','roles','stations')}),encoding='utf-8')
-for src,dest in [('main.js','main.js'),('agile-renderer.js','agile-renderer.js'),('agile-office.css','agile-office.css'),('office-performance.mjs','office-performance.mjs'),('office-batching.mjs','office-batching.mjs'),('office-tasks.mjs','office-tasks.mjs'),('office-task-panel.mjs','office-task-panel.mjs')]:
+    layout={k:scene[k] for k in ('lights','cameras','roles','stations')}
+    characters=stage_characters(assets,target/'characters')
+    if characters:
+        layout['characters']=characters
+    (app/'src'/'agile-layout.json').write_text(json.dumps(layout),encoding='utf-8')
+for src,dest in [('main.js','main.js'),('agile-renderer.js','agile-renderer.js'),('agile-office.css','agile-office.css'),('office-performance.mjs','office-performance.mjs'),('office-batching.mjs','office-batching.mjs'),('office-tasks.mjs','office-tasks.mjs'),('office-task-panel.mjs','office-task-panel.mjs'),('office-characters.mjs','office-characters.mjs'),('agent-animation.mjs','agent-animation.mjs'),('office-motion.mjs','office-motion.mjs')]:
     shutil.copyfile(assets/src,app/'src'/dest)
 shutil.copyfile(assets/'office-performance.test.mjs',app/'scripts'/'office-performance.test.mjs')
 shutil.copyfile(assets/'office-tasks.test.mjs',app/'scripts'/'office-tasks.test.mjs')
 shutil.copyfile(assets/'office-task-panel.test.mjs',app/'scripts'/'office-task-panel.test.mjs')
+shutil.copyfile(root/'scripts'/'agent-animation.test.mjs',app/'scripts'/'agent-animation.test.mjs')
+shutil.copyfile(root/'scripts'/'office-characters.test.mjs',app/'scripts'/'office-characters.test.mjs')
+shutil.copyfile(root/'scripts'/'office-motion.test.mjs',app/'scripts'/'office-motion.test.mjs')
 # Keep original authentication fixture coverage; assert the new destination.
 path=app/'scripts'/'auth-smoke.cjs'
 text=path.read_text(encoding='utf-8')
@@ -42,6 +50,12 @@ new=old+'''
     assert.equal(await read('Boolean(document.querySelector("#agile-office"))'),true,'new office opens after intro');
     assert.equal(await read('Boolean(document.querySelector(".dashboard-grid, .rail, #content"))'),false,'legacy dashboard removed');
     await until('document.querySelector("#office-poster")?.complete && document.querySelector("#office-poster")?.naturalWidth > 0','packaged office render available');
+    await read('document.querySelector("#office-diagnostics-toggle").click()');
+    assert.equal(await read('document.querySelector("#office-diagnostics").hidden'),false);
+    await read('document.querySelector("#office-metrics-refresh").click()');
+    assert.ok(await read('document.querySelector("#office-metrics").textContent.length > 0'));
+    await read('document.querySelector("#office-graphics").value="performance"; document.querySelector("#office-graphics").dispatchEvent(new Event("change"))');
+    await read('document.querySelector("#office-graphics").value="balanced"; document.querySelector("#office-graphics").dispatchEvent(new Event("change")); document.querySelector("#office-diagnostics-toggle").click()');
     await read('document.querySelector("#office-meeting").click()');
     assert.equal(await read('document.querySelector("#office-title").textContent'),'Meeting Room');
     await read('document.querySelector("#office-workspace").click()');

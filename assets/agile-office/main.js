@@ -14,20 +14,26 @@ function mountWorkspace(user){
   const stage=document.createElement('main');
   stage.id='agile-office';
   stage.className='agile-office';
-  stage.innerHTML='<img id="office-poster" alt="Architectural render of the office"><div id="office-live" aria-label="Interactive office"></div><header class="office-header"><span class="office-brand"><img src="./icon.png" alt="">AgentOffice</span><div class="office-account"><span id="office-user"></span><button id="office-tasks-toggle" type="button" aria-controls="office-tasks" aria-expanded="false">Tasks</button><button id="check-update" type="button" aria-label="Check for updates" title="Check for updates">Updates</button><button id="sign-out" type="button">Sign out</button></div></header><footer class="office-footer"><div><span class="office-kicker">AGENTOFFICE / 01</span><h1 id="office-title">Agile Workspace</h1><div class="office-nav"><button id="office-workspace" type="button" aria-pressed="true">Workspace</button><button id="office-meeting" type="button" aria-pressed="false">Meeting room</button></div></div><span id="office-status" role="status">Preparing interactive office...</span></footer><aside id="office-tasks" aria-label="Sprint tasks" hidden><div class="office-task-heading"><h2>Sprint tasks</h2><button id="office-task-close" type="button" aria-label="Close tasks">Close</button></div><form id="office-task-form"><label for="office-task-title">Task title</label><input id="office-task-title" required maxlength="160" autocomplete="off"><label for="office-task-owner">Role</label><select id="office-task-owner"></select><button type="submit">Add task</button></form><p id="office-task-feedback" role="status"></p><ul id="office-task-list"></ul><h3>Demo activity</h3><button id="office-demo-toggle" type="button" aria-pressed="false">Start demo</button><p id="office-demo-activity" role="status">Demo paused. AI agents are not connected.</p></aside><div id="office-update" role="status" hidden><span></span><button id="install-update" type="button" hidden>Restart and install</button><button id="dismiss-update" type="button">Dismiss</button></div>';
+  stage.innerHTML='<img id="office-poster" alt="Architectural render of the office"><div id="office-live" aria-label="Interactive office"></div><header class="office-header"><span class="office-brand"><img src="./icon.png" alt="">AgentOffice</span><div class="office-account"><span id="office-user"></span><button id="office-tasks-toggle" type="button" aria-controls="office-tasks" aria-expanded="false">Tasks</button><label class="office-graphics-label">Graphics <select id="office-graphics"><option value="balanced">Balanced</option><option value="high">High</option><option value="performance">Performance</option></select></label><button id="office-diagnostics-toggle" type="button" aria-controls="office-diagnostics" aria-expanded="false">Diagnostics</button><button id="check-update" type="button" aria-label="Check for updates" title="Check for updates">Updates</button><button id="sign-out" type="button">Sign out</button></div></header><footer class="office-footer"><div><span class="office-kicker">AGENTOFFICE / 01</span><h1 id="office-title">Agile Workspace</h1><div class="office-nav"><button id="office-workspace" type="button" aria-pressed="true">Workspace</button><button id="office-meeting" type="button" aria-pressed="false">Meeting room</button></div></div><span id="office-status" role="status">Preparing interactive office...</span></footer><aside id="office-tasks" aria-label="Sprint tasks" hidden><div class="office-task-heading"><h2>Sprint tasks</h2><button id="office-task-close" type="button" aria-label="Close tasks">Close</button></div><form id="office-task-form"><label for="office-task-title">Task title</label><input id="office-task-title" required maxlength="160" autocomplete="off"><label for="office-task-owner">Role</label><select id="office-task-owner"></select><button type="submit">Add task</button></form><p id="office-task-feedback" role="status"></p><ul id="office-task-list"></ul><h3>Demo activity</h3><button id="office-demo-toggle" type="button" aria-pressed="false">Start demo</button><p id="office-demo-activity" role="status">Demo paused. AI agents are not connected.</p></aside><aside id="office-diagnostics" aria-label="Rendering diagnostics" hidden><h2>Rendering diagnostics</h2><pre id="office-metrics"></pre><button id="office-metrics-refresh" type="button">Refresh</button></aside><div id="office-update" role="status" hidden><span></span><button id="install-update" type="button" hidden>Restart and install</button><button id="dismiss-update" type="button">Dismiss</button></div>';
   const el=id=>stage.querySelector('#'+id);
   const poster=el('office-poster'), live=el('office-live'), status=el('office-status');
   el('office-user').textContent=user?.guest?'Guest workspace':(user?.name||user?.email||'Workspace');
   let index=0,renderer=null,disposed=false,signingOut=false;
-  const initialView=()=>{poster.src=url('view-'+index+'.webp');poster.hidden=false;};
+  const graphics=el('office-graphics'),diagnostics=el('office-diagnostics');
+  const refreshMetrics=()=>{el('office-metrics').textContent=renderer?JSON.stringify(renderer.metrics(),null,2):'Live renderer not available.';};
+  graphics.onchange=()=>{renderer?.setGraphicsPreset(graphics.value);if(!diagnostics.hidden)refreshMetrics();};
+  el('office-diagnostics-toggle').onclick=()=>{diagnostics.hidden=!diagnostics.hidden;el('office-diagnostics-toggle').setAttribute('aria-expanded',String(!diagnostics.hidden));if(!diagnostics.hidden)refreshMetrics();};
+  el('office-metrics-refresh').onclick=refreshMetrics;
+  const initialView=()=>{poster.src=url('view-'+index+'.webp');poster.hidden=false;poster.removeAttribute('aria-hidden');};
   initialView();app.replaceChildren(stage);
-  const disposeTasks=mountTaskPanel(stage,user,{roles:layout.roles});
+  const activity=new Map();
+  const disposeTasks=mountTaskPanel(stage,user,{roles:layout.roles,onActivity:(role,state)=>{activity.set(role,state);renderer?.setAgentState(role,state);}});
   const choose=i=>{
     index=i;el('office-title').textContent=views[i];
     el('office-workspace').setAttribute('aria-pressed',String(i!==2));
     el('office-meeting').setAttribute('aria-pressed',String(i===2));
     stage.querySelector('.office-kicker').textContent='AGENTOFFICE / '+(i===2?'02':'01');
-    if(renderer)renderer.go(i);else initialView();
+    if(renderer){renderer.go(i);renderer.setMeeting?.(i===2);}else initialView();
   };
   el('office-workspace').onclick=()=>choose(0);el('office-meeting').onclick=()=>choose(2);
   function fallback(){if(disposed)return;renderer?.dispose();renderer=null;live.replaceChildren();initialView();status.textContent='Rendered views • live 3D unavailable';stage.dataset.renderMode='poster';}
@@ -48,9 +54,9 @@ function mountWorkspace(user){
   // The expensive GLB and renderer load only after the authenticated destination exists.
   import('./agile-renderer.js').then(async mod=>{
     if(disposed)return;
-    const view=await mod.mountAgileRenderer(live,url('office.glb'),{onLost:fallback,isCancelled:()=>disposed});
+    const view=await mod.mountAgileRenderer(live,url('office.glb'),{onLost:fallback,isCancelled:()=>disposed,getInitialIndex:()=>index,preset:graphics.value,characterRoster:layout.characters??[]});
     if(disposed){view.dispose();return;}
-    renderer=view;renderer.go(index,true);poster.hidden=true;status.textContent='Live 3D • drag to look around';stage.dataset.renderMode='live';
+    renderer=view;renderer.setMeeting?.(index===2);for(const [role,state] of activity)renderer.setAgentState(role,state);renderer.setGraphicsPreset(graphics.value);poster.setAttribute('aria-hidden','true');if(!diagnostics.hidden)refreshMetrics();status.textContent='Live 3D • drag to look around';stage.dataset.renderMode='live';
   }).catch(()=>{if(!disposed)fallback();});
   return Promise.resolve();
 }

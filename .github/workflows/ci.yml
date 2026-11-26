@@ -20,8 +20,8 @@ concurrency:
 jobs:
   office-ktx2:
     name: Build verified compressed office textures
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
         with:
@@ -44,6 +44,16 @@ jobs:
         run: |
           python -m coverage run --append --branch --source=scripts,assets/agile-office assets/agile-office/compress-ktx2.py assets/agile-office/office.glb compressed/office-ktx2.glb
           python -m coverage xml -o compressed/office-assets-coverage.xml
+      - name: Measure actual Blender bake execution (review assets only)
+        run: |
+          sudo apt-get update
+          # Blender uses the distribution Python, not actions/setup-python.
+          sudo apt-get install --no-install-recommends -y blender python3-numpy python3-coverage
+          export PYTHONPATH=/usr/lib/python3/dist-packages
+          blender --version
+          blender --background --factory-startup --python-use-system-env --python-exit-code 1 --python-expr "import sys, numpy, coverage; print('Blender Python:', sys.version, 'NumPy:', numpy.__version__, 'coverage:', coverage.__version__)"
+          blender --background --factory-startup --python-use-system-env --python-exit-code 1 --python scripts/test_office_bake_execution.py
+          test -s compressed/office-bake-coverage.xml
       - uses: actions/upload-artifact@v6
         with:
           name: agentoffice-compressed-textures
@@ -133,7 +143,9 @@ jobs:
           path: app/public/office
       - name: Import geometry-build execution coverage
         shell: pwsh
-        run: Move-Item app/public/office/office-assets-coverage.xml coverage/office-assets-coverage.xml
+        run: |
+          Move-Item app/public/office/office-assets-coverage.xml coverage/office-assets-coverage.xml
+          Move-Item app/public/office/office-bake-coverage.xml coverage/office-bake-coverage.xml
       - name: Validate compressed and original geometry
         run: python -m coverage run --append --branch --source=scripts,assets/agile-office assets/agile-office/verify-ktx2.py app/public/office
 
@@ -227,6 +239,31 @@ jobs:
           New-Item -ItemType Directory -Force public/basis | Out-Null
           Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.js public/basis/
           Copy-Item node_modules/three/examples/jsm/libs/basis/basis_transcoder.wasm public/basis/
+
+      # Isolated review only: neither downloaded candidate nor captures are packaged.
+      - name: Render actual seated avatars and separately movable chairs
+        if: (github.ref == 'refs/heads/feat/1.6.17-natural-office-motion' || github.ref == 'refs/heads/feat/1.6.17-character-integration' || github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
+        working-directory: app
+        shell: pwsh
+        env:
+          AGENTOFFICE_CHARACTER_REVIEW: '1'
+          AGENTOFFICE_SEATED_REVIEW: '1'
+          AGENTOFFICE_GRAPHICS_PRESET: 'performance'
+        run: |
+          $env:AGENTOFFICE_PREVIEW_DIR = Join-Path $PWD '../seated-review'
+          npx --no-install electron ../scripts/office-runtime-benchmark.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Actual seated character review failed' }
+      - name: Preserve seated office screenshots
+        if: always() && (github.ref == 'refs/heads/feat/1.6.17-natural-office-motion' || github.ref == 'refs/heads/feat/1.6.17-character-integration' || github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
+        uses: actions/upload-artifact@v6
+        with:
+          name: office-seated-character-review
+          path: seated-review/
+          if-no-files-found: warn
+          retention-days: 14
+
+      # A previously baked model has different chair topology. Never reuse it as a release asset.
+
 
       - name: Source-mapped execution coverage build
         working-directory: app
@@ -405,7 +442,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
             throw 'SONAR_TOKEN is required for development Quality Gate.'
           }
-          $requiredReports = @('coverage/sonar-lcov.info','coverage/tooling-lcov.info','coverage/execution-lcov.info','coverage/execution-tooling-lcov.info','coverage/python-coverage.xml','coverage/office-assets-coverage.xml','coverage/powershell-sonar.xml')
+          $requiredReports = @('coverage/sonar-lcov.info','coverage/tooling-lcov.info','coverage/execution-lcov.info','coverage/execution-tooling-lcov.info','coverage/python-coverage.xml','coverage/office-assets-coverage.xml','coverage/office-bake-coverage.xml','coverage/powershell-sonar.xml')
           foreach ($report in $requiredReports) {
             if (!(Test-Path $report -PathType Leaf) -or (Get-Item $report).Length -eq 0) { throw "Required measured coverage report missing or empty: $report" }
           }
@@ -414,9 +451,38 @@ jobs:
           if ($actual -ne $canonical) { throw 'Generated Electron test collector is not identical to its source.' }
 
       - name: SonarCloud analysis and blocking Quality Gate
+        id: sonar_scan
         if: github.repository == 'ENG-mohammed-fares/AgentOffice' && (github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
         uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
 
+      # Read-only diagnostics on the trusted PR; the failed blocking gate remains failed.
+      - name: Report exact failed Sonar conditions and affected source locations
+        if: failure() && steps.sonar_scan.outcome == 'failure' && github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository && github.repository == 'ENG-mohammed-fares/AgentOffice'
+        shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PR: ${{ github.event.pull_request.number }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:SONAR_PR -notmatch '^[0-9]+$') { throw 'Invalid PR number' }
+          $project = 'ENG-mohammed-fares_AgentOffice'
+          $base = 'https://sonarcloud.io/api/'
+          $headers = @{ Authorization = "Bearer $env:SONAR_TOKEN" }
+          $pr = $env:SONAR_PR
+          try {
+            $status = Invoke-RestMethod -Uri "${base}qualitygates/project_status?projectKey=$project&pullRequest=$pr" -Headers $headers -TimeoutSec 30
+            $status.projectStatus.conditions | Select-Object metricKey,status,actualValue,errorThreshold | ConvertTo-Json -Depth 4
+          } catch { Write-Warning 'Quality condition details unavailable from Sonar API.' }
+          try {
+            $issues = Invoke-RestMethod -Uri "${base}issues/search?componentKeys=$project&pullRequest=$pr&resolved=false&ps=100" -Headers $headers -TimeoutSec 30
+            $issues.issues | Select-Object rule,component,line,type,severity,impacts | ConvertTo-Json -Depth 6
+            Write-Host "Sonar unresolved issues returned: $($issues.issues.Count) of $($issues.total)"
+          } catch { Write-Warning 'Issue locations unavailable from Sonar API.' }
+          try {
+            $metrics = 'new_coverage,new_lines_to_cover,new_uncovered_lines,new_duplicated_lines_density'
+            $measures = Invoke-RestMethod -Uri "${base}measures/component_tree?component=$project&pullRequest=$pr&metricKeys=$metrics&qualifiers=FIL&ps=500" -Headers $headers -TimeoutSec 30
+            $measures.components | Select-Object path,measures | ConvertTo-Json -Depth 6
+          } catch { Write-Warning 'File-level measures unavailable from Sonar API.' }

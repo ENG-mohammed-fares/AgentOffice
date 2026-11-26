@@ -111,6 +111,9 @@ const overlays=Object.freeze({
   'app/src/office-batching.mjs':'assets/agile-office/office-batching.mjs',
   'app/src/office-tasks.mjs':'assets/agile-office/office-tasks.mjs',
   'app/src/office-task-panel.mjs':'assets/agile-office/office-task-panel.mjs',
+  'app/src/agent-animation.mjs':'assets/agile-office/agent-animation.mjs',
+  'app/src/office-characters.mjs':'assets/agile-office/office-characters.mjs',
+  'app/src/office-motion.mjs':'assets/agile-office/office-motion.mjs',
   'app/electron/crash-monitor.cjs':'assets/crash-monitor/crash-monitor.cjs'
 });
 function canonicalize(lcov,rootDir=root,aliases=overlays){

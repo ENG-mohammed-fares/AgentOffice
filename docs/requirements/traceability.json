@@ -1482,7 +1482,7 @@
         },
         {
           "path": "scripts/refactoring-gate.mjs",
-          "id": "architecture: office entry permits pure startup policy and rejects static renderer and unrelated imports",
+          "id": "officeEntryImport",
           "level": "integration"
         }
       ],

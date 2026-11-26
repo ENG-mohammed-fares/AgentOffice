@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {screenPlacements} from '../src/screen-content.mjs';
+import * as THREE from 'three';
+import {screenPlacements,createRoleScreens} from '../src/screen-content.mjs';
 
 const stations=[[-5.95,2.9,0],[-3,2.9,0],[-.05,2.9,0],[-5.95,-.15,0],[-2.35,-.15,0],[.65,-.15,0],[-3.7,-3.22,0]];
 const screens=[
@@ -28,4 +29,33 @@ test('screen layout rejects duplicate roles, stations and monitor variants',()=>
  const bad=screens.map(x=>({...x,monitors:x.monitors.map(y=>({...y}))}));
  bad[1].monitors[1].variant='code';
  assert.throws(()=>screenPlacements(bad,stations),/Invalid or duplicate role monitor variant/);
+});
+
+function recordingCanvasFactory(){
+ const contexts=[];
+ const canvasFactory=()=>({
+  width:0,height:0,
+  getContext(type){
+   assert.equal(type,'2d');
+   const calls=[];
+   const ctx=new Proxy({calls},{get(target,key){if(key in target)return target[key];return (...args)=>target.calls.push([String(key),...args]);},set(target,key,value){target[key]=value;return true;}});
+   contexts.push(ctx);return ctx;
+  }
+ });
+ return {canvasFactory,contexts};
+}
+test('all thirteen workstation screens render distinct role content with a visible simulation marker',()=>{
+ const {canvasFactory,contexts}=recordingCanvasFactory();
+ const result=createRoleScreens({screens,stations,THREEImpl:THREE,canvasFactory});
+ assert.equal(result.count,13);
+ assert.equal(result.group.children.length,13);
+ assert.ok(result.group.children.every(mesh=>mesh.isMesh&&mesh.material.map?.isCanvasTexture));
+ assert.ok(contexts.every(ctx=>ctx.calls.some(call=>call[0]==='fillText'&&call[1]==='SIMULATION')));
+ assert.ok(contexts.every(ctx=>ctx.calls.some(call=>call[0]==='fillText')));
+ for(const mesh of result.group.children){mesh.geometry.dispose();mesh.material.map.dispose();mesh.material.dispose();}
+});
+test('role screen construction disposes partial resources when a canvas context is unavailable',()=>{
+ let calls=0;
+ const canvasFactory=()=>({width:0,height:0,getContext(){calls++;return calls===1?recordingCanvasFactory().canvasFactory().getContext('2d'):null;}});
+ assert.throws(()=>createRoleScreens({screens,stations,THREEImpl:THREE,canvasFactory}),/2D canvas context unavailable/);
 });

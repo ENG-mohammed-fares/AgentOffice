@@ -161,3 +161,13 @@ test('disposing a loading renderer resolves readiness as cancelled',async()=>{
  const view=await pending.mount();view.dispose();
  assert.deepEqual(await view.ready,{ok:false,reason:'cancelled'});
 });
+
+test('renderer exposes three distinct workspace views and a separate meeting room camera',async()=>{
+ const layout=JSON.parse(readFileSync(new URL('../src/agile-layout.json',import.meta.url),'utf8'));
+ assert.deepEqual(layout.cameras.map(camera=>camera.name),['Desk View','Overview','Team View','Meeting Room']);
+ const f=await fixture(),renderer=await f.mount();
+ assert.equal(renderer.metrics().cameraCount,4);
+ for(let index=0;index<4;index++)assert.equal(renderer.go(index),true);
+ assert.equal(renderer.metrics().cameraIndex,3);
+ renderer.dispose();
+});

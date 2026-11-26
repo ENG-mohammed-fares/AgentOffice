@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {seatingPlan,mouseSurfaceTargets,standingPoint,meetingRoute,createSeatedMotion,createMeetingQueue,advanceWalk,advanceMotionTime} from '../src/office-motion.mjs';
+import {seatingPlan,mouseSurfaceTargets,standingPoint,meetingRoute,createSeatedMotion,createMeetingQueue,advanceWalk,advanceMotionTime,workstationHandTargets} from '../src/office-motion.mjs';
 const stations=[[-5.95,2.9,0],[-3,2.9,0],[-.05,2.9,0],[-5.95,-.15,0],[-2.35,-.15,0],[.65,-.15,0],[-3.7,-3.22,0]];
 function fixture(i=0){
  const plan=seatingPlan(stations)[i],position={},rotation={},chairs=new Map(),poses=[];
@@ -151,4 +151,29 @@ test('motion catch-up bounds long stalls and ignores invalid time',()=>{
  assert.ok(Math.abs(steps.reduce((sum,dt)=>sum+dt,0)-1.23)<1e-9);
  steps.length=0;advanceMotionTime(60,dt=>steps.push(dt));
  assert.equal(steps.length,30);assert.ok(Math.abs(steps.reduce((sum,dt)=>sum+dt,0)-3)<1e-9);
+});
+
+test('typing targets lie on opposite halves of the authored keyboard at key height',()=>{
+ for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2,.6]){
+  const desk=seatingPlan([[2,3,angle]])[0].desk;
+  const right={x:-desk.forward.z,z:desk.forward.x};
+  const [left,other]=workstationHandTargets(desk);
+  for(const [index,p] of [left,other].entries()){
+   const x=p.x-desk.keyboard.x,z=p.z-desk.keyboard.z;
+   assert.ok(Math.abs(x*right.x+z*right.z-(index===0?-.09:.09))<1e-9);
+   assert.ok(Math.abs(x*desk.forward.x+z*desk.forward.z+.052)<1e-9);
+   assert.ok(Math.abs(p.y-.9045)<1e-9);
+  }
+  const pointing=workstationHandTargets(desk,'pointing');
+  assert.deepEqual(pointing[0],left);
+  assert.equal(pointing[1].x,desk.mouse.x);assert.equal(pointing[1].z,desk.mouse.z);
+ }
+});
+test('workstation IK is selected only for seated working and pointing activities',()=>{
+ const m=fixture().motion;assert.equal(m.deskInteraction,null);
+ m.setActivity('working');assert.equal(m.deskInteraction,'typing');
+ m.setActivity('reviewing');assert.equal(m.deskInteraction,'pointing');
+ m.setActivity('thinking');assert.equal(m.deskInteraction,'pointing');
+ m.setActivity('working');m.requestMeeting(true);m.update(.05);
+ assert.equal(m.deskInteraction,null);
 });

@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {rosterPlan,loadCharacterRoster,CLIPS,seatedClips,identityForRole,mouseReach} from '../src/office-characters.mjs';
+import {rosterPlan,loadCharacterRoster,CLIPS,seatedClips,identityForRole,mouseReach,workstationReach} from '../src/office-characters.mjs';
 const roster=Array.from({length:7},(_,i)=>({role:'Role '+i,file:'character-'+String.fromCharCode(97+i)+'.glb',station:i}));
 const stations=Array.from({length:7},(_,i)=>[i*3,2,0]);
 test('roster requires distinct roles, filenames and stations, with contained local asset paths',()=>{
@@ -115,4 +115,24 @@ test('both arms reach separate positions on the same mouse interaction surface',
  const leftTarget=new THREE.Vector3(.07,.885,0),rightTarget=new THREE.Vector3(.25,.885,0);
  assert.ok(left.getWorldPosition(new THREE.Vector3()).distanceTo(leftTarget)<.2);
  assert.ok(right.getWorldPosition(new THREE.Vector3()).distanceTo(rightTarget)<.2);
+});
+
+test('workstation reach places both wrists at keyboard targets without changing bone lengths',()=>{
+ const root=new THREE.Group(),seat={keyboard:{x:0,z:0},mouse:{x:.35,z:0},forward:{x:0,z:-1}};
+ function arm(side,x){
+  const upper=new THREE.Bone();upper.name=side+'Arm';upper.position.set(x,1.2,.4);root.add(upper);
+  const fore=new THREE.Bone();fore.name=side+'ForeArm';fore.position.set(0,-.25,-.2);upper.add(fore);
+  const hand=new THREE.Bone();hand.name=side+'Hand';hand.position.set(0,-.18,-.22);fore.add(hand);
+  return {fore,hand};
+ }
+ const left=arm('Left',-.18),right=arm('Right',.18);root.updateWorldMatrix(true,true);
+ const lengths=[left.fore.position.length(),left.hand.position.length(),right.fore.position.length(),right.hand.position.length()];
+ const reach=workstationReach(root,seat);reach('typing');
+ assert.ok(left.hand.getWorldPosition(new THREE.Vector3()).distanceTo(new THREE.Vector3(-.09,.9045,.052))<.005);
+ assert.ok(right.hand.getWorldPosition(new THREE.Vector3()).distanceTo(new THREE.Vector3(.09,.9045,.052))<.005);
+ reach('pointing');
+ assert.ok(right.hand.getWorldPosition(new THREE.Vector3()).distanceTo(new THREE.Vector3(.35,.914,0))<.005);
+ assert.deepEqual([left.fore.position.length(),left.hand.position.length(),right.fore.position.length(),right.hand.position.length()],lengths);
+ const before=right.hand.getWorldPosition(new THREE.Vector3());reach(null);
+ assert.ok(right.hand.getWorldPosition(new THREE.Vector3()).distanceTo(before)<1e-9);
 });

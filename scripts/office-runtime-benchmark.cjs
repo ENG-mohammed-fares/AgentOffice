@@ -75,7 +75,7 @@ window.benchmarkResult=(async()=>{
     const firstFrameMs=round(performance.now()-start);
     if(characterReview){
       await waitCharacters(view);stage('seven-avatars-ready');
-      if(!view.setAgentState('QA Engineer','working'))throw Error('QA typing clip unavailable');
+      for(const {role} of layout.characters)if(!view.setAgentState(role,'working'))throw Error(role+' typing clip unavailable');
       await waitFrame(count());stage('animated-frames-observed');
     }else await quiet(0);
     const initial=view.metrics(),initialFrames=count();

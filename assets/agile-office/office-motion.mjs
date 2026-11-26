@@ -31,6 +31,22 @@ export function seatingPlan(stations){
   });
 }
 /**
+ * Derive wrist targets from the actual keyboard and mouse geometry in build_scene.py.
+ * The keyboard is 0.40 x 0.145 m; its nearest row is 0.052 m behind its centre,
+ * with key tops at 0.8845 m. Wrist centres sit slightly above the key tops.
+ * @param {object} seat - Authored station plan with keyboard, mouse and unit forward.
+ * @param {string} mode - typing (both keyboard halves) or pointing (right mouse).
+ * @returns {object[]} Left and right wrist targets in world coordinates.
+ */
+export function workstationHandTargets(seat,mode='typing'){
+  const {keyboard,mouse,forward}=seat;
+  const right=point(-forward.z,forward.x);
+  const near=plus(keyboard,forward,-.052);
+  const left=plus(near,right,-.09),other=plus(near,right,.09);
+  const keyboardY=.8845+.020;
+  return [{...left,y:keyboardY},mode==='pointing'?{...mouse,y:.894+.020}:{...other,y:keyboardY}];
+}
+/**
  * Returns two symmetrical wrist targets on the existing desk-mat mouse interaction surface.
  * @param {{x:number,z:number}} mouse - Mouse centre in world-space metres.
  * @param {number} [halfSpan=0.09] - Half the wrist spacing in metres; bounded to avoid invalid targets.
@@ -132,7 +148,7 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
   function completeSeat(){setPosition(seat.at);rotation.y=yawFor(seat.forward);setOffset(seat,0);setPose(seatedPose());enter('seated');}
   completeSeat();
   return {
-    get phase(){return phase;},get location(){return seat.id;},get atDesk(){return phase==='seated'&&seat===plan.desk;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},get needsTravel(){return phase==='waiting-travel'&&seat!==desired;},get laneKey(){return plan.meeting.at.x<5?'left':'right';},get corridorClear(){return phase==='walk'&&cursor>=(seat===plan.desk?5:6);},get corridorReserved(){return travelAllowed&&phase==='walk'&&!this.corridorClear;},get laneClear(){return phase==='walk'&&cursor>=(seat===plan.desk?7:4);},get laneReserved(){return laneAllowed&&phase==='walk'&&!this.laneClear;},
+    get phase(){return phase;},get location(){return seat.id;},get atDesk(){return phase==='seated'&&seat===plan.desk;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},get deskInteraction(){if(!this.atDesk)return null;return activity==='working'?'typing':activity==='reviewing'||activity==='thinking'?'pointing':null;},get needsTravel(){return phase==='waiting-travel'&&seat!==desired;},get laneKey(){return plan.meeting.at.x<5?'left':'right';},get corridorClear(){return phase==='walk'&&cursor>=(seat===plan.desk?5:6);},get corridorReserved(){return travelAllowed&&phase==='walk'&&!this.corridorClear;},get laneClear(){return phase==='walk'&&cursor>=(seat===plan.desk?7:4);},get laneReserved(){return laneAllowed&&phase==='walk'&&!this.laneClear;},
     requestMeeting(value,stagger=0){const next=value?plan.meeting:plan.desk;if(next!==desired&&phase==='seated'&&seat!==next)prepareDelay=Math.max(0,stagger);desired=next;},
     setTravelAllowed(value){travelAllowed=Boolean(value);},setLaneAllowed(value){laneAllowed=Boolean(value);},
     setActivity(value){activity=value;if(phase==='seated')setPose(seatedPose());},

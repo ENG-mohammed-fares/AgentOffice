@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createAgentAnimator} from './agent-animation.mjs';
-import {seatingPlan,mouseSurfaceTargets,createSeatedMotion,createMeetingQueue,advanceMotionTime} from './office-motion.mjs';
+import {seatingPlan,mouseSurfaceTargets,createSeatedMotion,createMeetingQueue,advanceMotionTime,workstationHandTargets} from './office-motion.mjs';
 // Compose genuine skeletal tracks: seated pelvis and legs, animated upper body.
 /**
  * Combines seated lower-body skeletal tracks with animated upper-body tracks.
@@ -24,7 +24,7 @@ export function seatedClips(clips,THREEImpl=THREE){
   });
 }
 // Two-bone reach uses real joint lengths and a bend plane, never stretches
-// the hand or translates the whole avatar to the mouse surface.
+// the hand or translates the whole avatar to a workstation surface.
 /** Rotates a joint toward a world-space target without changing its length. */
 function aimBone(bone,child,target){
   const origin=bone.getWorldPosition(new THREE.Vector3());
@@ -60,6 +60,19 @@ export function mouseReach(root,seat){
   const targets=mouseSurfaceTargets(seat.mouse).map(p=>new THREE.Vector3(p.x,.885,p.z));
   const arms=['Left','Right'].map((side,i)=>({upper:root.getObjectByName(side+'Arm'),fore:root.getObjectByName(side+'ForeArm'),hand:root.getObjectByName(side+'Hand'),target:targets[i]}));
   return ()=>{root.updateWorldMatrix(true,true);for(const a of arms)if(a.upper&&a.fore&&a.hand)reachArm(a.upper,a.fore,a.hand,a.target);};
+}
+/**
+ * Resolve both arm chains once, then select the actual workstation target by activity.
+ * Idle, walking and meeting poses are never overridden by workstation IK.
+ */
+export function workstationReach(root,seat){
+  const arms=['Left','Right'].map(side=>({upper:root.getObjectByName(side+'Arm'),fore:root.getObjectByName(side+'ForeArm'),hand:root.getObjectByName(side+'Hand')}));
+  const targets=Object.fromEntries(['typing','pointing'].map(mode=>[mode,workstationHandTargets(seat,mode).map(p=>new THREE.Vector3(p.x,p.y,p.z))]));
+  return mode=>{
+    if(!targets[mode])return;
+    root.updateWorldMatrix(true,true);
+    arms.forEach((arm,i)=>{if(arm.upper&&arm.fore&&arm.hand)reachArm(arm.upper,arm.fore,arm.hand,targets[mode][i]);});
+  };
 }
 export const CLIPS=Object.freeze(['Idle','Walk','Typing','Thinking','Review','Meeting','Talk','Error','Celebrate','Sitting']);
 const FIRST_NAMES=Object.freeze({
@@ -212,9 +225,9 @@ export async function loadCharacterRoster({roster,stations,officeURL,isCancelled
       const motion=chairs?createSeatedMotion({plan:seats[slot],position:root.position,rotation:root.rotation,groundY:root.position.y,setPose:state=>animator.setState(state),setChair:(id,offset)=>chairs.get(id)?.position.set(offset.x,0,offset.z)}):null;
       // Evaluate the initial seated pose before attaching to the rendered scene.
       if(motion)animator.update(.1);
-      records.set(entry.role,{root,identityLabel,animator,motion,reach:motion?mouseReach(root,seats[slot].desk):null});onProgress('avatar-ready:'+entry.file);
+      records.set(entry.role,{root,identityLabel,animator,motion,reach:motion?workstationReach(root,seats[slot].desk):null});onProgress('avatar-ready:'+entry.file);
     }
     if(chairs)queue=createMeetingQueue([...records.values()].map(r=>r.motion));
-    return {group,get count(){return records.size;},get labels(){return labelCount;},get meetingAvailable(){return Boolean(queue);},get proceduralJoints(){return [...records.values()].reduce((sum,r)=>sum+r.animator.proceduralJointCount,0);},get seated(){return [...records.values()].filter(r=>r.motion?.phase==='seated').length;},get meetingSeated(){return [...records.values()].filter(r=>r.motion?.phase==='seated'&&r.motion.location.startsWith('meeting_')).length;},setMeeting(value){queue?.request(value);},setState(role,state){const r=records.get(role);if(!r)return false;if(r.motion){r.motion.setActivity(state);return true;}return r.animator.setState(state);},update(dt){advanceMotionTime(dt,step=>{queue?.update(step);records.forEach(r=>r.animator.update(step));});records.forEach(r=>{if(r.motion?.atDesk)r.reach?.();if(r.identityLabel){r.root.updateWorldMatrix(true,true);const identity=r.identityLabel;if(identity.head){identity.head.getWorldPosition(identity.position);identity.position.y+=identity.headOffsetY;}else{identity.position.copy(identity.anchor);r.root.localToWorld(identity.position);}identity.sprite.position.copy(identity.position);}});},dispose};
+    return {group,get count(){return records.size;},get labels(){return labelCount;},get meetingAvailable(){return Boolean(queue);},get proceduralJoints(){return [...records.values()].reduce((sum,r)=>sum+r.animator.proceduralJointCount,0);},get seated(){return [...records.values()].filter(r=>r.motion?.phase==='seated').length;},get meetingSeated(){return [...records.values()].filter(r=>r.motion?.phase==='seated'&&r.motion.location.startsWith('meeting_')).length;},setMeeting(value){queue?.request(value);},setState(role,state){const r=records.get(role);if(!r)return false;if(r.motion){r.motion.setActivity(state);return true;}return r.animator.setState(state);},update(dt){advanceMotionTime(dt,step=>{queue?.update(step);records.forEach(r=>r.animator.update(step));});records.forEach(r=>{if(r.motion?.deskInteraction)r.reach?.(r.motion.deskInteraction);if(r.identityLabel){r.root.updateWorldMatrix(true,true);const identity=r.identityLabel;if(identity.head){identity.head.getWorldPosition(identity.position);identity.position.y+=identity.headOffsetY;}else{identity.position.copy(identity.anchor);r.root.localToWorld(identity.position);}identity.sprite.position.copy(identity.position);}});},dispose};
   }catch(error){dispose();throw error;}
 }

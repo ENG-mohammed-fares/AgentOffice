@@ -15,6 +15,8 @@ const screens=[
 test('screen layouts provide unique role-specific monitor content for every station',()=>{
  const placements=screenPlacements(screens,stations);
  assert.equal(placements.length,13);
+ assert.throws(()=>screenPlacements(screens.slice(1),stations),/Exactly seven role layouts/);
+ assert.throws(()=>screenPlacements(screens,stations.slice(1)),/Exactly seven role layouts/);
  assert.equal(new Set(placements.map(x=>x.role)).size,7);
  assert.equal(new Set(placements.map(x=>x.role+':'+x.variant)).size,13);
  assert.ok(placements.every(x=>x.width>0&&x.height>0&&x.position.every(Number.isFinite)));

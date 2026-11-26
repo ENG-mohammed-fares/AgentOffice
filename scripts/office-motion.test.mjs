@@ -125,3 +125,25 @@ test('meeting reversal while walking returns all avatars without seat sharing',(
  }
  assert.ok(records.every(r=>r.phase==='seated'&&r.location.startsWith('desk_')));
 });
+
+test('slow rendered frames retain meeting timing and safe doorway reservations',()=>{
+ function travel(dt){
+  const records=stations.map((_,i)=>fixture(i).motion),queue=createMeetingQueue(records);
+  const advanceUntil=(target)=>{
+   let elapsed=0;
+   while(elapsed<180&&!records.every(r=>r.phase==='seated'&&r.location.startsWith(target))){
+    queue.update(dt);elapsed+=dt;
+    assert.ok(records.filter(r=>r.corridorReserved).length<=1);
+    for(const lane of ['left','right'])assert.ok(records.filter(r=>r.laneKey===lane&&r.laneReserved).length<=1);
+   }
+   assert.ok(records.every(r=>r.phase==='seated'&&r.location.startsWith(target)),target+' should finish');
+   return elapsed;
+  };
+  queue.request(true);const meeting=advanceUntil('meeting_');
+  queue.request(false);const returning=advanceUntil('desk_');
+  return {meeting,returning};
+ }
+ const normal=travel(.05),slow=travel(.5);
+ assert.ok(Math.abs(normal.meeting-slow.meeting)<5,JSON.stringify({normal,slow}));
+ assert.ok(Math.abs(normal.returning-slow.returning)<5,JSON.stringify({normal,slow}));
+});

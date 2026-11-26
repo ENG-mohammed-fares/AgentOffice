@@ -175,7 +175,8 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
 /**
  * Serializes travel through the narrow doorway and supports requests to return to desks.
  * @param {object[]} records - Per-avatar seated motion controllers.
- * @returns {object} Meeting request and frame-update interface.
+ * @returns {object} Meeting request and frame-update interface. Elapsed time is
+ * processed in short steps, capped at five seconds per foreground frame.
  */
 export function createMeetingQueue(records){
   let target=false,active=null;
@@ -191,17 +192,25 @@ export function createMeetingQueue(records){
       records.forEach((record,index)=>record.requestMeeting(target,index*.04));
     },
     update(dt){
-      if(active?.corridorClear){active.setTravelAllowed(false);active=null;}
-      releaseClearLanes();
-      if(!active){
-        active=records.find(record=>record.needsTravel&&!lanes.has(record.laneKey))||null;
-        if(active){lanes.set(active.laneKey,active);active.setLaneAllowed(true);active.setTravelAllowed(true);}
+      if(!Number.isFinite(dt)||dt<=0)return;
+      // A rendered frame can take hundreds of milliseconds on a software GPU.
+      // Consume its real elapsed time without skipping door and aisle ownership checks.
+      let remaining=Math.min(dt,5);
+      while(remaining>1e-8){
+        const step=Math.min(remaining,.05);
+        if(active?.corridorClear){active.setTravelAllowed(false);active=null;}
+        releaseClearLanes();
+        if(!active){
+          active=records.find(record=>record.needsTravel&&!lanes.has(record.laneKey))||null;
+          if(active){lanes.set(active.laneKey,active);active.setLaneAllowed(true);active.setTravelAllowed(true);}
+        }
+        // All agents prepare and seat independently. The doorway is globally single-occupancy;
+        // each side's outer aisle is separately reserved until that agent reaches its unique row.
+        for(const record of records)record.update(step);
+        if(active?.corridorClear){active.setTravelAllowed(false);active=null;}
+        releaseClearLanes();
+        remaining-=step;
       }
-      // All agents prepare and seat independently. The doorway is globally single-occupancy;
-      // each side's outer aisle is separately reserved until that agent reaches its unique row.
-      for(const record of records)record.update(dt);
-      if(active?.corridorClear){active.setTravelAllowed(false);active=null;}
-      releaseClearLanes();
     }
   };
 }

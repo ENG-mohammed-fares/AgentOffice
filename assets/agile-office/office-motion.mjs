@@ -69,7 +69,7 @@ function turn(current,target,dt){
  * @returns {object} Motion controller with activity and meeting requests and phase queries.
  */
 export function createSeatedMotion({plan,position,rotation,setPose,setChair,groundY=0}){
-  let seat=plan.desk,desired=seat,phase='seated',clock=0,activity='idle',route=[],cursor=0,arrivalPull=0;
+  let seat=plan.desk,desired=seat,phase='seated',clock=0,activity='idle',route=[],cursor=0,arrivalPull=0,travelAllowed=false;
   const setPosition=p=>{position.x=p.x;position.z=p.z;position.y=groundY;};
   const pulls=new Map([[plan.desk.id,0],[plan.meeting.id,0]]);
   const setOffset=(s,n)=>{pulls.set(s.id,n);setChair(s.id,chairOffset(s,n));};
@@ -78,8 +78,9 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
   function completeSeat(){setPosition(seat.at);rotation.y=yawFor(seat.forward);setOffset(seat,0);setPose(seatedPose());enter('seated');}
   completeSeat();
   return {
-    get phase(){return phase;},get location(){return seat.id;},get atDesk(){return phase==='seated'&&seat===plan.desk;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},
+    get phase(){return phase;},get location(){return seat.id;},get atDesk(){return phase==='seated'&&seat===plan.desk;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},get needsTravel(){return phase==='waiting-travel'&&seat!==desired;},get corridorClear(){return phase==='walk'&&cursor>=5;},get corridorReserved(){return travelAllowed&&phase==='walk'&&cursor<5;},
     requestMeeting(value){desired=value?plan.meeting:plan.desk;},
+    setTravelAllowed(value){travelAllowed=Boolean(value);},
     setActivity(value){activity=value;if(phase==='seated')setPose(seatedPose());},
     update(seconds){
       if(!Number.isFinite(seconds)||seconds<=0)return;
@@ -91,7 +92,10 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
         if(clock>=.65){setPose('idle');enter('rise');}
       }else if(phase==='rise'){
         setPosition(mix(plus(seat.at,seat.forward,-PULL),standingPoint(seat),ease(clock/.8)));
-        if(clock>=.8){
+        if(clock>=.8){setPose('idle');enter('waiting-travel');}
+      }else if(phase==='waiting-travel'){
+        if(seat===desired){setPose('walking');enter('approach-seat');}
+        else if(travelAllowed){
           const corridor=meetingRoute(plan.desk,plan.meeting).slice(0,-1);
           route=seat===plan.desk?corridor:corridor.reverse();
           cursor=0;setPose('walking');enter('walk');
@@ -138,13 +142,21 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
  */
 export function createMeetingQueue(records){
   let target=false,active=null;
-  return {request(value){target=Boolean(value);},
+  return {
+    request(value){
+      target=Boolean(value);
+      for(const record of records)record.requestMeeting(target);
+    },
     update(dt){
-      if(active?.phase==='seated')active=null;
+      if(active?.corridorClear){active.setTravelAllowed(false);active=null;}
       if(!active){
-        active=records.find(r=>r.location.startsWith('meeting_')!==target)||null;
-        active?.requestMeeting(target);
+        active=records.find(record=>record.needsTravel)||null;
+        active?.setTravelAllowed(true);
       }
-      active?.update(dt);
-    }};
+      // Everyone prepares, stands, and seats independently. Only the doorway segment
+      // is reserved, and the next mover may enter as soon as the previous one clears it.
+      for(const record of records)record.update(dt);
+      if(active?.corridorClear){active.setTravelAllowed(false);active=null;}
+    }
+  };
 }

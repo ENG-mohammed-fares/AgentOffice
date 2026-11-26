@@ -52,10 +52,17 @@ test('all thirteen workstation screens render distinct role content with a visib
  assert.ok(result.group.children.every(mesh=>mesh.isMesh&&mesh.material.map?.isCanvasTexture));
  assert.ok(contexts.every(ctx=>ctx.calls.some(call=>call[0]==='fillText'&&call[1]==='SIMULATION')));
  assert.ok(contexts.every(ctx=>ctx.calls.some(call=>call[0]==='fillText')));
+ const renderedText=contexts.map(ctx=>ctx.calls.filter(call=>call[0]==='fillText').map(call=>String(call[1])).join('|'));
+ assert.equal(new Set(renderedText).size,13,'every workstation monitor must render distinct content');
  for(const mesh of result.group.children){mesh.geometry.dispose();mesh.material.map.dispose();mesh.material.dispose();}
 });
 test('role screen construction disposes partial resources when a canvas context is unavailable',()=>{
- let calls=0;
+ let calls=0;const disposed=[];
  const canvasFactory=()=>({width:0,height:0,getContext(){calls++;return calls===1?recordingCanvasFactory().canvasFactory().getContext('2d'):null;}});
- assert.throws(()=>createRoleScreens({screens,stations,THREEImpl:THREE,canvasFactory}),/2D canvas context unavailable/);
+ class TrackedTexture extends THREE.CanvasTexture{dispose(){disposed.push('texture');super.dispose();}}
+ class TrackedGeometry extends THREE.PlaneGeometry{dispose(){disposed.push('geometry');super.dispose();}}
+ class TrackedMaterial extends THREE.MeshBasicMaterial{dispose(){disposed.push('material');super.dispose();}}
+ const THREEImpl={...THREE,CanvasTexture:TrackedTexture,PlaneGeometry:TrackedGeometry,MeshBasicMaterial:TrackedMaterial};
+ assert.throws(()=>createRoleScreens({screens,stations,THREEImpl,canvasFactory}),/2D canvas context unavailable/);
+ assert.deepEqual(disposed.sort(),['geometry','material','texture']);
 });

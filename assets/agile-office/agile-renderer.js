@@ -180,8 +180,8 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
       const firstCharacterFrame=characters&&characterStatus==='preview ready';
       if(firstCharacterFrame)onProgress('avatar-first-render');
       renderer.render(scene,camera);report();
-      if(firstCharacterFrame){characterStatus='rendering';onProgress('avatar-first-render-complete');settleReady({ok:true,characters:characters.count});}
-      else if(!characterRoster.length)settleReady({ok:true,characters:0});
+      if(firstCharacterFrame){characterStatus='rendering';onProgress('avatar-first-render-complete');settleReady({ok:true,characters:characters.count,labels:characters.labels,meetingAvailable:characters.meetingAvailable});}
+      else if(!characterRoster.length)settleReady({ok:true,characters:0,labels:0,meetingAvailable:false});
       if(characters||move||drag){settleFrames=0;frameScheduler.request();}
       else if(moving||settleFrames===1){if(settleFrames===0){settleFrames=1;frameScheduler.request();}else settleFrames=0;}
     }

@@ -389,22 +389,38 @@
     },
     {
       "id": "FR-CHAR-007",
-      "summary": "Keep both hands naturally positioned on the workstation mouse surface without desk or prop penetration",
+      "summary": "Position typing hands over the authored keyboard and pointing hands at the appropriate workstation surface",
       "component": "avatar ergonomics and hand IK",
       "priority": "P1",
-      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 6.",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 6. Latest owner correction: hands are visibly distant from the keyboard; include keyboard correction in 1.6.18.",
       "owner": "Product owner / maintainer",
       "decision": "accepted",
-      "acceptance": "Both hands must reach the workstation mouse interaction surface using the actual shoulder, elbow, forearm and wrist joints. Adjust the interaction prop only as needed to support the two-hand pose. No hand may penetrate the desk, float, stretch a limb, or intersect the keyboard/mouse geometry. Preserve character proportions and desk height.",
+      "acceptance": "Both typing wrist targets lie over opposite keyboard halves at key height; pointing places the right wrist near the mouse and left at the keyboard. Preserve existing joint lengths and finger animation, avoid forced desk reach during idle, walking or meetings; inspect actual rendered contact and mesh clearance on all seven rigs.",
       "implementation": [
         "assets/agile-office/build_scene.py",
         "assets/agile-office/office-characters.mjs",
-        "assets/agile-office/office-motion.mjs"
+        "assets/agile-office/office-motion.mjs",
+        "scripts/office-runtime-benchmark.cjs"
       ],
       "tests": [
         {
           "path": "scripts/office-characters.test.mjs",
           "id": "both arms reach separate positions on the same mouse interaction surface",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "typing targets lie on opposite halves of the authored keyboard at key height",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "workstation IK is selected only for seated working and pointing activities",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "workstation reach places both wrists at keyboard targets without changing bone lengths",
           "level": "unit"
         }
       ],
@@ -1088,8 +1104,8 @@
     },
     {
       "id": "US-ERGONOMICS-001",
-      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 6.",
-      "story": "As a workspace user, I want both hands to rest naturally on the mouse interaction surface without intersecting the desk, so that the seated avatars look physically credible.",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 6. Latest owner correction: hands are visibly distant from the keyboard; include keyboard correction in 1.6.18.",
+      "story": "As a workspace user, I want both typing hands aligned to the actual keyboard, with a separate pointing pose, so avatars interact naturally with desk equipment.",
       "priority": "P1",
       "requirements": [
         "FR-CHAR-007"
@@ -1099,12 +1115,12 @@
           "id": "AC-01",
           "given": "A character is seated at its assigned desk",
           "when": "The workstation interaction pose is applied",
-          "then": "Both hand targets lie on the mouse surface at desk height and remain reachable through the existing arm joints"
+          "then": "During typing, left and right wrist targets align to opposite halves of the authored keyboard at key height; during review or thinking, the right hand targets the mouse and the left remains at the keyboard."
         },
         {
           "id": "AC-02",
           "given": "The IK solution is evaluated",
-          "when": "The avatar reaches the mouse",
+          "when": "The avatar reaches its current workstation target",
           "then": "Shoulders, elbows, forearms and wrists rotate without limb stretching or mesh penetration"
         },
         {
@@ -1112,23 +1128,45 @@
           "given": "All seven avatars are loaded",
           "when": "Their desk poses are validated",
           "then": "Each character uses its own role/station mapping and preserves its proportions"
+        },
+        {
+          "id": "AC-04",
+          "given": "An avatar is idle, walking or in the meeting room",
+          "when": "The animation advances",
+          "then": "Workstation IK is not forced on the resting or travel pose; arm joint lengths and finger animations remain intact."
         }
       ],
-      "scope": "Replace keyboard-only arm targets with validated two-hand mouse-surface targets and adjust the existing mouse prop only enough to support the requested pose.",
+      "scope": "Use the authored keyboard dimensions, nearest key row, and key-top height for typing. Separate typing from pointing and idle/meeting poses. Validate all seven roles with actual Electron review captures.",
       "constraints": "Preserve desk height, monitor placement, character proportions and office design. No arbitrary mesh translation.",
       "assumptions": "The existing arm rig exposes LeftArm/RightArm, ForeArm and Hand joints; per-rig visual contact still requires rendered review.",
-      "dependencies": "Seven GLB rigs, seatingPlan, mouse geometry and two-bone arm IK.",
+      "dependencies": "Seven GLB rigs, seatingPlan, keyboard and mouse geometry, two-bone IK and activity state.",
       "impact": "Seated character ergonomics only.",
       "status": "in progress",
       "implementation": [
         "assets/agile-office/build_scene.py",
         "assets/agile-office/office-characters.mjs",
-        "assets/agile-office/office-motion.mjs"
+        "assets/agile-office/office-motion.mjs",
+        "scripts/office-runtime-benchmark.cjs"
       ],
       "tests": [
         {
           "path": "scripts/office-characters.test.mjs",
           "id": "both arms reach separate positions on the same mouse interaction surface",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "typing targets lie on opposite halves of the authored keyboard at key height",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "workstation IK is selected only for seated working and pointing activities",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "workstation reach places both wrists at keyboard targets without changing bone lengths",
           "level": "unit"
         }
       ],

@@ -258,6 +258,48 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-QUALITY-003",
+      "source": "Owner: عالج المشاكل، تابع (2026-11-26); reconcile validated KTX2 verifier from PR #24 onto current development.",
+      "story": "As an application user, I want malformed office assets rejected before packaging so that corrupt geometry or textures cannot reach my installation.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001",
+        "FR-OFFICE-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Canonical original and compressed GLB files with matching topology and 14 valid KTX2 payloads",
+          "when": "Artifact verification runs",
+          "then": "Both assets pass without changing the fallback"
+        },
+        {
+          "id": "AC-02",
+          "given": "A malformed GLB, invalid texture range, altered topology, missing extension, or unapproved path",
+          "when": "Artifact verification runs",
+          "then": "Explicit errors reject the artifact, including under optimized Python"
+        },
+        {
+          "id": "AC-03",
+          "given": "The verifier and regression tests are integrated",
+          "when": "Trusted CI builds the real assets",
+          "then": "Actual verification and measured coverage are included in blocking quality checks"
+        }
+      ],
+      "scope": "Reconcile the verifier and regression tests from PR #24; planned tests in scripts/test_office_asset_verification.py; include asset source in initial Python coverage.",
+      "constraints": "Preserve existing CI, security, renderer, story protocol and release version. Do not promote experimental baked assets.",
+      "assumptions": "The canonical office texture count remains 14; CI uses the established literal app/public/office.",
+      "dependencies": "Existing generated GLB assets and Python unittest/coverage",
+      "impact": "Asset validation and CI; no release or UI behavior change",
+      "status": "ready",
+      "implementation": [
+        "assets/agile-office/verify-ktx2.py",
+        ".github/workflows/ci.yml"
+      ],
+      "tests": [],
+      "evidence": []
     }
   ]
 }

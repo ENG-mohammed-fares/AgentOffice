@@ -189,6 +189,25 @@
       "verification": "BLOCKED",
       "validation": "BLOCKED",
       "evidence": []
+    },
+    {
+      "id": "FR-OFFICE-003",
+      "summary": "Provide multiple selectable office camera perspectives",
+      "component": "office camera navigation",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26: the office must not be limited to a single camera angle; expose multiple useful perspectives.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "Provide a clear, discoverable camera-view selector for multiple authored office perspectives, including the main workspace, wider workspace/city overview and meeting room. Preserve free-look mouse navigation, smooth transitions, and camera framing that keeps the authored architecture and furniture unchanged.",
+      "implementation": [
+        "assets/agile-office/office-layout.json",
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/main.js"
+      ],
+      "tests": [],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
+      "validation": "BLOCKED",
+      "evidence": []
     }
   ],
   "stories": [
@@ -548,6 +567,55 @@
       "impact": "Post-authentication UX and renderer startup only; no visual redesign of the office.",
       "status": "ready",
       "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "US-CAMERA-001",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26. Code inspection confirmed office-layout.json already defines three cameras (Agile Workspace, Workspace and city, Meeting Room), while main.js exposes only Workspace and Meeting room buttons.",
+      "story": "As a workspace user, I want to switch between multiple useful views of the office so that I can see the full office from different perspectives instead of being limited to one angle.",
+      "priority": "P1",
+      "requirements": [
+        "FR-OFFICE-002",
+        "FR-OFFICE-003"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "The interactive office is ready",
+          "when": "The user opens the camera view selector",
+          "then": "All approved authored perspectives are visible with clear labels, including Agile Workspace, Workspace and city, and Meeting Room"
+        },
+        {
+          "id": "AC-02",
+          "given": "A user selects a different perspective",
+          "when": "The camera changes",
+          "then": "The transition is smooth, does not trigger meeting activity or move characters, and preserves free-look controls"
+        },
+        {
+          "id": "AC-03",
+          "given": "The selected camera is unavailable or rendering falls back to a poster",
+          "when": "The user changes views",
+          "then": "The UI exposes only valid views and updates the selected state without a broken or blank frame"
+        },
+        {
+          "id": "AC-04",
+          "given": "Different screen sizes and graphics presets",
+          "when": "The user changes among camera views",
+          "then": "The office remains framed usefully without altering geometry, furniture layout, materials, or camera controls"
+        }
+      ],
+      "scope": "Expose existing authored camera presets in a discoverable selector and assess adding further genuinely useful office viewpoints after visual review. This applies to interactive office navigation; startup poster previews should match the approved views where feasible.",
+      "constraints": "No office redesign or geometry changes. Keep meeting simulation independent from camera navigation. Preserve drag-to-look and reduced-motion behavior.",
+      "assumptions": "The three current camera definitions are intended approved views; any additional positions require visual validation against the actual office model.",
+      "dependencies": "office-layout.json camera definitions, agile-renderer.go(index), main.js view controls, renderer lifecycle tests.",
+      "impact": "Office camera navigation and preview coverage only; no authentication or agent activity change.",
+      "status": "ready",
+      "implementation": [
+        "assets/agile-office/office-layout.json",
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/main.js"
+      ],
       "tests": [],
       "evidence": []
     }

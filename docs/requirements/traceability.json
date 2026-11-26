@@ -1632,6 +1632,63 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-QUALITY-005",
+      "source": "Owner request 2026-11-26: عالج الفشل; PR #37 run 45835984858 rejected unmapped Sonar coverage changes from commit 257bfd1c05af7a903b4c495d13584277e9b9bd33. Retrospective mapping; original implementation preceded this record.",
+      "story": "As a maintainer, I want the canonical role-screen overlay analyzed exactly once with its measured coverage transferred only after byte-equality validation, so that generated copies do not distort the blocking quality gate.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "The canonical screen-content overlay and its byte-identical prepared copy",
+          "when": "SonarCloud analysis runs",
+          "then": "Analyze the canonical source once, exclude only the prepared duplicate, and retain all quality thresholds."
+        },
+        {
+          "id": "AC-02",
+          "given": "Actual test coverage for prepared overlays",
+          "when": "Coverage is canonicalized",
+          "then": "Require byte-identical sources and reject missing required coverage, failed tests or duplicate source records."
+        },
+        {
+          "id": "AC-03",
+          "given": "The exact PR #37 changed implementation paths",
+          "when": "The story traceability gate runs",
+          "then": "Both the coverage runner and Sonar configuration are mapped to an active story with existing regression tests; no pass claim without exact-revision evidence."
+        }
+      ],
+      "scope": "Document and reconcile the existing canonical screen overlay coverage correction and its regression tests after the failed story gate; no new runtime changes.",
+      "constraints": "Keep the canonical runtime source, measured coverage, byte-equality checks, blocking SonarCloud and security gates unchanged. Do not claim completion before exact-head CI and post-merge verification.",
+      "assumptions": "The failed run identified missing story mapping, not a failed runtime test; the current canonical mapping still requires CI verification.",
+      "dependencies": "DR-QUALITY-001, scripts/coverage-report.test.cjs, canonical overlay mapping and PR #37.",
+      "impact": "Traceability documentation only; no version, distribution or runtime changes.",
+      "status": "in progress",
+      "implementation": [
+        "scripts/run-coverage.cjs",
+        "sonar-project.properties"
+      ],
+      "tests": [
+        {
+          "path": "scripts/coverage-report.test.cjs",
+          "id": "Sonar analyzes canonical overlays once and excludes their byte-identical prepared copies",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/coverage-report.test.cjs",
+          "id": "canonical mapping transfers only actual measurements from byte-identical overlays",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/coverage-report.test.cjs",
+          "id": "runner rejects child failure and missing required coverage without hiding the report",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
     }
   ]
 }

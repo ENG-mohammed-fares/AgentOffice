@@ -136,6 +136,9 @@ class BakeCacheTests(unittest.TestCase):
         self.assertIn("python scripts/office_bake_cache.py verify", workflow)
         self.assertIn("python scripts/office_bake_cache.py write", workflow)
         self.assertNotIn("github.event_name != 'pull_request' || steps.bake_verify.outputs.valid", workflow)
+        self.assertNotIn('\n  push:\n', workflow)
+        self.assertIn('\n  pull_request:\n', workflow)
+        self.assertIn('\n  workflow_call:\n', workflow)
 
     def test_cli_operations_and_failure(self):
         """Cache CLI dispatches actual operations and fails on malformed evidence."""

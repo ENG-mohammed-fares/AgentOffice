@@ -76,6 +76,7 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
 }
 test('renderer controls camera/drag, pauses hidden work, and disposes real scene resources',async()=>{
   const f=await fixture(),renderer=await f.mount();
+  assert.deepEqual(await renderer.ready,{ok:true,characters:0});
   assert.equal(f.host.dataset.textureFormat,'ktx2');
   assert.equal(f.decoderDisposed,1);assert.equal(f.texture.anisotropy,8);
   assert.equal(f.glass.castShadow,false);assert.equal(f.box.castShadow,true);
@@ -133,11 +134,12 @@ test('compressed baked benchmark reuses Basis decoding and never silently falls 
 
 test('character preview remains independent of the initial office and pauses when hidden',async()=>{
  const f=await fixture({characterRoster:[{}]});
- const renderer=await f.mount();for(let i=0;i<8;i++)await Promise.resolve();
- assert.equal(renderer.metrics().characters,7);assert.equal(f.compiled,2);
+ const renderer=await f.mount();let readiness=null;renderer.ready.then(value=>{readiness=value;});for(let i=0;i<8;i++)await Promise.resolve();
+ assert.equal(renderer.metrics().characters,7);assert.equal(f.compiled,2);assert.equal(readiness,null,'readiness must wait for a usable character frame');
+ f.tick(100);assert.deepEqual(await renderer.ready,{ok:true,characters:7});
  assert.equal(renderer.setAgentState('QA Engineer','working'),true);
  assert.deepEqual(f.characterStates.at(-1),['QA Engineer','working']);
- f.tick(100);f.tick(120);f.tick(140);
+ f.tick(120);f.tick(140);
  assert.ok(f.characterTicks.length>=1);
  f.document.hidden=true;f.events.get('visibilitychange')();
  assert.equal(f.frames.size,0);
@@ -145,5 +147,8 @@ test('character preview remains independent of the initial office and pauses whe
  const bad=await fixture({characterRoster:[{}],characterFailure:true});
  const view=await bad.mount();for(let i=0;i<8;i++)await Promise.resolve();
  assert.equal(view.metrics().characters,0);assert.equal(view.metrics().characterStatus,'preview unavailable');
+ assert.deepEqual(await view.ready,{ok:false,reason:'characters-unavailable'});
  view.dispose();
+ const pending=await fixture({characterRoster:[{}]});const pendingView=await pending.mount();pendingView.dispose();
+ assert.deepEqual(await pendingView.ready,{ok:false,reason:'cancelled'});
 });

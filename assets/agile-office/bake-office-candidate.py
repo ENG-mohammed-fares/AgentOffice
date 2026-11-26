@@ -11,7 +11,8 @@ import bpy
 from mathutils import Vector
 
 RESOLUTION = (1920, 1080)
-EXPECTED_TRIANGLES = 117254
+# Canonical 1.6.18 scene after retiring the obsolete Software Architect desk-sign glyph (922 triangles); structural office geometry is unchanged.
+EXPECTED_TRIANGLES = 116332
 
 
 def glb_summary(path):

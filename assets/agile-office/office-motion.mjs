@@ -1,6 +1,6 @@
 // Authored floor coordinates are converted to Three.js X/Z. Chair geometry
 // remains independently movable; never translate a static environment batch.
-const PULL=.55, RISE=.38, WALK=.78, DESK_TUCK=.16;
+const PULL=.55, RISE=.38, WALK=.78, DESK_TUCK=.16, ACCEL=1.6, HEADING_TOLERANCE=.001;
 const clamp=n=>Math.max(0,Math.min(1,n));
 const ease=n=>{const q=clamp(n);return q*q*(3-2*q);};
 const point=(x,z)=>({x,z});
@@ -47,13 +47,46 @@ export function meetingRoute(desk,meeting){
   const d=sidePoint(desk),m=sidePoint(meeting);
   const aisle=desk.at.z+1.05;
   const outer=meeting.at.x<5?3.48:7.45;
-  return [d,point(d.x,aisle),point(2.08,aisle),point(2.08,2.25),
+  // Rear desk route avoids the planter at (2.25, 4.58) in build_scene.py.
+  // Conservative planter proxy radius .27 m plus estimated avatar radius .22 m.
+  const west=desk.id==='desk_6'
+    ? [point(1.60,aisle),point(1.60,3.85),point(2.08,3.85)]
+    : [point(2.08,aisle)];
+  return [d,point(d.x,aisle),...west,point(2.08,2.25),
     point(3.48,2.25),point(outer,2.25),point(outer,m.z),m,standingPoint(meeting)];
 }
 function yawFor(f){return Math.atan2(f.x,f.z);}
+/** Returns the shortest signed angle between headings, in radians. */
+function angleDelta(current,target){
+  return Math.atan2(Math.sin(target-current),Math.cos(target-current));
+}
+/** Advances heading at no more than four radians per second. */
 function turn(current,target,dt){
-  const delta=Math.atan2(Math.sin(target-current),Math.cos(target-current));
+  const delta=angleDelta(current,target);
   return current+Math.max(-dt*4,Math.min(dt*4,delta));
+}
+/**
+ * Advances one waypoint in world metres with bounded turning and linear acceleration.
+ * Stop before changing direction at a corner; never translate while misaligned.
+ * @param {object} position - Current X/Z position.
+ * @param {number} yaw - Current heading in radians.
+ * @param {object} target - Next X/Z waypoint.
+ * @param {number} speed - Current travel speed in metres per second.
+ * @param {number} dt - Elapsed simulation seconds (at most 0.1).
+ * @returns {object} Next position, heading, speed and arrival/pose flags.
+ */
+export function advanceWalk(position,yaw,target,speed,dt){
+  const distance=dist(position,target);
+  if(distance<=1e-5)return {position:target,yaw,speed:0,arrived:true,walking:false};
+  const heading=yawFor(point(target.x-position.x,target.z-position.z));
+  const nextYaw=turn(yaw,heading,dt);
+  if(Math.abs(angleDelta(yaw,heading))>HEADING_TOLERANCE)
+    return {position,yaw:nextYaw,speed:0,arrived:false,walking:false};
+  const nextSpeed=Math.min(WALK,speed+ACCEL*dt,Math.sqrt(2*ACCEL*distance));
+  const step=Math.min(distance,nextSpeed*dt);
+  const arrived=step>=distance-1e-5;
+  return {position:arrived?target:mix(position,target,step/distance),yaw:nextYaw,
+    speed:arrived?0:nextSpeed,arrived,walking:true};
 }
 /**
  * Coordinates chair translation, pose changes and waypoint travel for one avatar.
@@ -63,12 +96,19 @@ function turn(current,target,dt){
  * @returns {object} Motion controller with activity and meeting requests and phase queries.
  */
 export function createSeatedMotion({plan,position,rotation,setPose,setChair,groundY=0}){
-  let seat=plan.desk,desired=seat,phase='seated',clock=0,activity='idle',route=[],cursor=0,arrivalPull=0;
+  let seat=plan.desk,desired=seat,phase='seated',clock=0,activity='idle',route=[],cursor=0,arrivalPull=0,travelSpeed=0;
   const setPosition=p=>{position.x=p.x;position.z=p.z;position.y=groundY;};
   const pulls=new Map([[plan.desk.id,0],[plan.meeting.id,0]]);
   const setOffset=(s,n)=>{pulls.set(s.id,n);setChair(s.id,chairOffset(s,n));};
   const seatedPose=()=>seat===plan.meeting?'seatedMeeting':activity==='working'?'seatedTyping':'sitting';
-  function enter(next){phase=next;clock=0;}
+  function enter(next){phase=next;clock=0;travelSpeed=0;}
+  // Both corridor travel and final approach use the same heading and speed rules.
+  function walkTo(target,dt){
+    const next=advanceWalk(position,rotation.y,target,travelSpeed,dt);
+    rotation.y=next.yaw;travelSpeed=next.speed;setPosition(next.position);
+    setPose(next.walking?'walking':'idle');
+    return next.arrived;
+  }
   function completeSeat(){setPosition(seat.at);rotation.y=yawFor(seat.forward);setOffset(seat,0);setPose(seatedPose());enter('seated');}
   completeSeat();
   return {
@@ -91,14 +131,7 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
           cursor=0;setPose('walking');enter('walk');
         }
       }else if(phase==='walk'){
-        let remaining=WALK*dt;
-        while(cursor<route.length&&remaining>0){
-          const target=route[cursor],d=dist(position,target);
-          if(d<1e-5){cursor++;continue;}
-          rotation.y=turn(rotation.y,yawFor(point(target.x-position.x,target.z-position.z)),dt);
-          const step=Math.min(remaining,d);setPosition(mix(position,target,step/d));remaining-=step;
-          if(step>=d-1e-5)cursor++;
-        }
+        if(cursor<route.length&&walkTo(route[cursor],dt))cursor++;
         if(cursor===route.length){
           seat=seat===plan.desk?plan.meeting:plan.desk;
           arrivalPull=pulls.get(seat.id)??0;setPose('idle');enter('prepare-chair');
@@ -107,12 +140,10 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
         setOffset(seat,arrivalPull+(1-arrivalPull)*ease(clock/.65));
         if(clock>=.65){setPose('walking');enter('approach-seat');}
       }else if(phase==='approach-seat'){
-        const target=standingPoint(seat),d=dist(position,target);
-        if(d<=WALK*dt){setPosition(target);setPose('idle');enter('align');}
-        else{rotation.y=turn(rotation.y,yawFor(point(target.x-position.x,target.z-position.z)),dt);setPosition(mix(position,target,WALK*dt/d));}
+        if(walkTo(standingPoint(seat),dt)){setPose('idle');enter('align');}
       }else if(phase==='align'){
         rotation.y=turn(rotation.y,yawFor(seat.forward),dt);
-        if(clock>=.9){rotation.y=yawFor(seat.forward);setPose('sitting');enter('lower');}
+        if(clock>=.9&&Math.abs(angleDelta(rotation.y,yawFor(seat.forward)))<=HEADING_TOLERANCE){setPose('sitting');enter('lower');}
       }else if(phase==='lower'){
         setPosition(mix(standingPoint(seat),plus(seat.at,seat.forward,-PULL),ease(clock/.8)));
         if(clock>=.8)enter('push');

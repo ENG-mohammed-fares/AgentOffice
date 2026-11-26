@@ -292,11 +292,27 @@
       "assumptions": "Planter proxy radius 0.27 m based on build_scene.py; avatar clearance radius 0.22 m is an engineering estimate, not measured rig clearance.",
       "dependencies": "Existing office-motion state machine and authored scene coordinates.",
       "impact": "Visual travel and navigation; no actual agent execution changes.",
-      "status": "ready",
+      "status": "in progress",
       "implementation": [
         "assets/agile-office/office-motion.mjs"
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "waypoint travel turns in place then accelerates and stops without overshoot",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "rear desk swept route clears the static planter proxy",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "meeting reversal while walking returns all avatars without seat sharing",
+          "level": "unit"
+        }
+      ],
       "evidence": []
     }
   ]

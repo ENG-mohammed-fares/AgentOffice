@@ -86,13 +86,18 @@ window.benchmarkResult=(async()=>{
       window.captureReviewFrame=()=>view.captureReviewFrame();
       window.requestMeetingDemo=value=>{if(!view.metrics().meetingAvailable)throw Error('Movable-chair meeting simulation is unavailable');view.setMeeting(Boolean(value));return view.metrics();};
       window.waitForMeetingDemo=async value=>{
-        const expected=Boolean(value),deadline=performance.now()+180000;
+        const expected=Boolean(value),start=performance.now(),deadline=start+180000,initialFrames=count();
+        let nextLog=start,lastMetrics=view.metrics();
         while(performance.now()<deadline){
-          const metrics=view.metrics();
-          if(expected?metrics.meetingSeated===7&&metrics.seated===7:metrics.meetingSeated===0&&metrics.seated===7)return metrics;
+          lastMetrics=view.metrics();
+          if(expected?lastMetrics.meetingSeated===7&&lastMetrics.seated===7:lastMetrics.meetingSeated===0&&lastMetrics.seated===7)return lastMetrics;
+          if(performance.now()>=nextLog){
+            stage('meeting-progress '+JSON.stringify({target:expected,elapsedMs:round(performance.now()-start),frames:count()-initialFrames,seated:lastMetrics.seated,meetingSeated:lastMetrics.meetingSeated}));
+            nextLog=performance.now()+15000;
+          }
           await sleep(100);
         }
-        throw Error(expected?'Seven agents did not reach their meeting chairs':'Seven agents did not return to their desks');
+        throw Error((expected?'Seven agents did not reach their meeting chairs':'Seven agents did not return to their desks')+'; '+JSON.stringify({frames:count()-initialFrames,seated:lastMetrics.seated,meetingSeated:lastMetrics.meetingSeated,softwareRendering:lastMetrics.softwareRendering}));
       };
       keepView=true;
       return {ok:true,firstFrameMs,textureFormat:host.dataset.textureFormat,initial,contextLost};

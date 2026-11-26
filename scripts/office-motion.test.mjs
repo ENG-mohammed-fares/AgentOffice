@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {seatingPlan,mouseSurfaceTargets,standingPoint,meetingRoute,createSeatedMotion,createMeetingQueue,advanceWalk} from '../src/office-motion.mjs';
+import {seatingPlan,mouseSurfaceTargets,standingPoint,meetingRoute,createSeatedMotion,createMeetingQueue,advanceWalk,advanceMotionTime} from '../src/office-motion.mjs';
 const stations=[[-5.95,2.9,0],[-3,2.9,0],[-.05,2.9,0],[-5.95,-.15,0],[-2.35,-.15,0],[.65,-.15,0],[-3.7,-3.22,0]];
 function fixture(i=0){
  const plan=seatingPlan(stations)[i],position={},rotation={},chairs=new Map(),poses=[];
@@ -124,4 +124,31 @@ test('meeting reversal while walking returns all avatars without seat sharing',(
   assert.equal(new Set(seated).size,seated.length);
  }
  assert.ok(records.every(r=>r.phase==='seated'&&r.location.startsWith('desk_')));
+});
+
+test('slow rendered frames preserve bounded meeting simulation time',()=>{
+ const frames=[.73,1.2,.46,1.8],records=stations.map((_,i)=>fixture(i).motion),q=createMeetingQueue(records);
+ for(const target of [true,false]){
+  q.request(target);let elapsed=0,index=0;
+  while(elapsed<150&&!records.every(r=>r.phase==='seated'&&r.location.startsWith(target?'meeting_':'desk_'))){
+   const seconds=frames[index++%frames.length];elapsed+=seconds;
+   advanceMotionTime(seconds,dt=>{
+    assert.ok(dt>0&&dt<=.1+1e-9);
+    q.update(dt);
+    assert.ok(records.filter(r=>r.corridorReserved).length<=1);
+    for(const lane of ['left','right'])assert.ok(records.filter(r=>r.laneKey===lane&&r.laneReserved).length<=1);
+   });
+  }
+  assert.ok(elapsed<150,'all seven must complete within the simulation budget');
+  assert.ok(records.every(r=>r.phase==='seated'&&r.location.startsWith(target?'meeting_':'desk_')));
+ }
+});
+test('motion catch-up bounds long stalls and ignores invalid time',()=>{
+ const steps=[];for(const seconds of [0,-1,NaN,Infinity])advanceMotionTime(seconds,dt=>steps.push(dt));
+ assert.equal(steps.length,0);
+ advanceMotionTime(1.23,dt=>steps.push(dt));
+ assert.ok(steps.every(dt=>dt>0&&dt<=.1+1e-9));
+ assert.ok(Math.abs(steps.reduce((sum,dt)=>sum+dt,0)-1.23)<1e-9);
+ steps.length=0;advanceMotionTime(60,dt=>steps.push(dt));
+ assert.equal(steps.length,30);assert.ok(Math.abs(steps.reduce((sum,dt)=>sum+dt,0)-3)<1e-9);
 });

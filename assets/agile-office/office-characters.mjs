@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createAgentAnimator} from './agent-animation.mjs';
-import {seatingPlan,mouseSurfaceTargets,createSeatedMotion,createMeetingQueue} from './office-motion.mjs';
+import {seatingPlan,mouseSurfaceTargets,createSeatedMotion,createMeetingQueue,advanceMotionTime} from './office-motion.mjs';
 // Compose genuine skeletal tracks: seated pelvis and legs, animated upper body.
 /**
  * Combines seated lower-body skeletal tracks with animated upper-body tracks.
@@ -211,6 +211,6 @@ export async function loadCharacterRoster({roster,stations,officeURL,isCancelled
       records.set(entry.role,{root,identityLabel,animator,motion,reach:motion?mouseReach(root,seats[slot].desk):null});onProgress('avatar-ready:'+entry.file);
     }
     if(chairs)queue=createMeetingQueue([...records.values()].map(r=>r.motion));
-    return {group,get count(){return records.size;},get labels(){return labelCount;},get meetingAvailable(){return Boolean(queue);},get proceduralJoints(){return [...records.values()].reduce((sum,r)=>sum+r.animator.proceduralJointCount,0);},get seated(){return [...records.values()].filter(r=>r.motion?.phase==='seated').length;},get meetingSeated(){return [...records.values()].filter(r=>r.motion?.phase==='seated'&&r.motion.location.startsWith('meeting_')).length;},setMeeting(value){queue?.request(value);},setState(role,state){const r=records.get(role);if(!r)return false;if(r.motion){r.motion.setActivity(state);return true;}return r.animator.setState(state);},update(dt){queue?.update(dt);records.forEach(r=>{r.animator.update(dt);if(r.motion?.atDesk)r.reach?.();if(r.identityLabel){r.root.updateWorldMatrix(true,true);const identity=r.identityLabel;if(identity.head){identity.head.getWorldPosition(identity.position);identity.position.y+=identity.headOffsetY;}else{identity.position.copy(identity.anchor);r.root.localToWorld(identity.position);}identity.sprite.position.copy(identity.position);}});},dispose};
+    return {group,get count(){return records.size;},get labels(){return labelCount;},get meetingAvailable(){return Boolean(queue);},get proceduralJoints(){return [...records.values()].reduce((sum,r)=>sum+r.animator.proceduralJointCount,0);},get seated(){return [...records.values()].filter(r=>r.motion?.phase==='seated').length;},get meetingSeated(){return [...records.values()].filter(r=>r.motion?.phase==='seated'&&r.motion.location.startsWith('meeting_')).length;},setMeeting(value){queue?.request(value);},setState(role,state){const r=records.get(role);if(!r)return false;if(r.motion){r.motion.setActivity(state);return true;}return r.animator.setState(state);},update(dt){advanceMotionTime(dt,step=>{queue?.update(step);records.forEach(r=>r.animator.update(step));});records.forEach(r=>{if(r.motion?.atDesk)r.reach?.();if(r.identityLabel){r.root.updateWorldMatrix(true,true);const identity=r.identityLabel;if(identity.head){identity.head.getWorldPosition(identity.position);identity.position.y+=identity.headOffsetY;}else{identity.position.copy(identity.anchor);r.root.localToWorld(identity.position);}identity.sprite.position.copy(identity.position);}});},dispose};
   }catch(error){dispose();throw error;}
 }

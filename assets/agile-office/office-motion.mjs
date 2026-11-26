@@ -1,6 +1,14 @@
 // Authored floor coordinates are converted to Three.js X/Z. Chair geometry
 // remains independently movable; never translate a static environment batch.
 const PULL=.55, RISE=.38, WALK=.78, DESK_TUCK=.16, ACCEL=1.6, HEADING_TOLERANCE=.001;
+/** Advance elapsed visible-frame time in small, bounded motion steps.
+ * Discard excess time after a long suspension rather than teleporting the avatars.
+ */
+export function advanceMotionTime(seconds,step){
+  if(!Number.isFinite(seconds)||seconds<=0)return;
+  const elapsed=Math.min(seconds,3),steps=Math.ceil(elapsed/.1),dt=elapsed/steps;
+  for(let i=0;i<steps;i++)step(dt);
+}
 const clamp=n=>Math.max(0,Math.min(1,n));
 const ease=n=>{const q=clamp(n);return q*q*(3-2*q);};
 const point=(x,z)=>({x,z});

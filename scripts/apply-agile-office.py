@@ -24,7 +24,7 @@ with tempfile.TemporaryDirectory(prefix='agentoffice-model-') as tmp:
     target=app/'public'/'office'
     target.mkdir(parents=True,exist_ok=True)
     (target/'office.glb').write_bytes(raw)
-    for i in range(3):
+    for i in range(4):
         image=base64.b64decode((assets/f'view-{i}.webp.b64').read_text().strip(),validate=True)
         assert image.startswith(b'RIFF') and image[8:12]==b'WEBP'
         (target/f'view-{i}.webp').write_bytes(image)
@@ -57,17 +57,27 @@ new=old+'''
     assert.ok(await read('document.querySelector("#office-metrics").textContent.length > 0'));
     await read('document.querySelector("#office-graphics").value="performance"; document.querySelector("#office-graphics").dispatchEvent(new Event("change"))');
     await read('document.querySelector("#office-graphics").value="balanced"; document.querySelector("#office-graphics").dispatchEvent(new Event("change")); document.querySelector("#office-diagnostics-toggle").click()');
+    await read('document.querySelector("#office-overview").click()');
+    assert.equal(await read('document.querySelector("#office-title").textContent'),'Overview');
+    assert.equal(await read('document.querySelector("#office-meeting-demo").getAttribute("aria-pressed")'),'false');
+    await read('document.querySelector("#office-team").click()');
+    assert.equal(await read('document.querySelector("#office-title").textContent'),'Team View');
     await read('document.querySelector("#office-meeting").click()');
     assert.equal(await read('document.querySelector("#office-title").textContent'),'Meeting Room');
+    assert.equal(await read('document.querySelector("#office-meeting-demo").getAttribute("aria-pressed")'),'false');
     await read('document.querySelector("#office-workspace").click()');
-    assert.equal(await read('document.querySelector("#office-title").textContent'),'Agile Workspace');
+    assert.equal(await read('document.querySelector("#office-title").textContent'),'Desk View');
+    assert.equal(await read('document.querySelector("#office-meeting-demo").getAttribute("aria-pressed")'),'false');
     await read('document.querySelector("#office-tasks-toggle").click()');
     assert.equal(await read('document.querySelector("#office-tasks").hidden'),false);
     await read('document.querySelector("#office-task-title").value="QA smoke task"; document.querySelector("#office-task-form").requestSubmit()');
     assert.equal(await read('document.querySelector("#office-task-list").textContent.includes("QA smoke task")'),true);
     await read('document.querySelector("#office-demo-toggle").click()');
     assert.equal(await read('document.querySelector("#office-demo-toggle").getAttribute("aria-pressed")'),'true');
-    await read('document.querySelector("#office-demo-toggle").click();document.querySelector("#office-task-close").click()');
+    await read('document.querySelector("#office-demo-toggle").click()');
+    await read('document.querySelector("#office-meeting-demo").click()');
+    assert.equal(await read('document.querySelector("#office-meeting-demo").getAttribute("aria-pressed")'),'true');
+    await read('document.querySelector("#office-meeting-demo").click();document.querySelector("#office-task-close").click()');
 '''
 text=text.replace(old,new,1)
 assert text.count('.rail-person strong')==3

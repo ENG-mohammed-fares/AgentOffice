@@ -54,24 +54,6 @@ jobs:
           blender --background --factory-startup --python-use-system-env --python-exit-code 1 --python-expr "import sys, numpy, coverage; print('Blender Python:', sys.version, 'NumPy:', numpy.__version__, 'coverage:', coverage.__version__)"
           python scripts/ci_heartbeat.py blender
           test -s compressed/office-bake-coverage.xml
-      - name: Preserve genuine Full HD previews and review-only lighting candidates
-        uses: actions/upload-artifact@v6
-        with:
-          name: office-lighting-review-${{ github.sha }}
-          path: |
-            office-candidates/view-0.png
-            office-candidates/view-1.png
-            office-candidates/view-2.png
-            office-candidates/view-3.png
-            office-candidates/diffuse-report.json
-            office-candidates/combined-report.json
-            office-candidates/office-diffuse-lightmap.exr
-            office-candidates/office-combined-linear.exr
-            office-candidates/office-combined.png
-            office-candidates/office-baked.glb
-            office-candidates/material-selection.json
-          if-no-files-found: error
-          retention-days: 14
       - name: Preserve native Full HD office previews and review-only light-bake candidates
         if: always()
         uses: actions/upload-artifact@v6

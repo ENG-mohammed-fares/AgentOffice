@@ -293,12 +293,33 @@
       "assumptions": "The canonical office texture count remains 14; CI uses the established literal app/public/office.",
       "dependencies": "Existing generated GLB assets and Python unittest/coverage",
       "impact": "Asset validation and CI; no release or UI behavior change",
-      "status": "ready",
+      "status": "in progress",
       "implementation": [
         "assets/agile-office/verify-ktx2.py",
         ".github/workflows/ci.yml"
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_valid_fixture_and_fixed_location",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_missing_and_symlink_artifact",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_header_and_chunk_rejection",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_missing_extension_changed_geometry_and_bad_texture",
+          "level": "unit"
+        }
+      ],
       "evidence": []
     }
   ]

@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {rosterPlan,loadCharacterRoster,CLIPS,seatedClips} from '../src/office-characters.mjs';
+import {rosterPlan,loadCharacterRoster,CLIPS,seatedClips,identityForRole,mouseReach} from '../src/office-characters.mjs';
 const roster=Array.from({length:7},(_,i)=>({role:'Role '+i,file:'character-'+String.fromCharCode(97+i)+'.glb',station:i}));
 const stations=Array.from({length:7},(_,i)=>[i*3,2,0]);
 test('roster requires distinct roles, filenames and stations, with contained local asset paths',()=>{
@@ -58,4 +58,42 @@ test('seated clips preserve hip and leg tracks while using actual animated upper
  assert.equal(a.tracks.find(t=>t.name==='Hips.position').times[1],2);
  assert.equal(a.tracks.find(t=>t.name==='LeftHand.position').values[1],Math.fround(.88));
  assert.ok(b.tracks.some(t=>t.name==='RightHand.position'));assert.equal(sitting.tracks[0].times[1],1);
+});
+
+test('role identities use first names only and render bold names beside regular role titles',async()=>{
+ const expected=[['Product Owner','Luca'],['Frontend Developer','Sara'],['AI Engineer','Aiko'],['Backend Developer','Diego'],['QA Engineer','Arjun'],['DevOps Engineer','Kwame'],['Scrum Master','Freja']];
+ assert.deepEqual(expected.map(([role])=>identityForRole(role)?.firstName),expected.map(([,name])=>name));
+ assert.equal(identityForRole('Unknown'),null);
+ const f=fixture(),drawn=[];
+ const canvasFactory=()=>({
+  width:0,height:0,
+  getContext(){return {
+   font:'',measureText(value){return {width:value.length*18};},
+   clearRect(){},beginPath(){},roundRect(){},fill(){},stroke(){},
+   fillText(value){drawn.push({value,font:this.font});}
+  }}
+ });
+ const layer=await loadCharacterRoster({...base,read:f.read,loader:f.loader,canvasFactory});
+ assert.equal(layer.labels,7);assert.equal(layer.group.children.length,14);
+ for(const [role,name] of expected){
+  assert.ok(drawn.some(x=>x.value===name&&x.font.startsWith('700 ')),role+' first name must be bold');
+  assert.ok(drawn.some(x=>x.value===role&&x.font.startsWith('400 ')),role+' title must be regular');
+ }
+ layer.dispose();
+});
+test('both arms reach separate positions on the same mouse interaction surface',()=>{
+ const root=new THREE.Group();
+ function arm(side,shoulderX,foreX,handX){
+  const upper=new THREE.Bone();upper.name=side+'Arm';upper.position.set(shoulderX,1.3,0);root.add(upper);
+  const fore=new THREE.Bone();fore.name=side+'ForeArm';fore.position.set(foreX,-.25,0);upper.add(fore);
+  const hand=new THREE.Bone();hand.name=side+'Hand';hand.position.set(handX,-.2,0);fore.add(hand);
+  return hand;
+ }
+ const left=arm('Left',-.25,.25,.2),right=arm('Right',.57,-.25,-.2);
+ root.updateWorldMatrix(true,true);
+ const reach=mouseReach(root,{mouse:{x:.16,z:0}});
+ reach();
+ const leftTarget=new THREE.Vector3(.07,.885,0),rightTarget=new THREE.Vector3(.25,.885,0);
+ assert.ok(left.getWorldPosition(new THREE.Vector3()).distanceTo(leftTarget)<.2);
+ assert.ok(right.getWorldPosition(new THREE.Vector3()).distanceTo(rightTarget)<.2);
 });

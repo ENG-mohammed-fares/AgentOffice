@@ -82,7 +82,7 @@ def setup_scene(source, layout, samples):
     background.inputs["Color"].default_value = (.30, .30, .30, 1)
     background.inputs["Strength"].default_value = .30
     bpy.ops.import_scene.gltf(filepath=str(source))
-    if len(layout["lights"]) != 29 or len(layout["cameras"]) != 3:
+    if len(layout["lights"]) != 29 or len(layout["cameras"]) != 4:
         raise ValueError("Unexpected office layout")
     for index, item in enumerate(layout["lights"]):
         area_light(scene, item, index)

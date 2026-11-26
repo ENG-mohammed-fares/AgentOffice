@@ -183,7 +183,7 @@
       "source": "Owner-approved 1.6.18 addition, 2026-11-26: remove the intro between successful sign-in and workspace entry; blur the office and show a circular loader only while the office is genuinely initializing.",
       "owner": "Product owner / maintainer",
       "decision": "accepted",
-      "acceptance": "After sign-in, transition directly to the office. If required scene assets, characters, materials, renderer and first usable frame are not ready, show a blurred-office overlay with a circular indeterminate loader and truthful status. Remove it immediately when ready; no fixed-duration intro, fake percentage, artificial delay or arbitrary 80% pause. If already ready, do not show it.",
+      "acceptance": "After sign-in, transition directly to the office. If required scene assets, characters, materials, renderer and first usable frame are not ready, show a blurred-office overlay with a circular indeterminate loader and truthful status. Remove it immediately when ready; no fixed-duration intro, fake percentage, artificial delay or arbitrary 80% pause. If the workspace is already ready before the overlay is displayed, skip the overlay.",
       "implementation": [
         "assets/agile-office/main.js",
         "assets/agile-office/agile-renderer.js"
@@ -605,7 +605,7 @@
         {
           "id": "AC-04",
           "given": "Loading fails, is cancelled, or the renderer cannot initialize",
-          "when": "The readiness contract rejects",
+          "when": "The readiness contract reports failure or cancellation",
           "then": "A recoverable error or usable fallback is shown; the user is never left in an infinite loading state"
         },
         {

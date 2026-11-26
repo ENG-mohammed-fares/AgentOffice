@@ -353,7 +353,8 @@
       "acceptance": "Both hands must reach the workstation mouse interaction surface using the actual shoulder, elbow, forearm and wrist joints. Adjust the interaction prop only as needed to support the two-hand pose. No hand may penetrate the desk, float, stretch a limb, or intersect the keyboard/mouse geometry. Preserve character proportions and desk height.",
       "implementation": [
         "assets/agile-office/build_scene.py",
-        "assets/agile-office/office-characters.mjs"
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/office-motion.mjs"
       ],
       "tests": [
         {
@@ -1046,7 +1047,8 @@
       "status": "in progress",
       "implementation": [
         "assets/agile-office/build_scene.py",
-        "assets/agile-office/office-characters.mjs"
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/office-motion.mjs"
       ],
       "tests": [
         {

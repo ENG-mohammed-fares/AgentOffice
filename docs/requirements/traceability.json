@@ -1449,6 +1449,68 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-REL-002",
+      "source": "Owner: تابع العمل ونزل الاصدار — 2026-11-26; staged after the integrated 1.6.18 candidate and its blocking gates.",
+      "story": "As the product owner, I want the exact validated AgentOffice 1.6.18 candidate published through the existing automatic update channel, so that users receive the new office experience without bypassing quality or security checks.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "PR #37, its security scan and SonarCloud Quality Gate pass on one exact revision",
+          "when": "That revision is integrated into the protected development branch",
+          "then": "The development branch repeats CI, security and SonarCloud successfully before any version publication change is accepted"
+        },
+        {
+          "id": "AC-02",
+          "given": "Development is green and the current stable release is 1.6.17",
+          "when": "The release candidate version is changed",
+          "then": "Only release-version.txt advances to 1.6.18 and deterministic preparation propagates the version to the generated application"
+        },
+        {
+          "id": "AC-03",
+          "given": "The exact 1.6.18 development commit produces a verified Windows candidate",
+          "when": "The protected release workflow validates commit, run ID, version, lockfile and hashes",
+          "then": "It publishes exactly the installer, blockmap and latest.yml through the existing public update channel"
+        },
+        {
+          "id": "AC-04",
+          "given": "Any PR, development, security, SonarCloud, candidate provenance or publication check fails",
+          "when": "Release eligibility is evaluated",
+          "then": "No 1.6.18 tag or release is published and 1.6.17 remains the stable version"
+        }
+      ],
+      "scope": "Prepare the isolated 1.6.18 version-bump change and use the existing fail-closed development release workflow after the integrated candidate is green.",
+      "constraints": "No manual tag, no direct main push, no disabled gate, no fabricated benchmark claim, no mandatory code signing reintroduced, and no publication before post-merge development verification.",
+      "assumptions": "The current public stable tag is v1.6.17 and the repository's existing automatic update workflow remains the approved publication path.",
+      "dependencies": "PR #37 exact-head CI/security/Sonar success, protected development merge, post-merge development success and verified candidate artifacts.",
+      "impact": "Version metadata and public Windows update publication only; application behavior is inherited unchanged from the validated candidate.",
+      "status": "in progress",
+      "implementation": [
+        "release-version.txt"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_release_validation.py",
+          "id": "test_valid_candidate",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "retries stale public metadata without recreating or republishing the release",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "rejects an invalid draft without publishing it",
+          "level": "integration"
+        }
+      ],
+      "evidence": []
     }
   ]
 }

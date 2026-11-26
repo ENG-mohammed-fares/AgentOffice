@@ -25,8 +25,12 @@ three joints for each of five fingers on each hand. The Typing source clip chang
 The common 13 non-varying joints are both toe bases, Neck, both shoulders, both
 hands/wrists and all six thumb joints. Frontend additionally has non-varying eye
 joints. Runtime IK can rotate shoulders/wrists, so these are source-clip gaps rather
-than proof they are immobile in the live application. Missing thumb/neck/toe animation
-must be addressed per relevant action, without forcing every joint to move together.
+than proof they are immobile in the live application. The 1.6.18 candidate now maps every
+non-varying joint in all seven rigs to a deterministic secondary-motion category (neck,
+shoulder, wrist, thumb, toe base; eyes where present). The Python audit checks that every
+static name is covered by the same category patterns used in Three.js, and the runtime unit
+test verifies those joints receive actual quaternion updates. This is not a substitute for
+rendered review of joint limits, deformation, hand contact, foot sliding or natural motion.
 
 Source clips already articulate many fingers; replacing them with rigid translation
 would regress existing behavior. Retain original GLBs, inspect IK overrides, then tune

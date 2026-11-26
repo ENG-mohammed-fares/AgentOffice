@@ -3,6 +3,42 @@ export const AGENT_STATES=Object.freeze(['idle','walking','working','thinking','
 const loops=new Set(['idle','walking','working','thinking','reviewing','meeting','talking','sitting','seatedTyping','seatedMeeting']);
 const stateClips=Object.freeze({idle:'Idle',walking:'Walk',working:'Typing',thinking:'Thinking',reviewing:'Review',meeting:'Meeting',talking:'Talk',error:'Error',completed:'Celebrate',sitting:'Sitting',seatedTyping:'SeatedTyping',seatedMeeting:'SeatedMeeting'});
 /**
+ * Adds subtle, deterministic secondary motion to joints found static by the 1.6.18 rig audit.
+ * Source clips remain authoritative for keyed joints; this only addresses neck, shoulders,
+ * wrists, thumbs, toe bases and eye joints with small local rotations after mixer evaluation.
+ */
+function createProceduralJointMotion(root){
+  const entries=[];
+  if(typeof root?.traverse!=='function')return {count:0,update(){}};
+  const rules=[[/thumb/i,'thumb'],[/toe.?base/i,'toe'],[/neck/i,'neck'],[/shoulder/i,'shoulder'],[/(hand|wrist)/i,'wrist'],[/eye/i,'eye']];
+  root.traverse(bone=>{
+    if(!bone.isBone)return;
+    const match=rules.find(([pattern])=>pattern.test(bone.name||''));
+    if(!match)return;
+    const phase=[...(bone.name||'')].reduce((sum,char)=>sum+char.charCodeAt(0),0)*.071;
+    entries.push({bone,base:bone.quaternion.clone(),kind:match[1],phase});
+  });
+  let elapsed=0;
+  return {count:entries.length,update(dt,state){
+    elapsed+=dt;
+    const activity=state==='walking'?1.35:state==='thinking'?.8:state==='talking'?1.15:1;
+    for(const item of entries){
+      const wave=Math.sin(elapsed*(item.kind==='thumb'?3.1:1.15)+item.phase);
+      const fine=Math.sin(elapsed*2.05+item.phase*.7);
+      let x=0,y=0,z=0;
+      switch(item.kind){
+        case 'neck':x=.012*wave*activity;y=.016*fine*activity;z=.008*wave;break;
+        case 'shoulder':x=.012*wave*activity;y=.006*fine;z=.014*fine*activity;break;
+        case 'wrist':x=.018*wave*activity;y=.008*fine;z=.014*fine*activity;break;
+        case 'thumb':x=(.045+.018*wave)*activity;z=.012*fine;break;
+        case 'toe':x=.012*wave*activity;break;
+        case 'eye':y=.006*wave;break;
+      }
+      item.bone.quaternion.copy(item.base).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x,y,z,'XYZ')));
+    }
+  }};
+}
+/**
  * Creates a skeletal animation state controller using the supplied mixer.
  * @param {object} options - Root, clips, mixer, loop constants, fade seconds and forbidden root tracks.
  * @returns {object} State, supported states, update and idempotent disposal interface.
@@ -20,6 +56,7 @@ export function createAgentAnimator({root,clips,mixer,loopRepeat,loopOnce,fade=.
   }
   if(!byName.has('Idle'))throw Error('Missing required Idle clip');
   const actions=new Map();
+  const jointMotion=createProceduralJointMotion(root);
   let current=null,state='idle',disposed=false;
   function switchTo(next){
     if(disposed||!AGENT_STATES.includes(next))return false;
@@ -46,9 +83,10 @@ export function createAgentAnimator({root,clips,mixer,loopRepeat,loopOnce,fade=.
   switchTo('idle');
   return {
     get state(){return state;},
+    get proceduralJointCount(){return jointMotion.count;},
     supports(next){return AGENT_STATES.includes(next)&&byName.has(stateClips[next]);},
     setState:switchTo,
-    update(seconds){if(!disposed&&Number.isFinite(seconds)&&seconds>0)mixer.update(Math.min(seconds,.1));},
+    update(seconds){if(!disposed&&Number.isFinite(seconds)&&seconds>0){const dt=Math.min(seconds,.1);mixer.update(dt);jointMotion.update(dt,state);}},
     dispose(){if(disposed)return;disposed=true;mixer.removeEventListener('finished',finished);mixer.stopAllAction();mixer.uncacheRoot(root);actions.clear();}
   };
 }

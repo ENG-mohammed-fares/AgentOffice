@@ -86,7 +86,7 @@ function mountWorkspace(user){
     renderer=view;for(const [role,state] of activity)renderer.setAgentState(role,state);renderer.setGraphicsPreset(graphics.value);stage.dataset.renderMode='live';
     const readiness=await view.ready;
     if(disposed){view.dispose();return;}
-    if(readiness?.ok){controls.setAvailable(readiness.characters===7);poster.hidden=true;poster.setAttribute('aria-hidden','true');if(!diagnostics.hidden)refreshMetrics();status.textContent='Live 3D • drag to look around';finishLoading();}
+    if(readiness?.ok){controls.setAvailable(readiness.meetingAvailable===true);poster.hidden=true;poster.setAttribute('aria-hidden','true');if(!diagnostics.hidden)refreshMetrics();status.textContent='Live 3D • drag to look around';finishLoading();}
     else if(stage.dataset.renderMode!=='poster'){controls.setAvailable(false);status.textContent='Office ready • character preview unavailable';showLoadingError('The office is available, but one or more character assets could not be initialized. You can continue without the characters.','Continue without characters','Office ready without character models.');}
   }).catch(()=>{if(!disposed)fallback();});
   return Promise.resolve();

@@ -83,6 +83,16 @@ window.benchmarkResult=(async()=>{
       window.previewView=async index=>{
         const before=count();view.go(index,true);if(characterReview)await waitFrame(before);else await quiet(before);return view.metrics();
       };
+      window.requestMeetingDemo=value=>{if(!view.metrics().meetingAvailable)throw Error('Movable-chair meeting simulation is unavailable');view.setMeeting(Boolean(value));return view.metrics();};
+      window.waitForMeetingDemo=async value=>{
+        const expected=Boolean(value),deadline=performance.now()+180000;
+        while(performance.now()<deadline){
+          const metrics=view.metrics();
+          if(expected?metrics.meetingSeated===7&&metrics.seated===7:metrics.meetingSeated===0&&metrics.seated===7)return metrics;
+          await sleep(100);
+        }
+        throw Error(expected?'Seven agents did not reach their meeting chairs':'Seven agents did not return to their desks');
+      };
       keepView=true;
       return {ok:true,firstFrameMs,textureFormat:host.dataset.textureFormat,initial,contextLost};
     }
@@ -152,7 +162,7 @@ async function run(){
       assert.equal(result.contextLost,false);
     }
     const destination=path.resolve(previewDir);
-    const views=[];
+    const views=[];let meetingReview=null,returnReview=null;
     fs.mkdirSync(destination,{recursive:true});
     for(const index of [0,1,2,3]){
       lastStage='capture-view-'+index;
@@ -166,8 +176,31 @@ async function run(){
       fs.writeFileSync(path.join(destination,'view-'+index+'.png'),shot.toPNG(),{flag:'wx'});
       views.push({index,width,height,...metrics});
     }
+    if(characterReview&&seatedReview){
+      await win.webContents.executeJavaScript('window.requestMeetingDemo(true)');
+      await new Promise(resolve=>setTimeout(resolve,1500));
+      await win.webContents.executeJavaScript('window.previewView(3)');
+      const movingShot=await win.webContents.capturePage();
+      const movingSize=movingShot.getSize();assert.ok(movingSize.width>=1920&&movingSize.height>=1080,'Meeting transition capture is below Full HD');
+      fs.writeFileSync(path.join(destination,'meeting-transition.png'),movingShot.toPNG(),{flag:'wx'});
+      meetingReview=await win.webContents.executeJavaScript('window.waitForMeetingDemo(true)');
+      assert.equal(meetingReview.meetingSeated,7);assert.equal(meetingReview.seated,7);
+      await win.webContents.executeJavaScript('window.previewView(3)');
+      const seatedShot=await win.webContents.capturePage();
+      fs.writeFileSync(path.join(destination,'meeting-room-seated.png'),seatedShot.toPNG(),{flag:'wx'});
+      await win.webContents.executeJavaScript('window.requestMeetingDemo(false)');
+      await new Promise(resolve=>setTimeout(resolve,1500));
+      await win.webContents.executeJavaScript('window.previewView(0)');
+      const returnShot=await win.webContents.capturePage();
+      fs.writeFileSync(path.join(destination,'meeting-return-transition.png'),returnShot.toPNG(),{flag:'wx'});
+      returnReview=await win.webContents.executeJavaScript('window.waitForMeetingDemo(false)');
+      assert.equal(returnReview.meetingSeated,0);assert.equal(returnReview.seated,7);
+      await win.webContents.executeJavaScript('window.previewView(0)');
+      const desksShot=await win.webContents.capturePage();
+      fs.writeFileSync(path.join(destination,'agents-returned-to-desks.png'),desksShot.toPNG(),{flag:'wx'});
+    }
     if(characterReview){
-      fs.writeFileSync(path.join(destination,'review.json'),JSON.stringify({schemaVersion:1,ciReview,gpuFeatures:app.getGPUFeatureStatus(),gpuInfo:await app.getGPUInfo('basic').catch(()=>null),...result,views},null,2)+'\n');
+      fs.writeFileSync(path.join(destination,'review.json'),JSON.stringify({schemaVersion:1,ciReview,gpuFeatures:app.getGPUFeatureStatus(),gpuInfo:await app.getGPUInfo('basic').catch(()=>null),...result,views,meetingReview,returnReview},null,2)+'\n');
       console.log('Actual character review captures:',destination);
     }else console.log('Native Full HD office previews:',destination);
     return;

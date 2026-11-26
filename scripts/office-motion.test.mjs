@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {seatingPlan,standingPoint,meetingRoute,createSeatedMotion,createMeetingQueue} from '../src/office-motion.mjs';
+import {seatingPlan,mouseSurfaceTargets,standingPoint,meetingRoute,createSeatedMotion,createMeetingQueue} from '../src/office-motion.mjs';
 const stations=[[-5.95,2.9,0],[-3,2.9,0],[-.05,2.9,0],[-5.95,-.15,0],[-2.35,-.15,0],[.65,-.15,0],[-3.7,-3.22,0]];
 function fixture(i=0){
  const plan=seatingPlan(stations)[i],position={},rotation={},chairs=new Map(),poses=[];
@@ -36,4 +36,26 @@ test('destination chair is pulled gradually before stepping into the seat space'
  m.update(.05);const first=f.chairs.get('meeting_0').x;assert.ok(first<initial&&first>-.55);
  for(let i=0;i<20&&m.phase==='prepare-chair';i++)m.update(.05);
  assert.equal(m.phase,'approach-seat');assert.ok(Math.abs(f.chairs.get('meeting_0').x+.55)<1e-8);
+});
+
+test('both workstation hand targets are on the existing mouse interaction surface',()=>{
+ const plan=seatingPlan(stations);
+ for(const {desk} of plan){
+  const targets=mouseSurfaceTargets(desk.mouse);
+  assert.equal(targets.length,2);
+  assert.ok(Math.abs(targets[0].z-desk.mouse.z)<1e-9);
+  assert.ok(Math.abs(targets[1].z-desk.mouse.z)<1e-9);
+  assert.ok(Math.abs((targets[1].x-targets[0].x)-.18)<1e-9);
+  assert.ok(targets[0].x<desk.mouse.x&&targets[1].x>desk.mouse.x);
+  assert.ok(targets.every(p=>Math.abs(p.x-desk.mouse.x)<=.09+1e-9));
+ }
+ assert.throws(()=>mouseSurfaceTargets(null),/Invalid mouse surface/);
+ assert.throws(()=>mouseSurfaceTargets({x:0,z:0},0),/Invalid mouse surface/);
+});
+test('keyboard and mouse surface targets follow the authored station heading',()=>{
+ const rotated=seatingPlan([[2,3,Math.PI/2]])[0].desk;
+ assert.ok(Math.abs(rotated.mouse.x-2.2)<1e-9);
+ assert.ok(Math.abs(rotated.mouse.z+3.16)<1e-9);
+ assert.ok(Math.abs(rotated.keyboard.x-2.19)<1e-9);
+ assert.ok(Math.abs(rotated.keyboard.z+2.81)<1e-9);
 });

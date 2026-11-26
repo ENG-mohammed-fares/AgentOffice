@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {seatingPlan,mouseSurfaceTargets,standingPoint,meetingRoute,createSeatedMotion,createMeetingQueue} from '../src/office-motion.mjs';
+import {seatingPlan,mouseSurfaceTargets,standingPoint,meetingRoute,createSeatedMotion,createMeetingQueue,advanceWalk} from '../src/office-motion.mjs';
 const stations=[[-5.95,2.9,0],[-3,2.9,0],[-.05,2.9,0],[-5.95,-.15,0],[-2.35,-.15,0],[.65,-.15,0],[-3.7,-3.22,0]];
 function fixture(i=0){
  const plan=seatingPlan(stations)[i],position={},rotation={},chairs=new Map(),poses=[];
@@ -68,4 +68,52 @@ test('keyboard and mouse surface targets follow the authored station heading',()
  assert.ok(Math.abs(rotated.mouse.z+3.16)<1e-9);
  assert.ok(Math.abs(rotated.keyboard.x-2.19)<1e-9);
  assert.ok(Math.abs(rotated.keyboard.z+2.81)<1e-9);
+});
+
+test('waypoint travel turns in place then accelerates and stops without overshoot',()=>{
+ const start={x:0,z:0},target={x:1,z:0},dt=.05;
+ let state={position:start,yaw:-Math.PI/2,speed:0};
+ for(let i=0;i<100&&!state.walking;i++){
+  state=advanceWalk(state.position,state.yaw,target,state.speed,dt);
+  if(!state.walking)assert.deepEqual(state.position,start);
+ }
+ assert.equal(state.walking,true);assert.ok(state.speed>0&&state.speed<=1.6*dt+1e-9);
+ let peak=state.speed,braked=false;
+ for(let i=0;i<200&&!state.arrived;i++){
+  const before=state;state=advanceWalk(state.position,state.yaw,target,state.speed,dt);
+  assert.ok(state.position.x>=before.position.x&&state.position.x<=1);
+  assert.ok(state.speed<=.78+1e-9);assert.ok(state.speed-before.speed<=1.6*dt+1e-9);
+  assert.equal(state.position.z,0);peak=Math.max(peak,state.speed);
+  if(!state.arrived&&state.speed<before.speed)braked=true;
+ }
+ assert.ok(peak>.5);assert.ok(braked);assert.equal(state.arrived,true);
+ assert.deepEqual(state.position,target);assert.equal(state.speed,0);
+});
+test('rear desk route clears the planter proxy in both travel directions',()=>{
+ const plan=seatingPlan(stations)[6],route=[standingPoint(plan.desk),...meetingRoute(plan.desk,plan.meeting)];
+ const obstacle={x:2.25,z:4.58},radius=.27+.22;
+ for(let i=1;i<route.length;i++){
+  const a=route[i-1],b=route[i],dx=b.x-a.x,dz=b.z-a.z;
+  const length=dx*dx+dz*dz;
+  const f=length?Math.max(0,Math.min(1,((obstacle.x-a.x)*dx+(obstacle.z-a.z)*dz)/length)):0;
+  assert.ok(Math.hypot(a.x+f*dx-obstacle.x,a.z+f*dz-obstacle.z)>=radius,
+    'segment '+i+' must clear the planter and estimated avatar radius');
+ }
+ const reverse=route.slice(0,-1).reverse();
+ for(let i=1;i<reverse.length;i++){
+  const a=reverse[i-1],b=reverse[i],dx=b.x-a.x,dz=b.z-a.z;
+  const length=dx*dx+dz*dz;
+  const f=length?Math.max(0,Math.min(1,((obstacle.x-a.x)*dx+(obstacle.z-a.z)*dz)/length)):0;
+  assert.ok(Math.hypot(a.x+f*dx-obstacle.x,a.z+f*dz-obstacle.z)>=radius,'return segment must clear the planter');
+ }
+});
+test('meeting reversal while walking returns all avatars without seat sharing',()=>{
+ const records=stations.map((_,i)=>fixture(i).motion),q=createMeetingQueue(records);
+ q.request(true);advance(q,120);q.request(false);
+ for(let i=0;i<12000;i++){
+  q.update(.05);
+  const seated=records.filter(r=>r.phase==='seated').map(r=>r.location);
+  assert.equal(new Set(seated).size,seated.length);
+ }
+ assert.ok(records.every(r=>r.phase==='seated'&&r.location.startsWith('desk_')));
 });

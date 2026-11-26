@@ -81,6 +81,8 @@ test('role identities use first names only and render bold names beside regular 
  assert.ok(root&&label,'each character has a role identity sprite');
  const before=label.position.clone();root.position.x+=1;layer.update(.05);
  assert.ok(Math.abs(label.position.x-before.x-1)<1e-6,'identity sprite follows its avatar root');
+ const head=root.getObjectByName('Head')||root.getObjectByName('head');
+ if(head){const headBefore=label.position.y;head.position.y+=.1;layer.update(.05);assert.ok(label.position.y>headBefore+.05,'identity sprite follows head animation while standing or walking');}
  assert.ok(drawn.some(x=>x.value==='  ·  '&&x.font.startsWith('400 ')),'separator must be a regular-weight middle dot');
  for(const [role,name] of expected){
   assert.ok(drawn.some(x=>x.value===name&&x.font.startsWith('700 ')),role+' first name must be bold');

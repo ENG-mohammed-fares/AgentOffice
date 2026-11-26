@@ -32,12 +32,14 @@ test('all agents prepare and stand concurrently while only one doorway crossing 
  for(let i=40;i<9000;i++){
   q.update(.05);
   assert.ok(records.filter(r=>r.corridorReserved).length<=1,'only one agent may reserve the doorway at a time');
+  for(const lane of ['left','right'])assert.ok(records.filter(r=>r.laneKey===lane&&r.laneReserved).length<=1,'agents may not overlap within a shared meeting aisle');
  }
  assert.ok(records.every(r=>r.location.startsWith('meeting_')&&r.phase==='seated'));
  q.request(false);
  for(let i=0;i<9000;i++){
   q.update(.05);
   assert.ok(records.filter(r=>r.corridorReserved).length<=1,'return travel must also reserve the doorway');
+  for(const lane of ['left','right'])assert.ok(records.filter(r=>r.laneKey===lane&&r.laneReserved).length<=1,'returning agents may not overlap within a shared aisle');
  }
  assert.ok(records.every(r=>r.location.startsWith('desk_')&&r.phase==='seated'));
 });

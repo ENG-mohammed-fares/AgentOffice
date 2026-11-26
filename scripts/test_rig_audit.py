@@ -4,7 +4,7 @@ import struct
 import unittest
 from pathlib import Path
 
-from audit_character_rigs import audit, read_accessor, varying
+from audit_character_rigs import audit, read_accessor, varying, procedural_joint_coverage
 
 
 class RigAuditTests(unittest.TestCase):
@@ -22,6 +22,12 @@ class RigAuditTests(unittest.TestCase):
                 self.assertEqual(len(report['finger_joints']), 30)
                 self.assertTrue(report['skinned_primitives'])
                 self.assertEqual(report['unweighted_joint_indices'], [])
+                self.assertEqual(report['uncovered_procedural_joints'], [])
+                self.assertTrue(report['procedural_joint_coverage']['thumb'])
+                self.assertTrue(report['procedural_joint_coverage']['toe'])
+                self.assertTrue(report['procedural_joint_coverage']['neck'])
+                self.assertTrue(report['procedural_joint_coverage']['shoulder'])
+                self.assertTrue(report['procedural_joint_coverage']['wrist'])
 
     def test_strided_accessor_and_bounds(self):
         model = dict(accessors=[dict(bufferView=0, componentType=5126, type='VEC3', count=2)],

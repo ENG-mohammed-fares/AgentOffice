@@ -293,12 +293,18 @@
       "assumptions": "Existing queue supports Boolean meeting requests; visual physical contact is separately unverified.",
       "dependencies": "Existing task panel and renderer setMeeting interface",
       "impact": "Workspace UI and demo state only",
-      "status": "ready",
+      "status": "in progress",
       "implementation": [
         "assets/agile-office/main.js",
         "assets/agile-office/office-task-panel.mjs"
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "assets/agile-office/office-task-panel.test.mjs",
+          "id": "camera navigation never starts a meeting; explicit demo requests and teardown are independent",
+          "level": "unit"
+        }
+      ],
       "evidence": []
     }
   ]

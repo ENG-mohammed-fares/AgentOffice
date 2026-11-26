@@ -34,3 +34,39 @@ export function mountTaskPanel(stage,user,{roles,getStorage=()=>globalThis.local
   render();
   return()=>{demo.dispose();off();toggle.onclick=null;$('office-task-close').onclick=null;form.onsubmit=null;demoButton.onclick=null;list.replaceChildren()};
 }
+
+/**
+ * Binds independent camera navigation and explicitly simulated meeting controls.
+ * The meeting request is session-only; unavailable renderers and disposal reset it.
+ * @param {object} stage - Workspace element containing the three controls and status.
+ * @param {object} callbacks - onView(index) navigates; onMeeting(boolean) requests demo motion.
+ * @returns {object} Availability and lifecycle methods for the mounted workspace.
+ */
+export function mountOfficeControls(stage,{onView,onMeeting}){
+  const el=id=>stage.querySelector('#'+id);
+  const workspace=el('office-workspace'),meeting=el('office-meeting');
+  const demo=el('office-meeting-demo'),status=el('office-meeting-demo-status');
+  let available=false,active=false,disposed=false;
+  function renderMeeting(){
+    demo.disabled=!available||disposed;
+    demo.setAttribute('aria-pressed',String(active));
+    demo.textContent=active?'End meeting demo':'Start meeting demo';
+    status.textContent=!available?'Live 3D required. No real meeting is connected.':
+      active?'Meeting demo requested. No real meeting is connected.':'Meeting demo idle. No real meeting is connected.';
+  }
+  function reset(){
+    if(active){active=false;onMeeting(false);}
+    renderMeeting();
+  }
+  workspace.onclick=()=>{if(!disposed)onView(0);};
+  meeting.onclick=()=>{if(!disposed)onView(2);};
+  demo.onclick=()=>{
+    if(!available||disposed)return;
+    active=!active;onMeeting(active);renderMeeting();
+  };
+  renderMeeting();
+  return {
+    setAvailable(value){if(disposed)return;available=Boolean(value);if(!available)reset();else renderMeeting();},
+    dispose(){if(disposed)return;disposed=true;available=false;reset();workspace.onclick=null;meeting.onclick=null;demo.onclick=null;}
+  };
+}

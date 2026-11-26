@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mountTaskPanel} from '../src/office-task-panel.mjs';
+import {mountTaskPanel,mountOfficeControls} from '../src/office-task-panel.mjs';
 
 // Minimal DOM contract fixture; Electron smoke remains the real browser check.
 class Element {
@@ -48,4 +48,27 @@ test('storage denial is visible, task status remains usable, guest does not pers
   assert.match(el('task-feedback').textContent,/Could not save/);f.dispose();
   const guest=fixture({user:{guest:true,id:'ignored'}});
   guest.el('task-title').value='Guest';guest.submit();assert.equal(guest.db.size,0);guest.dispose();
+});
+
+test('camera navigation never starts a meeting; explicit demo requests and teardown are independent',()=>{
+  const ids=['office-workspace','office-meeting','office-meeting-demo','office-meeting-demo-status'];
+  const nodes=Object.fromEntries(ids.map(id=>[id,new Element(id)]));
+  const views=[],requests=[];
+  const c=mountOfficeControls({querySelector:key=>nodes[key.slice(1)]},
+    {onView:index=>views.push(index),onMeeting:value=>requests.push(value)});
+  const demo=nodes['office-meeting-demo'],camera=nodes['office-meeting'],work=nodes['office-workspace'];
+  assert.equal(demo.disabled,true);demo.onclick();camera.onclick();work.onclick();
+  assert.deepEqual(views,[2,0]);assert.deepEqual(requests,[]);
+  c.setAvailable(true);assert.equal(demo.disabled,false);
+  demo.onclick();assert.equal(demo.attributes['aria-pressed'],'true');
+  assert.equal(demo.textContent,'End meeting demo');camera.onclick();work.onclick();
+  assert.deepEqual(requests,[true]);
+  demo.onclick();assert.equal(demo.attributes['aria-pressed'],'false');
+  assert.deepEqual(requests,[true,false]);
+  demo.onclick();c.setAvailable(false);assert.deepEqual(requests,[true,false,true,false]);
+  assert.equal(demo.disabled,true);demo.onclick();assert.equal(requests.length,4);
+  c.setAvailable(true);demo.onclick();const oldClick=demo.onclick;c.dispose();oldClick();
+  assert.deepEqual(requests,[true,false,true,false,true,false]);
+  assert.equal(demo.onclick,null);assert.equal(camera.onclick,null);assert.equal(work.onclick,null);
+  c.dispose();c.setAvailable(true);assert.equal(demo.disabled,true);
 });

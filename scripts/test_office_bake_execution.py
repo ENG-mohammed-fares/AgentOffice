@@ -43,7 +43,7 @@ def run_bake_coverage():
             if any(name.lower().startswith("chair_") for name in report["baked_nodes"]):
                 raise RuntimeError("A movable chair was baked as static geometry")
             if not combined:
-                for index in range(3):
+                for index in range(4):
                     if not (output / f"view-{index}.png").is_file():
                         raise RuntimeError("Missing actual Full HD preview")
     finally:

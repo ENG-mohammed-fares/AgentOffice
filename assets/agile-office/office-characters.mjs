@@ -114,12 +114,13 @@ function createIdentitySprite(role,root,group,canvasFactory){
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
   texture.generateMipmaps=true;texture.minFilter=THREE.LinearMipmapLinearFilter;texture.magFilter=THREE.LinearFilter;
   const material=new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false,toneMapped:false});
-  const sprite=new THREE.Sprite(material);sprite.name='Identity '+identity.firstName+' | '+identity.role;
+  const sprite=new THREE.Sprite(material);sprite.name='Identity '+identity.firstName+' · '+identity.role;
   root.updateWorldMatrix(true,true);
   const bounds=new THREE.Box3().setFromObject(root,true),center=new THREE.Vector3();bounds.getCenter(center);
-  sprite.position.set(center.x,bounds.max.y+.18,center.z);
-  sprite.scale.set(canvas.width*.00245,canvas.height*.00245,1);sprite.renderOrder=3;group.add(sprite);
-  return sprite;
+  const worldAnchor=new THREE.Vector3(center.x,bounds.max.y+.18,center.z);
+  const localAnchor=root.worldToLocal(worldAnchor.clone());
+  sprite.position.copy(worldAnchor);sprite.scale.set(canvas.width*.00245,canvas.height*.00245,1);sprite.renderOrder=3;group.add(sprite);
+  return {sprite,anchor:localAnchor};
 }
 const filePattern=/^[a-z-]+\.glb$/;
 /**
@@ -138,7 +139,7 @@ export function rosterPlan(roster,stations){
     if(!Array.isArray(stations[station])||stations[station].length!==3)throw Error('Invalid character station');
     const [x,y,a]=stations[station];
     if(![x,y,a].every(Number.isFinite))throw Error('Invalid character station');
-    // Preview stands behind the chair, rather than claiming validated seating/IK.
+    // This fallback preview transform is replaced by the seated motion controller when movable chairs are available.
     const offset=1.60;
     return {role,file,x:x+Math.sin(a)*offset,z:-y+Math.cos(a)*offset,yaw:Math.PI-a};
   });
@@ -197,15 +198,16 @@ export async function loadCharacterRoster({roster,stations,officeURL,isCancelled
       if(!Number.isFinite(height)||height<.1||height>10)throw Error('Invalid character dimensions');
       const scale=1.66/height;root.scale.multiplyScalar(scale);
       root.position.set(entry.x,-bounds.min.y*scale,entry.z);root.rotation.y=entry.yaw;root.name=entry.role;
-      if(createIdentitySprite(entry.role,root,group,canvasFactory))labelCount++;
+      const identityLabel=createIdentitySprite(entry.role,root,group,canvasFactory);
+      if(identityLabel)labelCount++;
       const animator=createAgentAnimator({root,clips:[...clips,...seatedClips(clips)],mixer:new THREE.AnimationMixer(root),loopRepeat:THREE.LoopRepeat,loopOnce:THREE.LoopOnce,fade:.65});
       const slot=roster.find(r=>r.role===entry.role).station;
       const motion=chairs?createSeatedMotion({plan:seats[slot],position:root.position,rotation:root.rotation,groundY:root.position.y,setPose:state=>animator.setState(state),setChair:(id,offset)=>chairs.get(id)?.position.set(offset.x,0,offset.z)}):null;
       // Evaluate the initial seated pose before attaching to the rendered scene.
       if(motion)animator.update(.1);
-      records.set(entry.role,{animator,motion,reach:motion?mouseReach(root,seats[slot].desk):null});onProgress('avatar-ready:'+entry.file);
+      records.set(entry.role,{root,identityLabel,animator,motion,reach:motion?mouseReach(root,seats[slot].desk):null});onProgress('avatar-ready:'+entry.file);
     }
     if(chairs)queue=createMeetingQueue([...records.values()].map(r=>r.motion));
-    return {group,get count(){return records.size;},get labels(){return labelCount;},get proceduralJoints(){return [...records.values()].reduce((sum,r)=>sum+r.animator.proceduralJointCount,0);},get seated(){return [...records.values()].filter(r=>r.motion?.phase==='seated').length;},get meetingSeated(){return [...records.values()].filter(r=>r.motion?.phase==='seated'&&r.motion.location.startsWith('meeting_')).length;},setMeeting(value){queue?.request(value);},setState(role,state){const r=records.get(role);if(!r)return false;if(r.motion){r.motion.setActivity(state);return true;}return r.animator.setState(state);},update(dt){queue?.update(dt);records.forEach(r=>{r.animator.update(dt);if(r.motion?.atDesk)r.reach?.();});},dispose};
+    return {group,get count(){return records.size;},get labels(){return labelCount;},get proceduralJoints(){return [...records.values()].reduce((sum,r)=>sum+r.animator.proceduralJointCount,0);},get seated(){return [...records.values()].filter(r=>r.motion?.phase==='seated').length;},get meetingSeated(){return [...records.values()].filter(r=>r.motion?.phase==='seated'&&r.motion.location.startsWith('meeting_')).length;},setMeeting(value){queue?.request(value);},setState(role,state){const r=records.get(role);if(!r)return false;if(r.motion){r.motion.setActivity(state);return true;}return r.animator.setState(state);},update(dt){queue?.update(dt);records.forEach(r=>{r.animator.update(dt);if(r.motion?.atDesk)r.reach?.();if(r.identityLabel){r.root.updateWorldMatrix(true,false);r.identityLabel.sprite.position.copy(r.root.localToWorld(r.identityLabel.anchor.clone()));}});},dispose};
   }catch(error){dispose();throw error;}
 }

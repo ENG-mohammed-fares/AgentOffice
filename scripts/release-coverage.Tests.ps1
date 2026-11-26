@@ -74,7 +74,6 @@ Describe 'Public release orchestration (isolated; no external writes)' {
             $cert=[pscustomobject]@{Subject='CN=Fixture';Thumbprint=('a'*40)}
             [pscustomobject]@{Status='Valid';SignatureType='Authenticode';SignerCertificate=$cert;TimeStamperCertificate=$cert}
         }
-        Mock Get-AuthenticodeSignature { throw 'Unexpected signing operation in early-rejection test' }
     }
     AfterEach {
         Pop-Location
@@ -100,12 +99,24 @@ Describe 'Public release orchestration (isolated; no external writes)' {
         { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*Candidate hash mismatch*'
         Should -Invoke Get-AuthenticodeSignature -Times 0 -Exactly
     }
-    It 'accepts an unsigned candidate through the local checks without signing credentials' {
+    It 'rejects a missing trusted publisher before inspecting or publishing the candidate' {
         $env:AGENTOFFICE_SIGNING_PUBLISHER=''
         $env:AGENTOFFICE_SIGNING_THUMBPRINT=''
+        { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*trusted publisher subject must be configured*'
+        Should -Invoke Get-AuthenticodeSignature -Times 0 -Exactly
+    }
+    It 'rejects an unsigned or untrusted installer before any release API access' {
+        Mock Get-AuthenticodeSignature {
+            $cert=[pscustomobject]@{Subject='CN=AgentOffice test publisher';Thumbprint=('a'*40)}
+            [pscustomobject]@{Status='NotSigned';SignatureType='Authenticode';SignerCertificate=$cert;TimeStamperCertificate=$cert}
+        }
+        { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*signature is not valid*'
+        Should -Invoke Get-AuthenticodeSignature -Times 1 -Exactly
+    }
+    It 'accepts a trusted signed candidate through local checks before source verification' {
         Mock gh { throw 'Fixture source head reached' }
         { & (Join-Path $PSScriptRoot 'publish-public-update.ps1') } | Should -Throw '*Fixture source head reached*'
-        Should -Invoke Get-AuthenticodeSignature -Times 0 -Exactly
+        Should -Invoke Get-AuthenticodeSignature -Times 1 -Exactly
     }
     It 'retries stale public metadata without recreating or republishing the release' {
         Set-Content -LiteralPath 'fixture-public-checks.txt' -Value '0' -Encoding ascii

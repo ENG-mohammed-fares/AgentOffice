@@ -41,6 +41,7 @@ function Assert-AgentOfficeSignedFile {
         [Parameter(Mandatory)] [string] $ExpectedPublisher,
         [string] $ExpectedThumbprint = ''
     )
+    if ([string]::IsNullOrWhiteSpace($ExpectedPublisher)) { throw 'A trusted publisher subject must be configured before publication.' }
     $file = Get-Item -LiteralPath $Path -ErrorAction Stop
     if ($file.PSIsContainer -or $file.Extension -ine '.exe') {
         throw 'Expected a Windows executable.'

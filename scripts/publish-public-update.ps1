@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'verify-code-signing.ps1')
 $destination = 'ENG-mohammed-fares/AgentOffice'
 $source = 'ENG-mohammed-fares/AgentOffice'
 if ($env:GITHUB_REPOSITORY -ne $source -or $env:GITHUB_REF -ne 'refs/heads/development') { throw 'Unexpected release source.' }
@@ -14,6 +15,9 @@ foreach ($name in $names) {
     $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath "candidate/$name").Hash.ToLowerInvariant()
     if ($hash -ne $manifest.sha256.PSObject.Properties[$name].Value) { throw "Candidate hash mismatch: $name" }
 }
+
+# A hash proves candidate identity, not publisher trust. Refuse unsigned or untrusted installers before any release API call.
+Assert-AgentOfficeSignedFile -Path "candidate/$exe" -ExpectedPublisher $env:AGENTOFFICE_SIGNING_PUBLISHER -ExpectedThumbprint $env:AGENTOFFICE_SIGNING_THUMBPRINT
 
 function Assert-SourceHead {
     $env:GH_TOKEN = $env:SOURCE_TOKEN

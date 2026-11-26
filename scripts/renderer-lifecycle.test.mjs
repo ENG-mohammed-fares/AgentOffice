@@ -132,7 +132,7 @@ test('compressed baked benchmark reuses Basis decoding and never silently falls 
  assert.equal(bad.requests.length,1);
 });
 
-test('character preview remains independent of the initial office and pauses when hidden',async()=>{
+test('workspace readiness resolves only after the first usable character frame',async()=>{
  const f=await fixture({characterRoster:[{}]});
  const renderer=await f.mount();let readiness=null;renderer.ready.then(value=>{readiness=value;});for(let i=0;i<8;i++)await Promise.resolve();
  assert.equal(renderer.metrics().characters,7);assert.equal(f.compiled,2);assert.equal(readiness,null,'readiness must wait for a usable character frame');
@@ -144,11 +144,19 @@ test('character preview remains independent of the initial office and pauses whe
  f.document.hidden=true;f.events.get('visibilitychange')();
  assert.equal(f.frames.size,0);
  renderer.dispose();renderer.dispose();assert.equal(f.characterDisposed,1);
+
+});
+
+test('character initialization failure returns a recoverable office fallback',async()=>{
  const bad=await fixture({characterRoster:[{}],characterFailure:true});
  const view=await bad.mount();for(let i=0;i<8;i++)await Promise.resolve();
  assert.equal(view.metrics().characters,0);assert.equal(view.metrics().characterStatus,'preview unavailable');
  assert.deepEqual(await view.ready,{ok:false,reason:'characters-unavailable'});
  view.dispose();
- const pending=await fixture({characterRoster:[{}]});const pendingView=await pending.mount();pendingView.dispose();
- assert.deepEqual(await pendingView.ready,{ok:false,reason:'cancelled'});
+});
+
+test('disposing a loading renderer resolves readiness as cancelled',async()=>{
+ const pending=await fixture({characterRoster:[{}]});
+ const view=await pending.mount();view.dispose();
+ assert.deepEqual(await view.ready,{ok:false,reason:'cancelled'});
 });

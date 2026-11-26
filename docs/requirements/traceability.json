@@ -1,0 +1,263 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {
+      "id": "FR-AUTH-001",
+      "summary": "Preserve authentication and logout",
+      "component": "desktop/auth",
+      "priority": "P0",
+      "source": "Owner rendering request and engineering master prompt, 2026-11-25",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "See docs/requirements/srs.md scenario FR-AUTH-001",
+      "implementation": [
+        "scripts/apply-auth.py",
+        "AgentOffice-Source.zip"
+      ],
+      "tests": [],
+      "verification": "BLOCKED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-OFFICE-001",
+      "summary": "Show complete office or usable fallback",
+      "component": "renderer",
+      "priority": "P0",
+      "source": "Owner rendering request and engineering master prompt, 2026-11-25",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "See docs/requirements/srs.md scenario FR-OFFICE-001",
+      "implementation": [
+        "assets/agile-office/main.js",
+        "assets/agile-office/agile-renderer.js"
+      ],
+      "tests": [
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "original-model fallback, reduced motion, and load errors preserve cleanup",
+          "level": "integration"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-OFFICE-002",
+      "summary": "Preserve workspace and meeting navigation",
+      "component": "camera",
+      "priority": "P1",
+      "source": "Owner rendering request and engineering master prompt, 2026-11-25",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "See docs/requirements/srs.md scenario FR-OFFICE-002",
+      "implementation": [
+        "assets/agile-office/agile-renderer.js"
+      ],
+      "tests": [
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "renderer controls camera/drag, pauses hidden work, and disposes real scene resources",
+          "level": "integration"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-TASK-001",
+      "summary": "Local tasks remain distinct from actual agent execution",
+      "component": "task policy",
+      "priority": "P1",
+      "source": "Owner rendering request and engineering master prompt, 2026-11-25",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "See docs/requirements/srs.md scenario FR-TASK-001",
+      "implementation": [
+        "assets/agile-office/office-tasks.mjs"
+      ],
+      "tests": [
+        {
+          "path": "assets/agile-office/office-tasks.test.mjs",
+          "id": "validate roles and tasks, notify, update, snapshots are independent",
+          "level": "unit"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "DR-QUALITY-001",
+      "summary": "Keep blocking quality and security controls",
+      "component": "CI",
+      "priority": "P0",
+      "source": "Owner rendering request and engineering master prompt, 2026-11-25",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "See docs/requirements/srs.md scenario DR-QUALITY-001",
+      "implementation": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/private-security.yml",
+        "sonar-project.properties"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_release_validation.py",
+          "id": "test_reject_wrong_provenance_extra_file_and_tampering",
+          "level": "unit"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "NFR-PERF-001",
+      "summary": "Target 60 FPS and clear native FHD on reference hardware",
+      "component": "renderer",
+      "priority": "P1",
+      "source": "Owner rendering request and engineering master prompt, 2026-11-25",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "See docs/requirements/srs.md scenario NFR-PERF-001",
+      "implementation": [
+        "scripts/office-runtime-benchmark.cjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-runtime-benchmark.cjs",
+          "id": "Unexpected idle rendering after transition",
+          "level": "benchmark"
+        }
+      ],
+      "verification": "BLOCKED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "NFR-IDLE-001",
+      "summary": "Avoid scene renders without visual changes",
+      "component": "scheduler",
+      "priority": "P1",
+      "source": "Owner rendering request and engineering master prompt, 2026-11-25",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "See docs/requirements/srs.md scenario NFR-IDLE-001",
+      "implementation": [
+        "assets/agile-office/office-performance.mjs"
+      ],
+      "tests": [
+        {
+          "path": "assets/agile-office/office-performance.test.mjs",
+          "id": "idle, hidden and disposed render scheduler does not loop",
+          "level": "unit"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-MOTION-001",
+      "summary": "Chair pull, skeletal walking, meeting and return sequence",
+      "component": "experimental motion",
+      "priority": "P1",
+      "source": "Owner rendering request and engineering master prompt, 2026-11-25",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "See docs/requirements/srs.md scenario FR-MOTION-001",
+      "implementation": [],
+      "tests": [],
+      "verification": "BLOCKED",
+      "validation": "BLOCKED",
+      "evidence": []
+    }
+  ],
+  "stories": [
+    {
+      "id": "US-QUALITY-001",
+      "source": "Owner quality completion prompt, 2026-11-26; summary: record stories before code and enforce traceability.",
+      "story": "As a maintainer, I want owner requests recorded as stories before coding, so that intent and acceptance remain reviewable.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A valid linked implementation change",
+          "when": "Traceability validation runs",
+          "then": "The structural gate accepts it"
+        },
+        {
+          "id": "AC-02",
+          "given": "Missing story, malformed criteria or unsupported completion",
+          "when": "Traceability validation runs",
+          "then": "The gate fails with a diagnostic"
+        }
+      ],
+      "scope": "Story protocol and structural enforcement",
+      "constraints": "Preserve all quality/security/release controls",
+      "assumptions": "Review checks meaning and pre-code chronology",
+      "dependencies": "Existing canonical RTM validator",
+      "impact": "CI/documentation only; no release or runtime change",
+      "status": "in progress",
+      "implementation": [
+        "AGENTS.md",
+        ".github/pull_request_template.md"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_repository_matrix",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-QUALITY-002",
+      "source": "Owner quality completion prompt, 2026-11-26; summary: record stories before code and enforce traceability.",
+      "story": "As a maintainer, I want changed implementation files linked to valid stories, so that missing acceptance and evidence cannot pass unnoticed.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A valid linked implementation change",
+          "when": "Traceability validation runs",
+          "then": "The structural gate accepts it"
+        },
+        {
+          "id": "AC-02",
+          "given": "Missing story, malformed criteria or unsupported completion",
+          "when": "Traceability validation runs",
+          "then": "The gate fails with a diagnostic"
+        }
+      ],
+      "scope": "Story protocol and structural enforcement",
+      "constraints": "Preserve all quality/security/release controls",
+      "assumptions": "Review checks meaning and pre-code chronology",
+      "dependencies": "Existing canonical RTM validator",
+      "impact": "CI/documentation only; no release or runtime change",
+      "status": "in progress",
+      "implementation": [
+        "scripts/validate_traceability.py",
+        ".github/workflows/ci.yml"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_repository_matrix",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    }
+  ]
+}

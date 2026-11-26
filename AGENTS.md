@@ -2,6 +2,8 @@
 
 These instructions apply to every change in this repository.
 
+- Every implementation begins with user stories: preserve the owner's request, present a concise Arabic story and acceptance summary, persist the story in `docs/requirements/traceability.json`, map requirements/tests, then code and verify. Follow `docs/requirements/story-protocol.md`. The engineer formalizes ordinary-language requests; never require the owner to write tickets. Read-only explanations/audits need no artificial story. Review business meaning and pre-code chronology; CI checks structure only.
+
 - Treat SonarCloud findings as defects to investigate. Fix valid findings in source or deterministic preparation code; document a false positive with evidence. Never lower the Quality Gate, coverage threshold, or security checks to pass a build.
 - Before proposing a change, identify the canonical source of every generated file. Keep the immutable source archive and byte equality/provenance checks intact.
 - Validate syntax and semantics of HTML, CSS, JavaScript, Python, and workflow configuration for changed code. A browser ignoring an invalid declaration is still a defect.

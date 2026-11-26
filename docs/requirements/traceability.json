@@ -1440,9 +1440,15 @@
           "given": "A malformed seven-role monitor layout",
           "when": "Duplicate-role validation is tested",
           "then": "The fixture preserves the required list length and exercises the intended duplicate-layout branch"
+        },
+        {
+          "id": "AC-05",
+          "given": "The office entry imports the already architecture-checked pure startup deadline helper",
+          "when": "The prepared application architecture gate runs",
+          "then": "The specific local policy dependency is accepted, while static renderer and unrelated dependencies remain forbidden and all differential and mutation checks remain blocking"
         }
       ],
-      "scope": "Repair the exact Windows CI regressions on PR #37 and add focused platform-stable assertions before release validation resumes.",
+      "scope": "Repair the exact Windows CI regressions on PR #37 and add focused platform-stable assertions before release validation resumes. Reconcile the startup deadline dependency reported by Windows job 139916360230 with the explicit architecture contract.",
       "constraints": "Do not weaken coverage, SonarCloud, security, packaging or release gates; do not change product behavior merely to satisfy stale tests.",
       "assumptions": "The measured canonical 1.6.18 geometry baseline is 116,332 triangles and meeting travel remains controlled by the queue reservation API.",
       "dependencies": "Canonical overlay modules, generated app tests, Node VM lifecycle harness and Windows CI.",
@@ -1450,7 +1456,8 @@
       "status": "in progress",
       "implementation": [
         "assets/agile-office/agent-animation.mjs",
-        "assets/agile-office/agile-renderer.js"
+        "assets/agile-office/agile-renderer.js",
+        "scripts/refactoring-gate.mjs"
       ],
       "tests": [
         {
@@ -1471,6 +1478,11 @@
         {
           "path": "assets/agile-office/office-performance.test.mjs",
           "id": "actual packaged office: preserve all triangles and transparent materials during batching",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/refactoring-gate.mjs",
+          "id": "architecture: office entry permits pure startup policy and rejects static renderer and unrelated imports",
           "level": "integration"
         }
       ],

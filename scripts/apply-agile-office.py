@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory(prefix='agentoffice-model-') as tmp:
         subprocess.run([sys.executable,str(work/name)],check=True,cwd=work,timeout=180)
     scene=json.loads((work/'scene.json').read_text(encoding='utf-8'))
     assert len(scene['roles'])==7 and len(scene['stations'])==7
-    assert len(scene['lights'])==29 and len(scene['cameras'])==3
+    assert len(scene['lights'])==29 and len(scene['cameras'])==4
     raw=(work/'office.glb').read_bytes()
     assert struct.unpack_from('<4sII',raw)==(b'glTF',2,len(raw))
     n,tag=struct.unpack_from('<I4s',raw,12)

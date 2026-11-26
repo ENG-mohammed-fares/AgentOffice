@@ -358,6 +358,16 @@
           "path": "scripts/screen-content.test.mjs",
           "id": "screen layouts provide unique role-specific monitor content for every station",
           "level": "unit"
+        },
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "all thirteen workstation screens render distinct role content with a visible simulation marker",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "role screen construction disposes partial resources when a canvas context is unavailable",
+          "level": "unit"
         }
       ],
       "verification": "IMPLEMENTED BUT UNVERIFIED",
@@ -1030,6 +1040,16 @@
           "path": "scripts/screen-content.test.mjs",
           "id": "screen layouts provide unique role-specific monitor content for every station",
           "level": "unit"
+        },
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "all thirteen workstation screens render distinct role content with a visible simulation marker",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "role screen construction disposes partial resources when a canvas context is unavailable",
+          "level": "unit"
         }
       ],
       "evidence": []
@@ -1129,6 +1149,12 @@
           "given": "Live character rendering is ready",
           "when": "The user explicitly starts or ends the meeting demo",
           "then": "The meeting queue receives a Boolean request only when all seven characters and the complete movable-chair map are ready; the accessible control reflects state and remains disabled otherwise"
+        },
+        {
+          "id": "AC-07",
+          "given": "Two or more agents need to use the same left or right meeting aisle",
+          "when": "Meeting or return travel is scheduled",
+          "then": "At most one agent occupies each aisle segment at a time; agents in the other aisle may continue independently"
         }
       ],
       "scope": "Overlap preparation and standing for all seven avatars while preserving serialized reservation of the narrow doorway; measure complete meeting and return duration.",

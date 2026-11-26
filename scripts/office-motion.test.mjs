@@ -22,8 +22,11 @@ test('seven unique seats and doorway route on correct side of the glass',()=>{
  for(const p of plans){const route=meetingRoute(p.desk,p.meeting);assert.ok(route.some(q=>q.x===2.08&&q.z===2.25));assert.ok(route.some(q=>q.x===3.48&&q.z===2.25));assert.deepEqual(route.at(-1),standingPoint(p.meeting));}
 });
 test('all agents prepare and stand concurrently while only one doorway crossing is reserved',()=>{
- const records=stations.map((_,i)=>fixture(i).motion),q=createMeetingQueue(records);q.request(true);
- for(let i=0;i<40;i++)q.update(.05);
+ const fixtures=stations.map((_,i)=>fixture(i)),records=fixtures.map(f=>f.motion),q=createMeetingQueue(records);q.request(true);
+ const started=Array(7).fill(null);let elapsed=0;
+ for(let i=0;i<40;i++){q.update(.05);elapsed+=.05;fixtures.forEach((f,index)=>{if(started[index]===null&&f.poses.filter(p=>p==='sitting').length>1)started[index]=elapsed;});}
+ assert.ok(started.every(Number.isFinite),'every agent must begin preparation');
+ assert.ok(Math.max(...started)-Math.min(...started)<=.30,'preparation should be staggered within 300 ms, not serialized');
  assert.equal(records.filter(r=>r.phase!=='seated').length,7,'all seven agents must begin meeting preparation together');
  assert.ok(records.filter(r=>r.phase==='waiting-travel'||r.phase==='walk').length>=6,'the other agents should be standing while the first travels');
  for(let i=40;i<9000;i++){

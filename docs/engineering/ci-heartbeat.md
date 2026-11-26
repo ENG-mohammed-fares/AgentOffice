@@ -18,3 +18,11 @@ business-level test completion. Test runner and GitHub job timeouts still apply.
 Test evidence: actual subprocess tests cover output, silence, successful completion,
 nonzero exit and allowlisted selection. The complete workflow and SonarCloud must pass
 on the exact candidate revision before integration.
+
+## Consolidated PR verification
+
+CI run 45769341811 passed the asset and Windows jobs, but skipped the trusted
+PR SonarCloud checks and seated-avatar review after retargeting the stacked PR.
+The result does not establish release or merge eligibility. A fresh synchronize
+event against development must exercise the trusted PR checks and the separate
+security workflow. Retain the original job deadlines and blocking gates.

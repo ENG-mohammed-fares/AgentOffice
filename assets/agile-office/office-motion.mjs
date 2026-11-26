@@ -22,7 +22,13 @@ export function seatingPlan(stations){
     return {desk,meeting};
   });
 }
-/** Returns two symmetrical wrist targets over the existing desk-mat mouse surface. */
+/**
+ * Returns two symmetrical wrist targets on the existing desk-mat mouse interaction surface.
+ * @param {{x:number,z:number}} mouse - Mouse centre in world-space metres.
+ * @param {number} [halfSpan=0.09] - Half the wrist spacing in metres; bounded to avoid invalid targets.
+ * @returns {{x:number,z:number}[]} Left/right world-space targets at the same surface depth.
+ * @throws {Error} If the centre or target spacing is invalid.
+ */
 export function mouseSurfaceTargets(mouse,halfSpan=.09){
   if(!mouse||!Number.isFinite(mouse.x)||!Number.isFinite(mouse.z)||!Number.isFinite(halfSpan)||halfSpan<=0||halfSpan>.18)throw Error('Invalid mouse surface');
   return [point(mouse.x-halfSpan,mouse.z),point(mouse.x+halfSpan,mouse.z)];

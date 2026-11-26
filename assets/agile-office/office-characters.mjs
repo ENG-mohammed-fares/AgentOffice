@@ -86,7 +86,7 @@ export function identityForRole(role){
  * @param {THREE.Object3D} root - Scaled and positioned character root.
  * @param {THREE.Group} group - Owning roster group; owns the resulting sprite.
  * @param {Function} canvasFactory - Creates a 2D canvas or returns null when unavailable.
- * @returns {{sprite:THREE.Sprite,anchor:THREE.Vector3}|null} Billboard sprite and avatar-local anchor, or null when canvas rendering is unavailable.
+ * @returns {{sprite:THREE.Sprite,anchor:THREE.Vector3,head:THREE.Bone|null,headOffsetY:number,position:THREE.Vector3}|null} Billboard sprite and reusable head-follow state, or null when canvas rendering is unavailable.
  */
 function createIdentitySprite(role,root,group,canvasFactory){
   const identity=identityForRole(role),canvas=canvasFactory();
@@ -119,8 +119,11 @@ function createIdentitySprite(role,root,group,canvasFactory){
   const bounds=new THREE.Box3().setFromObject(root,true),center=new THREE.Vector3();bounds.getCenter(center);
   const worldAnchor=new THREE.Vector3(center.x,bounds.max.y+.18,center.z);
   const localAnchor=root.worldToLocal(worldAnchor.clone());
+  const head=root.getObjectByName('Head')||root.getObjectByName('head')||null;
+  const headPosition=head?head.getWorldPosition(new THREE.Vector3()):null;
+  const headOffsetY=head?Math.max(.12,bounds.max.y-headPosition.y+.12):0;
   sprite.position.copy(worldAnchor);sprite.scale.set(canvas.width*.00245,canvas.height*.00245,1);sprite.renderOrder=3;group.add(sprite);
-  return {sprite,anchor:localAnchor};
+  return {sprite,anchor:localAnchor,head,headOffsetY,position:new THREE.Vector3()};
 }
 const filePattern=/^[a-z-]+\.glb$/;
 /**
@@ -208,6 +211,6 @@ export async function loadCharacterRoster({roster,stations,officeURL,isCancelled
       records.set(entry.role,{root,identityLabel,animator,motion,reach:motion?mouseReach(root,seats[slot].desk):null});onProgress('avatar-ready:'+entry.file);
     }
     if(chairs)queue=createMeetingQueue([...records.values()].map(r=>r.motion));
-    return {group,get count(){return records.size;},get labels(){return labelCount;},get meetingAvailable(){return Boolean(queue);},get proceduralJoints(){return [...records.values()].reduce((sum,r)=>sum+r.animator.proceduralJointCount,0);},get seated(){return [...records.values()].filter(r=>r.motion?.phase==='seated').length;},get meetingSeated(){return [...records.values()].filter(r=>r.motion?.phase==='seated'&&r.motion.location.startsWith('meeting_')).length;},setMeeting(value){queue?.request(value);},setState(role,state){const r=records.get(role);if(!r)return false;if(r.motion){r.motion.setActivity(state);return true;}return r.animator.setState(state);},update(dt){queue?.update(dt);records.forEach(r=>{r.animator.update(dt);if(r.motion?.atDesk)r.reach?.();if(r.identityLabel){r.root.updateWorldMatrix(true,false);r.identityLabel.sprite.position.copy(r.root.localToWorld(r.identityLabel.anchor.clone()));}});},dispose};
+    return {group,get count(){return records.size;},get labels(){return labelCount;},get meetingAvailable(){return Boolean(queue);},get proceduralJoints(){return [...records.values()].reduce((sum,r)=>sum+r.animator.proceduralJointCount,0);},get seated(){return [...records.values()].filter(r=>r.motion?.phase==='seated').length;},get meetingSeated(){return [...records.values()].filter(r=>r.motion?.phase==='seated'&&r.motion.location.startsWith('meeting_')).length;},setMeeting(value){queue?.request(value);},setState(role,state){const r=records.get(role);if(!r)return false;if(r.motion){r.motion.setActivity(state);return true;}return r.animator.setState(state);},update(dt){queue?.update(dt);records.forEach(r=>{r.animator.update(dt);if(r.motion?.atDesk)r.reach?.();if(r.identityLabel){r.root.updateWorldMatrix(true,true);const identity=r.identityLabel;if(identity.head){identity.head.getWorldPosition(identity.position);identity.position.y+=identity.headOffsetY;}else{identity.position.copy(identity.anchor);r.root.localToWorld(identity.position);}identity.sprite.position.copy(identity.position);}});},dispose};
   }catch(error){dispose();throw error;}
 }

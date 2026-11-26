@@ -11,7 +11,7 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
   let now=0,sequence=0,lost=0,renders=0,disposed=0,decoderDisposed=0,compiled=0;
   const frames=new Map(),events=new Map(),canvasEvents=new Map(),requests=[],characterStates=[],characterTicks=[];
   let characterDisposed=0;
-  const characterLayer={group:new THREE.Group(),count:7,setState(role,state){characterStates.push([role,state]);return true},update(dt){characterTicks.push(dt)},dispose(){characterDisposed++;this.group.removeFromParent()}};
+  const characterLayer={group:new THREE.Group(),count:7,labels:7,meetingAvailable:true,proceduralJoints:91,setState(role,state){characterStates.push([role,state]);return true},update(dt){characterTicks.push(dt)},dispose(){characterDisposed++;this.group.removeFromParent()}};
   const canvas={getContext:()=>noGL?null:{},addEventListener:(key,fn)=>canvasEvents.set(key,fn),
     removeEventListener:key=>canvasEvents.delete(key),setPointerCapture:()=>{},remove(){this.removed=true}};
   const document={hidden,createElement:()=>canvas,addEventListener:(key,fn)=>events.set(key,fn),
@@ -77,7 +77,7 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
 }
 test('renderer controls camera/drag, pauses hidden work, and disposes real scene resources',async()=>{
   const f=await fixture(),renderer=await f.mount();
-  assert.deepEqual(await renderer.ready,{ok:true,characters:0});
+  assert.deepEqual(await renderer.ready,{ok:true,characters:0,labels:0,meetingAvailable:false});
   assert.equal(f.host.dataset.textureFormat,'ktx2');
   assert.equal(f.decoderDisposed,1);assert.equal(f.texture.anisotropy,8);
   assert.equal(f.glass.castShadow,false);assert.equal(f.box.castShadow,true);
@@ -137,7 +137,7 @@ test('workspace readiness resolves only after the first usable character frame',
  const f=await fixture({characterRoster:[{}]});
  const renderer=await f.mount();let readiness=null;renderer.ready.then(value=>{readiness=value;});for(let i=0;i<8;i++)await Promise.resolve();
  assert.equal(renderer.metrics().characters,7);assert.equal(f.compiled,2);assert.equal(readiness,null,'readiness must wait for a usable character frame');
- f.tick(100);assert.deepEqual(await renderer.ready,{ok:true,characters:7});
+ f.tick(100);assert.deepEqual(await renderer.ready,{ok:true,characters:7,labels:7,meetingAvailable:true});
  assert.equal(renderer.setAgentState('QA Engineer','working'),true);
  assert.deepEqual(f.characterStates.at(-1),['QA Engineer','working']);
  f.tick(120);f.tick(140);

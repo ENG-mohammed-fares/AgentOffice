@@ -29,6 +29,7 @@ function header(ctx,role,variant){
   ctx.fillStyle=palette.accent;ctx.fillRect(0,78,WIDTH,4);
   label(ctx,34,32,roleTitles[role]||role.toUpperCase(),26,palette.text,700);
   label(ctx,36,59,variant.toUpperCase().replaceAll('-',' '),13,palette.muted,500);
+  round(ctx,812,20,118,30,14,palette.panel2,palette.line);label(ctx,831,35,'SIMULATION',12,palette.amber,700);
   for(let i=0;i<3;i++){ctx.fillStyle=[palette.red,palette.amber,palette.green][i];ctx.beginPath();ctx.arc(956+i*22,35,5,0,Math.PI*2);ctx.fill();}
 }
 function roadmap(ctx){
@@ -121,9 +122,10 @@ function draw(ctx,placement){
  */
 export function screenPlacements(screens,stations){
   if(!Array.isArray(screens)||!Array.isArray(stations))throw new TypeError('Screen layout and station arrays are required');
+  if(screens.length!==7||stations.length!==7)throw new Error('Exactly seven role layouts and seven workstation stations are required');
   const roles=new Set(),slots=new Set(),placements=[];
   for(const screen of screens){
-    if(!screen||typeof screen.role!=='string'||!screen.role||!Number.isInteger(screen.station)||!stations[screen.station]||roles.has(screen.role)||slots.has(screen.station)||!Array.isArray(screen.monitors)||!screen.monitors.length)throw new Error('Invalid role screen layout');
+    if(!screen||typeof screen.role!=='string'||!Object.hasOwn(roleTitles,screen.role)||!Number.isInteger(screen.station)||!stations[screen.station]||roles.has(screen.role)||slots.has(screen.station)||!Array.isArray(screen.monitors)||!screen.monitors.length)throw new Error('Invalid role screen layout');
     roles.add(screen.role);slots.add(screen.station);
     const [sx,sy,angle]=stations[screen.station];
     if(![sx,sy,angle].every(Number.isFinite))throw new Error('Invalid screen station coordinates');
@@ -137,6 +139,7 @@ export function screenPlacements(screens,stations){
       placements.push({role:screen.role,station:screen.station,variant:monitor.variant,monitorIndex:i,monitorCount:screen.monitors.length,position:[x,1.17,-y],rotationY:angle,width:monitor.width-.04,height:.316});
     }
   }
+  if(placements.length!==13)throw new Error('Exactly thirteen role-specific monitor placements are required');
   return placements;
 }
 /**

@@ -75,6 +75,7 @@ test('role identities use first names only and render bold names beside regular 
  });
  const layer=await loadCharacterRoster({...base,read:f.read,loader:f.loader,canvasFactory});
  assert.equal(layer.labels,7);assert.equal(layer.group.children.length,14);
+ assert.ok(drawn.some(x=>x.value==='  ·  '&&x.font.startsWith('400 ')),'separator must be a regular-weight middle dot');
  for(const [role,name] of expected){
   assert.ok(drawn.some(x=>x.value===name&&x.font.startsWith('700 ')),role+' first name must be bold');
   assert.ok(drawn.some(x=>x.value===role&&x.font.startsWith('400 ')),role+' title must be regular');

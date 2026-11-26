@@ -58,7 +58,8 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
     'three/addons/environments/RoomEnvironment.js':{RoomEnvironment:class{dispose(){}}},
     './agile-layout.json':{default:JSON.parse(readFileSync(new URL('../src/agile-layout.json',import.meta.url),'utf8'))},
     './office-performance.mjs':performancePolicy,'./office-batching.mjs':batching,
-    './office-characters.mjs':{async loadCharacterRoster(){if(characterFailure)throw Error('Invalid roster');return characterLayer}}};
+    './office-characters.mjs':{async loadCharacterRoster(){if(characterFailure)throw Error('Invalid roster');return characterLayer}},
+     './screen-content.mjs':{createRoleScreens({screens=[]}={}){return {group:new THREE.Group(),count:screens.reduce((sum,item)=>sum+(item.monitors?.length??0),0)}}}}};
   const module=new SourceTextModule(readFileSync(source,'utf8'),{context,identifier:source});
   await module.link(name=>{
     const namespace=namespaces[name];assert.ok(namespace,'Unexpected renderer import '+name);
@@ -80,11 +81,11 @@ test('renderer controls camera/drag, pauses hidden work, and disposes real scene
   assert.equal(f.host.dataset.textureFormat,'ktx2');
   assert.equal(f.decoderDisposed,1);assert.equal(f.texture.anisotropy,8);
   assert.equal(f.glass.castShadow,false);assert.equal(f.box.castShadow,true);
-  assert.equal(renderer.metrics().triangles,24);assert.equal(f.compiled,1);
+  assert.equal(renderer.metrics().triangles,24);assert.equal(renderer.metrics().cameraCount,4);assert.equal(renderer.metrics().roleScreens,13);assert.equal(renderer.metrics().cameraIndex,0);assert.equal(f.compiled,1);
   assert.equal(renderer.metrics().preset,'balanced');renderer.setGraphicsPreset('invalid');assert.equal(renderer.metrics().preset,'balanced');
   renderer.setGraphicsPreset('performance');assert.equal(renderer.metrics().pixelRatio,1);renderer.setGraphicsPreset('performance');
   f.tick(1);const idle=f.renders;f.tick(2);assert.equal(f.renders,idle);
-  renderer.go(999);renderer.go(2);f.tick(1500);f.tick(4000);f.tick(5000);
+  assert.equal(renderer.go(999),false);assert.equal(renderer.go(2),true);assert.equal(renderer.metrics().cameraIndex,2);assert.equal(renderer.go(3),true);assert.equal(renderer.metrics().cameraIndex,3);f.tick(1500);f.tick(4000);f.tick(5000);
   f.canvasEvents.get('pointerdown')({clientX:10,clientY:10,pointerId:1});
   f.canvasEvents.get('pointermove')({clientX:35,clientY:22});
   f.tick(5020);f.tick(5050);assert.ok(renderer.metrics().frameTimeMs>0);assert.ok(renderer.metrics().samples>0);f.canvasEvents.get('pointerup')();f.tick(5070);

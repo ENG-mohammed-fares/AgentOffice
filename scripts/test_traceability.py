@@ -35,7 +35,7 @@ class TraceabilityTests(unittest.TestCase):
 
     def test_story_change_contract(self):
         root = Path(__file__).resolve().parents[1]
-        matrix = json.loads((root / 'docs/requirements/traceability.json').read_text())
+        matrix = json.loads((root / 'docs/requirements/traceability.json').read_text(encoding='utf-8'))
         validate_changes(matrix, ['scripts/validate_traceability.py'])
         validate_changes(matrix, ['docs/README.md'])
         with self.assertRaisesRegex(ValueError, 'story'):
@@ -60,7 +60,7 @@ class TraceabilityTests(unittest.TestCase):
 
     def test_story_rejects_invalid_metadata_before_completion(self):
         root = Path(__file__).resolve().parents[1]
-        matrix = json.loads((root / 'docs/requirements/traceability.json').read_text())
+        matrix = json.loads((root / 'docs/requirements/traceability.json').read_text(encoding='utf-8'))
         cases = [('priority', 'urgent'), ('requirements', [[]]),
                  ('requirements', ['DR-QUALITY-001', 'DR-QUALITY-001']),
                  ('tests', []), ('evidence', [dict(path='absent', revision='bad')])]
@@ -72,7 +72,7 @@ class TraceabilityTests(unittest.TestCase):
 
     def test_changed_paths_require_active_stories(self):
         root = Path(__file__).resolve().parents[1]
-        matrix = json.loads((root / 'docs/requirements/traceability.json').read_text())
+        matrix = json.loads((root / 'docs/requirements/traceability.json').read_text(encoding='utf-8'))
         for story in matrix['stories']:
             story['status'] = 'proposed'
         with self.assertRaisesRegex(ValueError, 'story'):

@@ -22,3 +22,5 @@ html,body,#app{width:100%;height:100%;margin:0}#app{min-height:100dvh}
 .agile-office #office-loading-continue{margin-top:5px}
 @keyframes office-loading-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.agile-office .office-loading-spinner{animation:none}.agile-office #office-loading,.agile-office #office-live,.agile-office #office-poster{transition:none}}
+
+.agile-office #office-loading[aria-busy="false"] .office-loading-spinner{display:none;animation:none}

@@ -52,7 +52,19 @@ new=old+'''
     assert.equal(await read('Boolean(document.querySelector("#agile-office"))'),true,'new office opens after intro');
     assert.equal(await read('Boolean(document.querySelector(".dashboard-grid, .rail, #content"))'),false,'legacy dashboard removed');
     await until('document.querySelector("#office-poster")?.complete && document.querySelector("#office-poster")?.naturalWidth > 0','packaged office render available');
-    await until('document.querySelector("#office-loading")?.getAttribute("aria-busy") === "false"','office initialization settles');
+    // The runtime initialization deadline is 60 seconds; authentication
+    // smoke permits slow software rendering, but never accepts a stuck loader.
+    const officeDeadline=Date.now()+75000;
+    while(await read('document.querySelector("#office-loading")?.getAttribute("aria-busy")')!=='false' && Date.now()<officeDeadline)
+      await new Promise(resolve=>setTimeout(resolve,250));
+    assert.equal(await read('document.querySelector("#office-loading")?.getAttribute("aria-busy")'),'false',
+      'office initialization did not settle: '+await read('document.querySelector("#office-loading-message")?.textContent'));
+    if(await read('document.querySelector("#agile-office")?.dataset.officeFailed==="true"')){
+      assert.equal(await read('document.querySelector("#office-loading-continue").hidden'),false);
+      await read('document.querySelector("#office-loading-continue").click()');
+    }
+    assert.equal(await read('document.querySelector("#agile-office")?.dataset.officeReady'),'true');
+    assert.equal(await read('document.querySelector("#office-loading").getAttribute("aria-hidden")'),'true');
     await read('document.querySelector("#office-diagnostics-toggle").click()');
     assert.equal(await read('document.querySelector("#office-diagnostics").hidden'),false);
     await read('document.querySelector("#office-metrics-refresh").click()');

@@ -4,6 +4,7 @@ import {mountAuth} from './auth.js';
 import {mountLoadingIntro} from './loading-intro.js';
 import {mountTaskPanel,mountOfficeControls} from './office-task-panel.mjs';
 import layout from './agile-layout.json';
+import {makeStartupDeadline} from './office-performance.mjs';
 
 const desktop=window.agentOfficeDesktop;
 const url=name=>new URL('./office/'+name,document.baseURI).href;
@@ -32,9 +33,10 @@ function mountWorkspace(user){
     if(event==='avatar-first-render-complete')return 'Workspace ready.';
     return 'Preparing your workspace.';
   };
-  const updateLoading=event=>{loadingMessage.textContent=progressMessage(String(event));};
-  const finishLoading=()=>{stage.dataset.officeReady='true';loading.setAttribute('aria-busy','false');loading.setAttribute('aria-hidden','true');};
+  const updateLoading=event=>{if(!disposed&&!abandoned)loadingMessage.textContent=progressMessage(String(event));};
+  const finishLoading=()=>{deadline?.cancel();stage.dataset.officeReady='true';loading.setAttribute('aria-busy','false');loading.setAttribute('aria-hidden','true');};
   const showLoadingError=(message,label,fallbackStatus)=>{
+    deadline?.cancel();
     loadingTitle.textContent='Workspace could not fully initialize';
     loadingMessage.textContent=message;
     continueButton.textContent=label;
@@ -45,13 +47,13 @@ function mountWorkspace(user){
   };
   continueButton.onclick=()=>{finishLoading();status.textContent=stage.dataset.officeFallbackStatus||'Office preview ready.';};
   el('office-user').textContent=user?.guest?'Guest workspace':(user?.name||user?.email||'Workspace');
-  let index=0,renderer=null,disposed=false,signingOut=false;
+  let index=0,renderer=null,disposed=false,signingOut=false,abandoned=false,deadline=null;
   const graphics=el('office-graphics'),diagnostics=el('office-diagnostics');
   const refreshMetrics=()=>{el('office-metrics').textContent=renderer?JSON.stringify(renderer.metrics(),null,2):'Live renderer not available.';};
   graphics.onchange=()=>{renderer?.setGraphicsPreset(graphics.value);if(!diagnostics.hidden)refreshMetrics();};
   el('office-diagnostics-toggle').onclick=()=>{diagnostics.hidden=!diagnostics.hidden;el('office-diagnostics-toggle').setAttribute('aria-expanded',String(!diagnostics.hidden));if(!diagnostics.hidden)refreshMetrics();};
   el('office-metrics-refresh').onclick=refreshMetrics;
-  const initialView=()=>{const still=[0,1,1,2][index]??0;poster.src=url('view-'+still+'.webp');poster.hidden=false;poster.removeAttribute('aria-hidden');};
+  const initialView=()=>{poster.src=url('view-'+index+'.webp');poster.hidden=false;poster.removeAttribute('aria-hidden');};
   initialView();app.replaceChildren(stage);
   const activity=new Map();
   const disposeTasks=mountTaskPanel(stage,user,{roles:layout.roles,onActivity:(role,state)=>{activity.set(role,state);renderer?.setAgentState(role,state);}});
@@ -63,7 +65,12 @@ function mountWorkspace(user){
     if(renderer)renderer.go(i);else initialView();
   };
   const controls=mountOfficeControls(stage,{onView:choose,onMeeting:value=>renderer?.setMeeting?.(value)});
-  function fallback(){if(disposed)return;controls.setAvailable(false);renderer?.dispose();renderer=null;live.replaceChildren();initialView();status.textContent='Rendered views • live 3D unavailable';stage.dataset.renderMode='poster';if(stage.dataset.officeReady!=='true')showLoadingError('Interactive 3D could not be initialized. You can continue with the rendered office preview.','Continue with preview','Rendered office preview mode.');}
+  function fallback(reason='unavailable'){
+    if(disposed||abandoned)return;
+    abandoned=true;deadline?.cancel();controls.setAvailable(false);renderer?.dispose();renderer=null;live.replaceChildren();initialView();
+    status.textContent='Rendered views • live 3D unavailable';stage.dataset.renderMode='poster';
+    if(stage.dataset.officeReady!=='true')showLoadingError(reason==='timeout'?'Interactive 3D took too long to initialize. You can continue with the rendered office preview.':'Interactive 3D could not be initialized. You can continue with the rendered office preview.','Continue with preview','Rendered office preview mode.');
+  }
   function showUpdate(st){if(disposed||!st)return;const box=el('office-update');box.hidden=!['checking','available','downloading','ready','error','current'].includes(st.state);box.querySelector('span').textContent=st.message||st.state;el('install-update').hidden=st.state!=='ready';}
   const stopUpdate=desktop?.onUpdateStatus?.(showUpdate);
   if(desktop?.updateStatus)desktop.updateStatus().then(showUpdate).catch(()=>{});
@@ -74,21 +81,22 @@ function mountWorkspace(user){
     if(signingOut)return;signingOut=true;el('sign-out').disabled=true;
     try{if(desktop?.auth?.logout&&!await desktop.auth.logout())throw Error('Logout rejected');}
     catch{signingOut=false;el('sign-out').disabled=false;status.textContent='Unable to sign out. Try again.';return;}
-    disposed=true;controls.dispose();disposeTasks();stopUpdate?.();renderer?.dispose();
+    disposed=true;deadline?.cancel();controls.dispose();disposeTasks();stopUpdate?.();renderer?.dispose();
     mountLoadingIntro({mode:'logout',onComplete:()=>mountAuth({onAuthenticated:mountWorkspace})});
   };
   // Real rendered stills appear immediately, even on machines with no WebGL2.
   // The expensive GLB and renderer load only after the authenticated destination exists.
+  deadline=makeStartupDeadline(()=>fallback('timeout'));
   import('./agile-renderer.js').then(async mod=>{
-    if(disposed)return;
-    const view=await mod.mountAgileRenderer(live,url('office.glb'),{onLost:fallback,isCancelled:()=>disposed,getInitialIndex:()=>index,preset:graphics.value,characterRoster:layout.characters??[],onProgress:updateLoading});
-    if(disposed){view.dispose();return;}
+    if(disposed||abandoned)return;
+    const view=await mod.mountAgileRenderer(live,url('office.glb'),{onLost:()=>fallback(),isCancelled:()=>disposed||abandoned,getInitialIndex:()=>index,preset:graphics.value,characterRoster:layout.characters??[],onProgress:updateLoading});
+    if(disposed||abandoned){view.dispose();return;}
     renderer=view;for(const [role,state] of activity)renderer.setAgentState(role,state);renderer.setGraphicsPreset(graphics.value);stage.dataset.renderMode='live';
     const readiness=await view.ready;
-    if(disposed){view.dispose();return;}
+    if(disposed||abandoned){view.dispose();return;}
     if(readiness?.ok){controls.setAvailable(readiness.meetingAvailable===true);poster.hidden=true;poster.setAttribute('aria-hidden','true');if(!diagnostics.hidden)refreshMetrics();status.textContent='Live 3D • drag to look around';finishLoading();}
     else if(stage.dataset.renderMode!=='poster'){controls.setAvailable(false);status.textContent='Office ready • character preview unavailable';showLoadingError('The office is available, but one or more character assets could not be initialized. You can continue without the characters.','Continue without characters','Office ready without character models.');}
-  }).catch(()=>{if(!disposed)fallback();});
+  }).catch(()=>{if(!disposed&&!abandoned)fallback();});
   return Promise.resolve();
 }
 mountLoadingIntro({mode:'startup',onComplete:()=>{

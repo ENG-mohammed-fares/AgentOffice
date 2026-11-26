@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {readFileSync} from 'node:fs';
-import {makeFrameScheduler,makeResolutionController,graphicsPixelRatio,makeFrameMetrics} from '../src/office-performance.mjs';
+import {makeFrameScheduler,makeResolutionController,graphicsPixelRatio,makeFrameMetrics,makeStartupDeadline} from '../src/office-performance.mjs';
 import {optimizeStaticMeshes} from '../src/office-batching.mjs';
 test('idle, hidden and disposed render scheduler does not loop',()=>{
  let i=0,frames=new Map(),count=0;const s=makeFrameScheduler(fn=>{frames.set(++i,fn);return i},id=>frames.delete(id),()=>count++);
@@ -56,4 +56,12 @@ test('motion metrics use a bounded interval window without inventing idle FPS',(
  const m=makeFrameMetrics(3);assert.equal(m.snapshot().fps,null);
  for(const x of [NaN,0,-1,10,20,30,40])m.record(x);
  const s=m.snapshot();assert.equal(s.samples,3);assert.equal(s.frameTimeMs,30);assert.equal(s.p95FrameIntervalMs,40);assert.equal(s.fps,1000/30);
+});
+
+test('startup failure deadline fires once and ignores cancelled or late callbacks',()=>{
+ let calls=0,callback,delay,cancellations=0;
+ const options={ms:60000,schedule(fn,ms){callback=fn;delay=ms;return 9;},cancel(id){assert.equal(id,9);cancellations++;}};
+ const first=makeStartupDeadline(()=>calls++,options);
+ assert.equal(delay,60000);first.cancel();first.cancel();callback();assert.equal(calls,0);assert.equal(cancellations,1);
+ const second=makeStartupDeadline(()=>calls++,options);callback();callback();second.cancel();assert.equal(calls,1);assert.equal(cancellations,1);
 });

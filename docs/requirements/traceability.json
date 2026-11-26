@@ -230,7 +230,10 @@
       "acceptance": "After sign-in, transition directly to the office. If required scene assets, characters, materials, renderer and first usable frame are not ready, show a blurred-office overlay with a circular indeterminate loader and truthful status. Remove it immediately when ready; no fixed-duration intro, fake percentage, artificial delay or arbitrary 80% pause. If the workspace is already ready before the overlay is displayed, skip the overlay.",
       "implementation": [
         "assets/agile-office/main.js",
-        "assets/agile-office/agile-renderer.js"
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/office-performance.mjs",
+        "scripts/apply-agile-office.py",
+        "assets/agile-office/agile-office.css"
       ],
       "tests": [
         {
@@ -241,6 +244,16 @@
         {
           "path": "scripts/renderer-lifecycle.test.mjs",
           "id": "character initialization failure returns a recoverable office fallback",
+          "level": "integration"
+        },
+        {
+          "path": "assets/agile-office/office-performance.test.mjs",
+          "id": "startup failure deadline fires once and ignores cancelled or late callbacks",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "a failed scheduled character frame settles readiness and disposes the renderer",
           "level": "integration"
         }
       ],
@@ -784,7 +797,10 @@
       "status": "in progress",
       "implementation": [
         "assets/agile-office/main.js",
-        "assets/agile-office/agile-renderer.js"
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/office-performance.mjs",
+        "scripts/apply-agile-office.py",
+        "assets/agile-office/agile-office.css"
       ],
       "tests": [
         {
@@ -795,6 +811,16 @@
         {
           "path": "scripts/renderer-lifecycle.test.mjs",
           "id": "character initialization failure returns a recoverable office fallback",
+          "level": "integration"
+        },
+        {
+          "path": "assets/agile-office/office-performance.test.mjs",
+          "id": "startup failure deadline fires once and ignores cancelled or late callbacks",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "a failed scheduled character frame settles readiness and disposes the renderer",
           "level": "integration"
         }
       ],

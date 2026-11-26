@@ -14,7 +14,7 @@ function assertReadiness(actual,expected){
   assert.equal(actual.meetingAvailable,expected.meetingAvailable);
   assert.equal(actual.reason,expected.reason);
 }
-async function fixture({fallback=false,noGL=false,failParse=false,cancelled=false,reduced=false,hidden=false,bakedCandidate=false,characterRoster=[],characterFailure=false}={}){
+async function fixture({fallback=false,noGL=false,failParse=false,cancelled=false,reduced=false,hidden=false,bakedCandidate=false,characterRoster=[],characterFailure=false,failFrame=false}={}){
   let now=0,sequence=0,lost=0,renders=0,disposed=0,decoderDisposed=0,compiled=0;
   const frames=new Map(),events=new Map(),canvasEvents=new Map(),requests=[],characterStates=[],characterTicks=[];
   let characterDisposed=0;
@@ -26,7 +26,7 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
   const host={dataset:{},clientWidth:800,clientHeight:450,replaceChildren:()=>{}};
   class Renderer{
     constructor(){this.shadowMap={};this.info={render:{calls:2,triangles:24}};this.capabilities={getMaxAnisotropy:()=>16}}
-    setDrawingBufferSize(w,h,ratio){this.ratio=ratio;canvas.width=w*ratio;canvas.height=h*ratio;} async compileAsync(){compiled++;} render(){assert.ok(compiled,'compile before render');renders++} dispose(){disposed++}
+    setDrawingBufferSize(w,h,ratio){this.ratio=ratio;canvas.width=w*ratio;canvas.height=h*ratio;} async compileAsync(){compiled++;} render(){assert.ok(compiled,'compile before render');if(failFrame&&renders>=1)throw Error('First character frame failed');renders++} dispose(){disposed++}
   }
   const texture=new THREE.Texture(),material=new THREE.MeshStandardMaterial({map:texture});
   const model=new THREE.Group();
@@ -177,4 +177,12 @@ test('renderer exposes three distinct workspace views and a separate meeting roo
  for(let index=0;index<4;index++)assert.equal(renderer.go(index),true);
  assert.equal(renderer.metrics().cameraIndex,3);
  renderer.dispose();
+});
+
+test('a failed scheduled character frame settles readiness and disposes the renderer',async()=>{
+ const f=await fixture({characterRoster:[{}],failFrame:true});
+ const view=await f.mount();for(let i=0;i<8;i++)await Promise.resolve();
+ f.tick(100);assertReadiness(await view.ready,{ok:false,reason:'frame-failed'});
+ assert.equal(f.lost,1);assert.equal(f.disposed,1);assert.equal(f.characterDisposed,1);assert.equal(f.frames.size,0);
+ view.dispose();assert.equal(f.disposed,1);
 });

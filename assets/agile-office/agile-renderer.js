@@ -88,7 +88,13 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
   try{
     renderer=new THREE.WebGLRenderer({canvas,context:gl,antialias:true});
     resolution=makeResolutionController(maxRatio(),{stable:true});
-    frameScheduler=makeFrameScheduler(requestAnimationFrame,cancelAnimationFrame,draw);
+    frameScheduler=makeFrameScheduler(requestAnimationFrame,cancelAnimationFrame,now=>{
+      try{draw(now);}catch(error){
+        console.warn('Office frame failed',error?.message);
+        settleReady({ok:false,reason:'frame-failed'});
+        dispose();onLost?.();
+      }
+    });
     canvas.addEventListener('webglcontextlost',lost);
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;

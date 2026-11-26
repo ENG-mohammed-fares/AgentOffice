@@ -51,3 +51,10 @@ export function makeFrameMetrics(limit=120){
     }
   };
 }
+
+// Failure deadline, never a minimum loading duration.
+export function makeStartupDeadline(onTimeout,{ms=60000,schedule=setTimeout,cancel=clearTimeout}={}){
+  let active=true;
+  const handle=schedule(()=>{if(active){active=false;onTimeout();}},ms);
+  return {cancel(){if(active){active=false;cancel(handle);}}};
+}

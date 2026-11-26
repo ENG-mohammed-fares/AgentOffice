@@ -54,6 +54,14 @@ jobs:
           blender --background --factory-startup --python-use-system-env --python-exit-code 1 --python-expr "import sys, numpy, coverage; print('Blender Python:', sys.version, 'NumPy:', numpy.__version__, 'coverage:', coverage.__version__)"
           python scripts/ci_heartbeat.py blender
           test -s compressed/office-bake-coverage.xml
+      - name: Preserve native Full HD office previews and review-only light-bake candidates
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: office-1.6.18-light-bake-review
+          path: office-candidates/
+          if-no-files-found: warn
+          retention-days: 14
       - uses: actions/upload-artifact@v6
         with:
           name: agentoffice-compressed-textures
@@ -251,13 +259,13 @@ jobs:
 
       # Isolated review only: neither downloaded candidate nor captures are packaged.
       - name: Render actual seated avatars and separately movable chairs
-        if: (github.ref == 'refs/heads/feat/1.6.17-natural-office-motion' || github.ref == 'refs/heads/feat/1.6.17-character-integration' || github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
+        if: (github.ref == 'refs/heads/feat/1.6.17-natural-office-motion' || github.ref == 'refs/heads/feat/1.6.17-character-integration' || github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && (github.event.pull_request.base.ref == 'development' || github.event.pull_request.base.ref == 'feat/1.6.18-startup-readiness') && github.event.pull_request.head.repo.full_name == github.repository))
         working-directory: app
         shell: pwsh
         env:
           AGENTOFFICE_CHARACTER_REVIEW: '1'
           AGENTOFFICE_SEATED_REVIEW: '1'
-          AGENTOFFICE_GRAPHICS_PRESET: 'performance'
+          AGENTOFFICE_GRAPHICS_PRESET: 'high'
         run: |
           $env:AGENTOFFICE_PREVIEW_DIR = Join-Path $PWD '../seated-review'
           python ../scripts/ci_heartbeat.py seated-review

@@ -1,5 +1,7 @@
 # Internal engineering documentation
 
+- [Experiment registry and remaining acceptance runbooks](engineering/acceptance-runbooks.md)
+
 - [Requirements and acceptance](requirements/srs.md) · [Canonical traceability matrix](requirements/traceability.json)
 - [Engineering evidence, backlog and risks](engineering/foundation.md) · [Architecture and decisions](architecture/overview.md)
 

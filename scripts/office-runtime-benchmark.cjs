@@ -19,7 +19,7 @@ const characterReview=process.env.AGENTOFFICE_CHARACTER_REVIEW==='1';
 const seatedReview=process.env.AGENTOFFICE_SEATED_REVIEW==='1';
 const ciReview=characterReview&&process.env.CI==='true';
 assert.ok(!characterReview||previewMode,'Character review requires a screenshot destination');
-const preset=process.env.AGENTOFFICE_GRAPHICS_PRESET||'balanced';
+const preset=process.env.AGENTOFFICE_GRAPHICS_PRESET||(previewMode?'high':'balanced');
 const bakedMode=process.env.AGENTOFFICE_BAKED_CANDIDATE;
 assert.ok(!bakedMode||['1','ktx2'].includes(bakedMode),'Invalid baked candidate mode');
 const bakedCandidate=bakedMode==='ktx2'?'compressed':bakedMode==='1';
@@ -70,12 +70,12 @@ window.benchmarkResult=(async()=>{
   try{
     const start=performance.now();
     stage('mount-start');
-    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)},bakedCandidate:${JSON.stringify(bakedCandidate)},characterRoster:characterReview?layout.characters:[],onProgress:stage});
+    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)},bakedCandidate:${JSON.stringify(bakedCandidate)},characterRoster:characterReview?layout.characters:[],onProgress:stage,reviewCapture:${JSON.stringify(previewMode)}});
     stage('office-first-frame');
     const firstFrameMs=round(performance.now()-start);
     if(characterReview){
       await waitCharacters(view);stage('seven-avatars-ready');
-      if(!view.setAgentState('QA Engineer','working'))throw Error('QA typing clip unavailable');
+      for(const {role} of layout.characters)if(!view.setAgentState(role,'working'))throw Error(role+' typing clip unavailable');
       await waitFrame(count());stage('animated-frames-observed');
     }else await quiet(0);
     const initial=view.metrics(),initialFrames=count();
@@ -83,13 +83,29 @@ window.benchmarkResult=(async()=>{
       window.previewView=async index=>{
         const before=count();view.go(index,true);if(characterReview)await waitFrame(before);else await quiet(before);return view.metrics();
       };
+      window.captureReviewFrame=()=>view.captureReviewFrame();
+      window.requestMeetingDemo=value=>{if(!view.metrics().meetingAvailable)throw Error('Movable-chair meeting simulation is unavailable');view.setMeeting(Boolean(value));return view.metrics();};
+      window.waitForMeetingDemo=async value=>{
+        const expected=Boolean(value),start=performance.now(),deadline=start+180000,initialFrames=count();
+        let nextLog=start,lastMetrics=view.metrics();
+        while(performance.now()<deadline){
+          lastMetrics=view.metrics();
+          if(expected?lastMetrics.meetingSeated===7&&lastMetrics.seated===7:lastMetrics.meetingSeated===0&&lastMetrics.seated===7)return lastMetrics;
+          if(performance.now()>=nextLog){
+            stage('meeting-progress '+JSON.stringify({target:expected,elapsedMs:round(performance.now()-start),frames:count()-initialFrames,seated:lastMetrics.seated,meetingSeated:lastMetrics.meetingSeated}));
+            nextLog=performance.now()+15000;
+          }
+          await sleep(100);
+        }
+        throw Error((expected?'Seven agents did not reach their meeting chairs':'Seven agents did not return to their desks')+'; '+JSON.stringify({frames:count()-initialFrames,seated:lastMetrics.seated,meetingSeated:lastMetrics.meetingSeated,softwareRendering:lastMetrics.softwareRendering}));
+      };
       keepView=true;
       return {ok:true,firstFrameMs,textureFormat:host.dataset.textureFormat,initial,contextLost};
     }
     await sleep(1000);
     const initialIdleFrames=count()-initialFrames;
     const transitions=[];
-    for(const index of [2,0,2,0]){
+    for(const index of [1,2,3,0]){
       const before=count(),times=[],started=performance.now();
       const observer=new MutationObserver(()=>times.push(performance.now()));
       observer.observe(host,{attributes:true,attributeFilter:['data-frames']});
@@ -115,6 +131,20 @@ async function boundedResult(){
   try{return await Promise.race([read(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Benchmark timeout at stage: '+lastStage)),timeoutMs);})]);}
   finally{clearTimeout(timer);}
 }
+async function saveNativeCapture(destination,name){
+  const frame=await win.webContents.executeJavaScript('window.captureReviewFrame()');
+  assert.equal(frame.width,1920,'Native WebGL buffer width');
+  assert.equal(frame.height,1080,'Native WebGL buffer height');
+  assert.ok(frame.drawCalls>0&&frame.triangles>0,'Capture must contain an actual rendered scene');
+  const prefix='data:image/png;base64,';
+  assert.ok(frame.png.startsWith(prefix),'Renderer did not produce a PNG');
+  const raw=Buffer.from(frame.png.slice(prefix.length),'base64');
+  assert.ok(raw.length>24&&raw.subarray(0,8).toString('hex')==='89504e470d0a1a0a'&&raw.subarray(12,16).toString()==='IHDR','Invalid native PNG');
+  assert.equal(raw.readUInt32BE(16),1920,'Native PNG width');
+  assert.equal(raw.readUInt32BE(20),1080,'Native PNG height');
+  fs.writeFileSync(path.join(destination,name),raw,{flag:'wx'});
+  return {width:frame.width,height:frame.height,pixelRatio:1,drawCalls:frame.drawCalls,triangles:frame.triangles,captureMode:'native-webgl'};
+}
 async function run(){
   assert.ok(fs.existsSync(path.join(appDir,'src','agile-renderer.js')),'Prepare the current app source first');
   assert.ok(fs.existsSync(path.join(appDir,'public','office','office.glb')),'Office asset missing');
@@ -125,7 +155,7 @@ async function run(){
   await build(config);
   server=await preview({...config,preview:{host:'127.0.0.1',port:4173,strictPort:false}});
   const port=server.httpServer.address().port;
-  win=new BrowserWindow({width:ciReview?800:previewMode&&!characterReview?1920:1280,height:ciReview?450:previewMode&&!characterReview?1080:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
+  win=new BrowserWindow({width:previewMode?1920:ciReview?800:1280,height:previewMode?1080:ciReview?450:800,useContentSize:true,show:true,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
   win.webContents.on('console-message',(_event,details,legacyMessage)=>{
     const message=typeof details==='object'?details.message:legacyMessage;
     if(typeof message!=='string')return;
@@ -141,28 +171,47 @@ async function run(){
     assert.ok(result.ok,result.error);
     if(characterReview){
       assert.equal(result.initial.characters,7);
+      assert.equal(result.initial.meetingAvailable,true);
+      assert.equal(result.initial.characterLabels,7);
+      assert.ok(result.initial.proceduralJoints>=91,'Rig-audited secondary joints were not animated');
+      assert.equal(result.initial.roleScreens,13);
+      assert.equal(result.initial.cameraCount,4);
       if(seatedReview){assert.equal(result.initial.movableChairs,15);assert.equal(result.initial.seated,7);}
       assert.equal(result.textureFormat,bakedCandidate?'baked-ktx2':'ktx2');
       if(bakedCandidate)assert.ok(result.initial.bakedMeshes>0,'No actual baked meshes');
       assert.equal(result.contextLost,false);
     }
     const destination=path.resolve(previewDir);
-    const views=[];
+    const views=[];let meetingReview=null,returnReview=null;
     fs.mkdirSync(destination,{recursive:true});
-    for(const index of [0,1,2]){
+    for(const index of [0,1,2,3]){
       lastStage='capture-view-'+index;
       const metrics=await win.webContents.executeJavaScript('window.previewView('+index+')');
-      if(!characterReview)assert.ok(metrics.width>=1920&&metrics.height>=1080,'Actual rendering buffer is below Full HD; select High or use a larger display.');
-      else {assert.equal(metrics.characters,7);if(seatedReview)assert.equal(metrics.seated,7);assert.ok(metrics.width>0&&metrics.height>0);}
-      const shot=await win.webContents.capturePage();
-      const {width,height}=shot.getSize();
-      if(!characterReview)assert.ok(width>=1920&&height>=1080,'Captured viewport is below Full HD.');
-      else assert.ok(width>0&&height>0);
-      fs.writeFileSync(path.join(destination,'view-'+index+'.png'),shot.toPNG(),{flag:'wx'});
-      views.push({index,width,height,...metrics});
+      assert.equal(metrics.cameraIndex,index,'Capture must match the selected authored camera');
+      if(characterReview){assert.equal(metrics.characters,7);assert.equal(metrics.characterLabels,7);if(seatedReview)assert.equal(metrics.seated,7);}
+      const capture=await saveNativeCapture(destination,'view-'+index+'.png');
+      views.push({index,...metrics,liveBuffer:{width:metrics.width,height:metrics.height,pixelRatio:metrics.pixelRatio},...capture});
+    }
+    if(characterReview&&seatedReview){
+      await win.webContents.executeJavaScript('window.requestMeetingDemo(true)');
+      await new Promise(resolve=>setTimeout(resolve,1500));
+      await win.webContents.executeJavaScript('window.previewView(3)');
+      await saveNativeCapture(destination,'meeting-transition.png');
+      meetingReview=await win.webContents.executeJavaScript('window.waitForMeetingDemo(true)');
+      assert.equal(meetingReview.meetingSeated,7);assert.equal(meetingReview.seated,7);
+      await win.webContents.executeJavaScript('window.previewView(3)');
+      await saveNativeCapture(destination,'meeting-room-seated.png');
+      await win.webContents.executeJavaScript('window.requestMeetingDemo(false)');
+      await new Promise(resolve=>setTimeout(resolve,1500));
+      await win.webContents.executeJavaScript('window.previewView(0)');
+      await saveNativeCapture(destination,'meeting-return-transition.png');
+      returnReview=await win.webContents.executeJavaScript('window.waitForMeetingDemo(false)');
+      assert.equal(returnReview.meetingSeated,0);assert.equal(returnReview.seated,7);
+      await win.webContents.executeJavaScript('window.previewView(0)');
+      await saveNativeCapture(destination,'agents-returned-to-desks.png');
     }
     if(characterReview){
-      fs.writeFileSync(path.join(destination,'review.json'),JSON.stringify({schemaVersion:1,ciReview,gpuFeatures:app.getGPUFeatureStatus(),gpuInfo:await app.getGPUInfo('basic').catch(()=>null),...result,views},null,2)+'\n');
+      fs.writeFileSync(path.join(destination,'review.json'),JSON.stringify({schemaVersion:1,ciReview,gpuFeatures:app.getGPUFeatureStatus(),gpuInfo:await app.getGPUInfo('basic').catch(()=>null),...result,views,meetingReview,returnReview},null,2)+'\n');
       console.log('Actual character review captures:',destination);
     }else console.log('Native Full HD office previews:',destination);
     return;

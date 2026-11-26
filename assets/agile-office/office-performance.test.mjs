@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {readFileSync} from 'node:fs';
-import {makeFrameScheduler,makeResolutionController,graphicsPixelRatio,makeFrameMetrics} from '../src/office-performance.mjs';
+import {makeFrameScheduler,makeResolutionController,graphicsPixelRatio,makeFrameMetrics,makeStartupDeadline} from '../src/office-performance.mjs';
 import {optimizeStaticMeshes} from '../src/office-batching.mjs';
 test('idle, hidden and disposed render scheduler does not loop',()=>{
  let i=0,frames=new Map(),count=0;const s=makeFrameScheduler(fn=>{frames.set(++i,fn);return i},id=>frames.delete(id),()=>count++);
@@ -32,7 +32,7 @@ test('actual packaged office: preserve all triangles and transparent materials d
  const key={POSITION:'position',NORMAL:'normal',TEXCOORD_0:'uv',TEXCOORD_1:'uv1',COLOR_0:'color',TANGENT:'tangent'};
  for(const node of doc.nodes){if(node.mesh===undefined)continue;for(const p of doc.meshes[node.mesh].primitives){const g=new THREE.BufferGeometry();for(const [name,id] of Object.entries(p.attributes)){assert.ok(key[name],name);g.setAttribute(key[name],attr(id));}if(p.indices!==undefined)g.setIndex(attr(p.indices));const mesh=new THREE.Mesh(g,mats[p.material]);mesh.name=node.name;mesh.castShadow=!mesh.name.toLowerCase().includes('glass')&&!mesh.name.toLowerCase().includes('sky');mesh.receiveShadow=true;if(node.matrix){mesh.matrix.fromArray(node.matrix);mesh.matrix.decompose(mesh.position,mesh.quaternion,mesh.scale);}else{if(node.translation)mesh.position.fromArray(node.translation);if(node.rotation)mesh.quaternion.fromArray(node.rotation);if(node.scale)mesh.scale.fromArray(node.scale);}root.add(mesh);}}
  const totals=()=>{let triangles=0,glass=0;root.traverse(m=>{if(m.isMesh){triangles+=(m.geometry.index?.count??m.geometry.attributes.position.count)/3*(m.isInstancedMesh?m.count:1);if(m.material.transparent)glass++;}});return {triangles,glass};};
- const before=totals(),result=optimizeStaticMeshes(root),after=totals();assert.deepEqual(after,before);assert.equal(before.triangles,117254);assert.ok(result.after<result.before);console.log('ACTUAL OFFICE:',JSON.stringify({...result,...after}));
+ const before=totals(),result=optimizeStaticMeshes(root),after=totals();assert.deepEqual(after,before);assert.equal(before.triangles,116332);assert.ok(result.after<result.before);console.log('ACTUAL OFFICE:',JSON.stringify({...result,...after}));
 });
 
 test('stable motion resolution ignores short stalls, reduces gradually and holds quality',()=>{
@@ -56,4 +56,12 @@ test('motion metrics use a bounded interval window without inventing idle FPS',(
  const m=makeFrameMetrics(3);assert.equal(m.snapshot().fps,null);
  for(const x of [NaN,0,-1,10,20,30,40])m.record(x);
  const s=m.snapshot();assert.equal(s.samples,3);assert.equal(s.frameTimeMs,30);assert.equal(s.p95FrameIntervalMs,40);assert.equal(s.fps,1000/30);
+});
+
+test('startup failure deadline fires once and ignores cancelled or late callbacks',()=>{
+ let calls=0,callback,delay,cancellations=0;
+ const options={ms:60000,schedule(fn,ms){callback=fn;delay=ms;return 9;},cancel(id){assert.equal(id,9);cancellations++;}};
+ const first=makeStartupDeadline(()=>calls++,options);
+ assert.equal(delay,60000);first.cancel();first.cancel();callback();assert.equal(calls,0);assert.equal(cancellations,1);
+ const second=makeStartupDeadline(()=>calls++,options);callback();callback();second.cancel();assert.equal(calls,1);assert.equal(cancellations,1);
 });

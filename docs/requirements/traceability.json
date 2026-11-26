@@ -30,12 +30,19 @@
       "acceptance": "See docs/requirements/srs.md scenario FR-OFFICE-001",
       "implementation": [
         "assets/agile-office/main.js",
-        "assets/agile-office/agile-renderer.js"
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/bake-office-candidate.py",
+        ".github/workflows/ci.yml"
       ],
       "tests": [
         {
           "path": "scripts/renderer-lifecycle.test.mjs",
           "id": "original-model fallback, reduced motion, and load errors preserve cleanup",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/test_office_bake_execution.py",
+          "id": "run_bake_coverage",
           "level": "integration"
         }
       ],
@@ -53,13 +60,20 @@
       "decision": "accepted",
       "acceptance": "See docs/requirements/srs.md scenario FR-OFFICE-002",
       "implementation": [
-        "assets/agile-office/agile-renderer.js"
+        "assets/agile-office/main.js",
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/office-task-panel.mjs"
       ],
       "tests": [
         {
           "path": "scripts/renderer-lifecycle.test.mjs",
           "id": "renderer controls camera/drag, pauses hidden work, and disposes real scene resources",
           "level": "integration"
+        },
+        {
+          "path": "assets/agile-office/office-task-panel.test.mjs",
+          "id": "four authored camera views never start a meeting; explicit meeting demo requests reset on teardown",
+          "level": "unit"
         }
       ],
       "verification": "IMPLEMENTED BUT UNVERIFIED",
@@ -169,9 +183,272 @@
       "owner": "Product owner / maintainer",
       "decision": "accepted",
       "acceptance": "See docs/requirements/srs.md scenario FR-MOTION-001",
-      "implementation": [],
-      "tests": [],
+      "implementation": [
+        "assets/agile-office/office-motion.mjs",
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/agent-animation.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "seated agents type, pull the chair, rise before walking, then sit and push it in",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "destination chair is pulled gradually before stepping into the seat space",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "waypoint travel turns in place then accelerates and stops without overshoot",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "rear desk route clears the planter proxy in both travel directions",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "meeting reversal while walking returns all avatars without seat sharing",
+          "level": "unit"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-STARTUP-001",
+      "summary": "Show a truthful, readiness-driven loading overlay after sign-in without a fixed intro",
+      "component": "authentication handoff / office renderer",
+      "priority": "P0",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26: remove the intro between successful sign-in and workspace entry; blur the office and show a circular loader only while the office is genuinely initializing.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "After sign-in, transition directly to the office. If required scene assets, characters, materials, renderer and first usable frame are not ready, show a blurred-office overlay with a circular indeterminate loader and truthful status. Remove it immediately when ready; no fixed-duration intro, fake percentage, artificial delay or arbitrary 80% pause. If the workspace is already ready before the overlay is displayed, skip the overlay.",
+      "implementation": [
+        "assets/agile-office/main.js",
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/office-performance.mjs",
+        "scripts/apply-agile-office.py",
+        "assets/agile-office/agile-office.css"
+      ],
+      "tests": [
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "workspace readiness resolves only after the first usable character frame",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "character initialization failure returns a recoverable office fallback",
+          "level": "integration"
+        },
+        {
+          "path": "assets/agile-office/office-performance.test.mjs",
+          "id": "startup failure deadline fires once and ignores cancelled or late callbacks",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "a failed scheduled character frame settles readiness and disposes the renderer",
+          "level": "integration"
+        }
+      ],
       "verification": "BLOCKED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-OFFICE-003",
+      "summary": "Provide three distinct workspace camera perspectives and a separate meeting-room perspective",
+      "component": "office camera navigation",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26: the office must not be limited to a single camera angle; expose multiple useful perspectives.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "Expose four authored camera presets: Desk View, Team View and Overview within the workspace, plus a separate Meeting Room view. Camera selection must not trigger or cancel meeting simulation or move characters. Preserve free-look, smooth transitions, reduced-motion behavior, and the authored office geometry and furniture.",
+      "implementation": [
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/main.js",
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/office-task-panel.mjs",
+        "scripts/office-runtime-benchmark.cjs",
+        "assets/agile-office/bake-office-candidate.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "renderer exposes three distinct workspace views and a separate meeting room camera",
+          "level": "integration"
+        },
+        {
+          "path": "assets/agile-office/office-task-panel.test.mjs",
+          "id": "four authored camera views never start a meeting; explicit meeting demo requests reset on teardown",
+          "level": "unit"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-CHAR-005",
+      "summary": "Show culturally appropriate first name and role above every avatar with typographic hierarchy",
+      "component": "avatar identity labels",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26: labels above all seven characters; first name only, separator as a dot, name bold and job title regular.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "Render one compact camera-facing label above each avatar: bold first name, a middle dot separator (·), and regular-weight role title. Use exactly the approved first-name/role pairs: Sara · Frontend Developer; Aiko · AI Engineer; Kwame · DevOps Engineer; Freja · Scrum Master; Arjun · QA Engineer; Diego · Backend Developer; Luca · Product Owner. Do not add surnames. Keep the label readable, positioned above the head, not occluding the face, following the avatar and remaining stable across all workspace camera views.",
+      "implementation": [
+        "assets/agile-office/character-roster.json",
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/main.js"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "role identities use first names only and render bold names beside regular role titles",
+          "level": "unit"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-CHAR-006",
+      "summary": "Fully articulate every character joint with natural, action-appropriate motion and no permanently stiff or omitted joints",
+      "component": "character skeletons, animation clips and IK",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26: every joint must move; no fixed or stiff joints. Combined with prior request for realistic legs, arms, hands and fingers.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "All seven character rigs must expose every intended anatomical joint for animation, including neck/head, spine, shoulders, elbows, wrists, fingers, pelvis, hips, knees, ankles and toes where present in the character design. No joint may be permanently locked, omitted from the rig, or left stiff across the animation system. Each relevant action must animate its appropriate joints with coordinated, continuous motion. Idle may hold a stable stance but must include subtle natural secondary motion; joints do not need to move continuously or simultaneously when biomechanics call for stability. Finger joints must articulate individually during typing and other hand actions. Apply anatomical joint limits and IK constraints; no stretching, snapping, jitter, hyperextension or detached limbs.",
+      "implementation": [
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/agent-animation.mjs",
+        "assets/agile-office/characters/manifest.json",
+        "scripts/office-motion.test.mjs",
+        "scripts/audit_character_rigs.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_rig_audit.py",
+          "id": "test_all_seven_assets",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/agent-animation.test.mjs",
+          "id": "rig-audit static neck, shoulder, wrist, thumb, toe and eye joints receive subtle secondary motion",
+          "level": "unit"
+        }
+      ],
+      "verification": "BLOCKED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-OFFICE-004",
+      "summary": "Render distinct role-specific content on every workstation monitor",
+      "component": "office screen presentation",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), sections 7 and 16.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "Every monitor displays distinct, role-appropriate content; multi-monitor roles receive different content per display. Each illustrative dashboard visibly carries a SIMULATION marker so static example values cannot be mistaken for live operational data. Preserve monitor geometry, aspect ratio and readable texture resolution.",
+      "implementation": [
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/screen-content.mjs",
+        "assets/agile-office/agile-renderer.js",
+        "scripts/apply-agile-office.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "screen layouts provide unique role-specific monitor content for every station",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "all thirteen workstation screens render distinct role content with a visible simulation marker",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "role screen construction disposes partial resources when a canvas context is unavailable",
+          "level": "unit"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-CHAR-007",
+      "summary": "Position typing hands over the authored keyboard and pointing hands at the appropriate workstation surface",
+      "component": "avatar ergonomics and hand IK",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 6. Latest owner correction: hands are visibly distant from the keyboard; include keyboard correction in 1.6.18.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "Both typing wrist targets lie over opposite keyboard halves at key height; pointing places the right wrist near the mouse and left at the keyboard. Preserve existing joint lengths and finger animation, avoid forced desk reach during idle, walking or meetings; inspect actual rendered contact and mesh clearance on all seven rigs.",
+      "implementation": [
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/office-motion.mjs",
+        "scripts/office-runtime-benchmark.cjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "both arms reach separate positions on the same mouse interaction surface",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "typing targets lie on opposite halves of the authored keyboard at key height",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "workstation IK is selected only for seated working and pointing activities",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "workstation reach places both wrists at keyboard targets without changing bone lengths",
+          "level": "unit"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-MOTION-002",
+      "summary": "Coordinate near-concurrent meeting preparation with safe reserved doorway travel",
+      "component": "meeting movement coordination",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 10.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "All seven characters begin stopping work, moving hands, pulling chairs and standing within a short staggered interval. Reserve the narrow doorway and unique destination chairs; never allow overlapping doorway occupancy or shared seats. Use independent state machines, queue only the constrained travel segment, and measure total transition duration before and after. Return all characters to their assigned desks when the meeting ends.",
+      "implementation": [
+        "assets/agile-office/office-motion.mjs",
+        "assets/agile-office/office-characters.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "all agents prepare and stand concurrently while only one doorway crossing is reserved",
+          "level": "unit"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
       "validation": "BLOCKED",
       "evidence": []
     }
@@ -442,6 +719,973 @@
           "path": "scripts/release-coverage.Tests.ps1",
           "id": "rejects tampered downloaded bytes without publishing them",
           "level": "integration"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-CI-003",
+      "source": "Owner: الان نبدأ العمل على التحديث القادم; PR #32 Windows run 45776830449 failed with UnicodeDecodeError in test_traceability.py.",
+      "story": "As a maintainer, I want multilingual user stories decoded consistently in Windows and Linux tests so that valid Arabic requirements do not break release verification.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Canonical UTF-8 traceability JSON with Arabic text",
+          "when": "Windows regression tests read it",
+          "then": "The test reads valid JSON using explicit UTF-8 rather than the host code page"
+        },
+        {
+          "id": "AC-02",
+          "given": "Verified meeting and walking fixes and a review-only bake candidate",
+          "when": "The combined 1.6.18 branch builds",
+          "then": "All existing CI, SonarCloud and security gates run against the exact integrated revision"
+        }
+      ],
+      "scope": "Correct the Windows test decoding bug and integrate PR #30, #31 and #32 after v1.6.17 publication.",
+      "constraints": "Keep release-version 1.6.17 until next release is accepted. Preserve all previous stories, tests, gates and original default PBR assets.",
+      "assumptions": "The exact Windows logs identify implicit read_text encoding as the failure; production validator already specifies UTF-8.",
+      "dependencies": "Published v1.6.17, PRs #30–32, canonical RTM.",
+      "impact": "Regression test portability and integration; no new public release.",
+      "status": "in progress",
+      "implementation": [
+        "scripts/test_traceability.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_story_change_contract",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-STARTUP-001",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26; explicitly removes the post-authentication intro because it adds to a measured 3–5 second office initialization delay.",
+      "story": "As an authenticated user, I want to enter the office immediately and see a subtle loading indicator only while the actual workspace is becoming usable, so that I do not wait through an unnecessary intro.",
+      "priority": "P0",
+      "requirements": [
+        "FR-STARTUP-001",
+        "FR-AUTH-001",
+        "FR-OFFICE-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Authentication succeeds and the workspace is not ready",
+          "when": "The app transitions to the office",
+          "then": "It skips the post-login intro, shows the office under a subtle blur with a circular indeterminate loader and truthful status, and keeps the overlay until actual readiness"
+        },
+        {
+          "id": "AC-02",
+          "given": "Scene assets, seven character assets, required materials/textures and renderer are ready and the first usable frame has been submitted",
+          "when": "The readiness contract resolves",
+          "then": "The overlay fades away smoothly immediately without an artificial minimum duration"
+        },
+        {
+          "id": "AC-03",
+          "given": "The workspace is already ready before the overlay would be shown",
+          "when": "The app enters the office",
+          "then": "The overlay is skipped entirely"
+        },
+        {
+          "id": "AC-04",
+          "given": "Loading fails, is cancelled, or the renderer cannot initialize",
+          "when": "The readiness contract reports failure or cancellation",
+          "then": "A recoverable error or usable fallback is shown; the user is never left in an infinite loading state"
+        },
+        {
+          "id": "AC-05",
+          "given": "Loading progress is not measurable as a truthful percentage",
+          "when": "The overlay is displayed",
+          "then": "It uses an indeterminate spinner and truthful stage text, never a fabricated 80% progress value"
+        }
+      ],
+      "scope": "Remove only the intro between successful sign-in and office entry. Preserve any separately approved app-launch or sign-out animation. Introduce a readiness-driven blurred-office overlay with a circular indeterminate loader, truthful status text, immediate hide on usable first frame, and recoverable failure/cancellation behavior.",
+      "constraints": "No fixed duration, fake progress, 80% stall or artificial wait. Do not block authentication. Preserve sign-in, sign-out, renderer functionality and update flow.",
+      "assumptions": "The renderer can expose an explicit readiness promise/event covering critical office assets, characters, material/texture setup and first usable rendered frame; readiness signals must be defined from actual load/decode/compile completion rather than timers.",
+      "dependencies": "Electron authentication handoff, agile office asset loader, renderer lifecycle and character manager.",
+      "impact": "Post-authentication UX and renderer startup only; no visual redesign of the office.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/main.js",
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/office-performance.mjs",
+        "scripts/apply-agile-office.py",
+        "assets/agile-office/agile-office.css"
+      ],
+      "tests": [
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "workspace readiness resolves only after the first usable character frame",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "character initialization failure returns a recoverable office fallback",
+          "level": "integration"
+        },
+        {
+          "path": "assets/agile-office/office-performance.test.mjs",
+          "id": "startup failure deadline fires once and ignores cancelled or late callbacks",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "a failed scheduled character frame settles readiness and disposes the renderer",
+          "level": "integration"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-CAMERA-001",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26. Code inspection confirmed office-layout.json already defines three cameras (Agile Workspace, Workspace and city, Meeting Room), while main.js exposes only Workspace and Meeting room buttons.",
+      "story": "As a workspace user, I want to switch between multiple useful views of the office so that I can see the full office from different perspectives instead of being limited to one angle.",
+      "priority": "P1",
+      "requirements": [
+        "FR-OFFICE-002",
+        "FR-OFFICE-003"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "The interactive office is ready",
+          "when": "The user opens the camera view selector",
+          "then": "Desk View, Team View, Overview and Meeting Room are visible with clear labels; the three workspace perspectives are distinct authored camera positions"
+        },
+        {
+          "id": "AC-02",
+          "given": "A user selects a different perspective",
+          "when": "The camera changes",
+          "then": "The transition is smooth, does not trigger meeting activity or move characters, and preserves free-look controls"
+        },
+        {
+          "id": "AC-03",
+          "given": "The selected camera is unavailable or rendering falls back to a poster",
+          "when": "The user changes views",
+          "then": "The UI exposes only valid views and updates the selected state without a broken or blank frame"
+        },
+        {
+          "id": "AC-04",
+          "given": "Different screen sizes and graphics presets",
+          "when": "The user changes among camera views",
+          "then": "The office remains framed usefully without altering geometry, furniture layout, materials, or camera controls"
+        }
+      ],
+      "scope": "Author and expose three genuinely distinct workspace camera perspectives (Desk View, Team View, Overview) and retain a separate Meeting Room perspective. Keep camera navigation independent of meeting simulation and capture all four views in the native-resolution review harness.",
+      "constraints": "No office redesign or geometry changes. Keep meeting simulation independent from camera navigation. Preserve drag-to-look and reduced-motion behavior.",
+      "assumptions": "The three current camera definitions are intended approved views; any additional positions require visual validation against the actual office model.",
+      "dependencies": "office-layout.json camera definitions, agile-renderer.go(index), main.js view controls, renderer lifecycle tests.",
+      "impact": "Office camera navigation and preview coverage only; no authentication or agent activity change.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/main.js",
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/office-task-panel.mjs",
+        "scripts/office-runtime-benchmark.cjs",
+        "assets/agile-office/bake-office-candidate.py",
+        "assets/agile-office/office-task-panel.test.mjs",
+        "scripts/apply-agile-office.py",
+        "assets/agile-office/agile-office.css"
+      ],
+      "tests": [
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "renderer exposes three distinct workspace views and a separate meeting room camera",
+          "level": "integration"
+        },
+        {
+          "path": "assets/agile-office/office-task-panel.test.mjs",
+          "id": "four authored camera views never start a meeting; explicit meeting demo requests reset on teardown",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-IDENTITY-001",
+      "source": "Owner-approved 1.6.18 additions, 2026-11-26: avatar name and role labels; follow-up explicitly replaces the vertical bar with a dot and requests only the name in bold.",
+      "story": "As a workspace user, I want to identify each avatar by a short first name and role label above their head, so that the seven team members are easy to recognize from every camera angle.",
+      "priority": "P1",
+      "requirements": [
+        "FR-CHAR-005"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "All seven office avatars are loaded",
+          "when": "Identity labels are rendered",
+          "then": "Each avatar displays exactly its approved first name, a middle dot separator, and its role; no surnames are shown"
+        },
+        {
+          "id": "AC-02",
+          "given": "A label is displayed",
+          "when": "Typography is rendered",
+          "then": "Only the first name is bold; the middle-dot separator and role title use regular weight"
+        },
+        {
+          "id": "AC-03",
+          "given": "The user changes camera view or the avatar moves",
+          "when": "The scene updates",
+          "then": "The label follows the correct avatar, faces the camera, remains readable and does not cover the face"
+        },
+        {
+          "id": "AC-04",
+          "given": "The seven character assets are loaded in any roster order",
+          "when": "Labels are assigned",
+          "then": "Names are mapped by role, never by array position"
+        },
+        {
+          "id": "AC-05",
+          "given": "The full first name, middle dot and role are rendered on a seated or moving character",
+          "when": "The label is positioned in the office",
+          "then": "The billboard is compact (height at most 0.148 m, width at most 0.85 m), preserves all identity text and has its lower edge anchored above the crown with 0.14 m clearance in the reference pose"
+        }
+      ],
+      "scope": "Add camera-facing name/role labels for all seven characters, mapped by stable role identifiers. The name is bold, the middle-dot separator and role are regular weight. Owner requested a smaller full identity label above the head, without truncating the role, after viewing the actual Electron captures.",
+      "constraints": "First names only; no surname; do not infer or change character appearance; no UI redesign; preserve camera navigation and character lifecycle/disposal.",
+      "assumptions": "Use a lightweight Three.js sprite or HTML overlay integrated with existing renderer; verify legibility at FHD and all approved views.",
+      "dependencies": "Character roster and office character manager, renderer camera, avatar world transforms.",
+      "impact": "Avatar identity presentation only; no agent execution or authentication changes.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/character-roster.json",
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/main.js"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "role identities use first names only and render bold names beside regular role titles",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-ANIMATION-001",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26: every joint must be capable of movement; no fixed or stiff joints. Builds on prior requests for natural leg, hand and finger movement.",
+      "story": "As a workspace user, I want every character joint to be properly rigged and naturally articulated during relevant actions, so that the team never looks rigid, mechanical or partially frozen.",
+      "priority": "P1",
+      "requirements": [
+        "FR-CHAR-006",
+        "FR-MOTION-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Each of the seven character assets is loaded",
+          "when": "The rig is validated",
+          "then": "The expected anatomical joint inventory is present and every intended joint is addressable by the animation system; no required joint is permanently locked or omitted"
+        },
+        {
+          "id": "AC-02",
+          "given": "A character performs idle, typing, thinking, standing, walking, sitting and meeting actions",
+          "when": "Each corresponding animation plays",
+          "then": "All relevant body regions articulate with coordinated motion; no relevant limb, wrist, hand, finger, foot, head or torso remains unnaturally stiff throughout that action"
+        },
+        {
+          "id": "AC-03",
+          "given": "A character types or interacts with desk equipment",
+          "when": "Hand animation plays",
+          "then": "Individual finger joints, wrists, elbows and shoulders move in a coordinated way appropriate to the interaction"
+        },
+        {
+          "id": "AC-04",
+          "given": "A character walks, sits, stands or turns",
+          "when": "The motion transitions between clips or IK states",
+          "then": "Pelvis, hips, knees, ankles, toes, spine, shoulders and arms move continuously within anatomical limits without foot sliding, limb penetration, snapping or stretching"
+        },
+        {
+          "id": "AC-05",
+          "given": "A character is in a stable resting or support pose",
+          "when": "The pose is held",
+          "then": "Joints may remain stable when required by biomechanics, while subtle secondary motion prevents an unnaturally frozen appearance; not every joint is forced to move simultaneously"
+        },
+        {
+          "id": "AC-06",
+          "given": "Automated animation validation runs",
+          "when": "Rig and clip coverage is checked",
+          "then": "Tests verify joint inventory, required track coverage and meaningful transform changes for each applicable action, while allowing biomechanically valid stable joints"
+        }
+      ],
+      "scope": "Audit and improve all seven rigs and their animation clips so every intended joint is fully articulatable. Coordinate full-body movement, hand/finger articulation and IK for desk, walking and meeting actions. Preserve character identity and proportions.",
+      "constraints": "Do not add artificial motion to every joint at every frame. Maintain biomechanical plausibility, joint limits, stable contacts, no foot sliding, no mesh intersections, no limb stretching or snapping. No character appearance redesign.",
+      "assumptions": "Rig inventory and current animation coverage must be inspected per GLB; if finger or other required joints are absent, the source rig/GLB assets must be updated rather than faking motion with mesh transforms.",
+      "dependencies": "Seven GLB rigs, agent-animation.mjs, office-characters.mjs, office-motion.mjs, character-specific typing/meeting actions and IK.",
+      "impact": "Character rigging and animation quality across office and meeting room.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/agent-animation.mjs",
+        "assets/agile-office/characters/manifest.json",
+        "scripts/office-motion.test.mjs",
+        "scripts/audit_character_rigs.py",
+        "scripts/agent-animation.test.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_rig_audit.py",
+          "id": "test_all_seven_assets",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/agent-animation.test.mjs",
+          "id": "rig-audit static neck, shoulder, wrist, thumb, toe and eye joints receive subtle secondary motion",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "workstation reach places both wrists at keyboard targets without changing bone lengths",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-SCREENS-001",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), sections 7 and 16.",
+      "story": "As a workspace user, I want each monitor to show meaningful content for its owner's role, so that the office looks like a functioning professional team rather than repeated generic screens.",
+      "priority": "P1",
+      "requirements": [
+        "FR-OFFICE-004"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "All seven workstations and their monitors are generated",
+          "when": "Role-specific screen textures are assigned",
+          "then": "Every monitor has a distinct layout reflecting its role and monitor purpose"
+        },
+        {
+          "id": "AC-02",
+          "given": "A role has multiple monitors",
+          "when": "Screen content is generated",
+          "then": "Each monitor displays a different relevant view rather than a duplicate texture"
+        },
+        {
+          "id": "AC-03",
+          "given": "The office is rendered at Full HD from each authored camera",
+          "when": "Screens are inspected",
+          "then": "Content remains correctly oriented and legible within the existing monitor geometry, and every static dashboard is visibly marked SIMULATION"
+        }
+      ],
+      "scope": "Generate lightweight original screen graphics for the seven roles and every monitor, with separate variants for multi-monitor roles.",
+      "constraints": "Do not redesign furniture or resize/reposition monitors; avoid unnecessary third-party logos or runtime dependencies. Static example values must be marked SIMULATION.",
+      "assumptions": "Screen surfaces can use lightweight CanvasTexture overlays placed just in front of the authored display panels.",
+      "dependencies": "Canonical build_scene monitor coordinates, generated agile-layout metadata and Three.js renderer.",
+      "impact": "Workstation display realism only.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/screen-content.mjs",
+        "assets/agile-office/agile-renderer.js",
+        "scripts/apply-agile-office.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "screen layouts provide unique role-specific monitor content for every station",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "all thirteen workstation screens render distinct role content with a visible simulation marker",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "role screen construction disposes partial resources when a canvas context is unavailable",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-ERGONOMICS-001",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 6. Latest owner correction: hands are visibly distant from the keyboard; include keyboard correction in 1.6.18.",
+      "story": "As a workspace user, I want both typing hands aligned to the actual keyboard, with a separate pointing pose, so avatars interact naturally with desk equipment.",
+      "priority": "P1",
+      "requirements": [
+        "FR-CHAR-007"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A character is seated at its assigned desk",
+          "when": "The workstation interaction pose is applied",
+          "then": "During typing, left and right wrist targets align to opposite halves of the authored keyboard at key height; during review or thinking, the right hand targets the mouse and the left remains at the keyboard."
+        },
+        {
+          "id": "AC-02",
+          "given": "The IK solution is evaluated",
+          "when": "The avatar reaches its current workstation target",
+          "then": "Shoulders, elbows, forearms and wrists rotate without limb stretching or mesh penetration"
+        },
+        {
+          "id": "AC-03",
+          "given": "All seven avatars are loaded",
+          "when": "Their desk poses are validated",
+          "then": "Each character uses its own role/station mapping and preserves its proportions"
+        },
+        {
+          "id": "AC-04",
+          "given": "An avatar is idle, walking or in the meeting room",
+          "when": "The animation advances",
+          "then": "Workstation IK is not forced on the resting or travel pose; arm joint lengths and finger animations remain intact."
+        }
+      ],
+      "scope": "Use the authored keyboard dimensions, nearest key row, and key-top height for typing. Separate typing from pointing and idle/meeting poses. Validate all seven roles with actual Electron review captures.",
+      "constraints": "Preserve desk height, monitor placement, character proportions and office design. No arbitrary mesh translation.",
+      "assumptions": "The existing arm rig exposes LeftArm/RightArm, ForeArm and Hand joints; per-rig visual contact still requires rendered review.",
+      "dependencies": "Seven GLB rigs, seatingPlan, keyboard and mouse geometry, two-bone IK and activity state.",
+      "impact": "Seated character ergonomics only.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/office-motion.mjs",
+        "scripts/office-runtime-benchmark.cjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "both arms reach separate positions on the same mouse interaction surface",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "typing targets lie on opposite halves of the authored keyboard at key height",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "workstation IK is selected only for seated working and pointing activities",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "workstation reach places both wrists at keyboard targets without changing bone lengths",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-MEETING-001",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 10.",
+      "story": "As a workspace user, I want all seven characters to prepare for a meeting together while safely reserving the narrow doorway and individual chairs, so that I do not wait through seven complete sequential animations.",
+      "priority": "P1",
+      "requirements": [
+        "FR-MOTION-001",
+        "FR-MOTION-002",
+        "FR-OFFICE-002",
+        "FR-TASK-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A meeting is requested",
+          "when": "The seven state machines receive the request",
+          "then": "All agents begin stopping work, pulling chairs and standing within a short controlled stagger"
+        },
+        {
+          "id": "AC-02",
+          "given": "Agents are ready to travel",
+          "when": "The doorway is occupied",
+          "then": "Only the permitted mover enters the constrained corridor and no other agent overlaps its reserved path"
+        },
+        {
+          "id": "AC-03",
+          "given": "An agent reaches the meeting room",
+          "when": "It approaches its destination",
+          "then": "It uses its unique reserved chair and sits without teleportation or furniture intersection"
+        },
+        {
+          "id": "AC-04",
+          "given": "The meeting ends",
+          "when": "Agents return to their desks",
+          "then": "Each agent restores its own chair, returns to its assigned station and resumes the appropriate activity"
+        },
+        {
+          "id": "AC-05",
+          "given": "A user selects Desk View, Overview, Team View or Meeting Room",
+          "when": "The camera changes",
+          "then": "Only the camera changes; no agent meeting request is emitted"
+        },
+        {
+          "id": "AC-06",
+          "given": "Live character rendering is ready",
+          "when": "The user explicitly starts or ends the meeting demo",
+          "then": "The meeting queue receives a Boolean request only when all seven characters and the complete movable-chair map are ready; the accessible control reflects state and remains disabled otherwise"
+        },
+        {
+          "id": "AC-07",
+          "given": "Two or more agents need to use the same left or right meeting aisle",
+          "when": "Meeting or return travel is scheduled",
+          "then": "At most one agent occupies each aisle segment at a time; agents in the other aisle may continue independently"
+        },
+        {
+          "id": "AC-08",
+          "given": "Visible frames arrive irregularly or slowly during a meeting transition",
+          "when": "The roster advances its motion and animations",
+          "then": "Elapsed time is processed in bounded substeps with doorway and lane reservations preserved; extreme suspension time is capped and failed Electron transitions report actual seat and frame progress"
+        }
+      ],
+      "scope": "Overlap preparation and standing for all seven avatars while preserving serialized reservation of the narrow doorway; measure complete meeting and return duration. Correct lost elapsed time reported by Windows job 139928505608 and record progress on failed transitions.",
+      "constraints": "No teleportation, shared chairs, collisions, wall/furniture clipping, or camera-triggered meeting requests.",
+      "assumptions": "Doorway remains a single-occupancy constraint until measured clearance supports a wider safe policy.",
+      "dependencies": "office-motion.mjs state machines, seven unique seating plans and camera/meeting control separation.",
+      "impact": "Meeting simulation timing and movement coordination.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/office-motion.mjs",
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/main.js",
+        "assets/agile-office/office-task-panel.mjs",
+        "scripts/office-runtime-benchmark.cjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "all agents prepare and stand concurrently while only one doorway crossing is reserved",
+          "level": "unit"
+        },
+        {
+          "path": "assets/agile-office/office-task-panel.test.mjs",
+          "id": "four authored camera views never start a meeting; explicit meeting demo requests reset on teardown",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "slow rendered frames preserve bounded meeting simulation time",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "motion catch-up bounds long stalls and ignores invalid time",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-MOTION-001",
+      "source": "Owner: اكمل ما هو غير مكتمل; doing_0 rendering master prompt sections 5–7, 12.",
+      "story": "As a workspace user, I want avatars to face their travel direction before walking, start and stop smoothly, and avoid the known planter obstruction on their route.",
+      "priority": "P1",
+      "requirements": [
+        "FR-MOTION-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A waypoint behind or to the side of an avatar",
+          "when": "Travel advances",
+          "then": "The avatar turns at bounded angular speed without translating sideways, then accelerates toward the target and brakes to a stop"
+        },
+        {
+          "id": "AC-02",
+          "given": "The canonical rear desk and planter coordinates",
+          "when": "Its meeting route is generated",
+          "then": "The route clears the planter proxy by the documented agent radius in both directions"
+        },
+        {
+          "id": "AC-03",
+          "given": "A meeting or return request",
+          "when": "The queue runs including a reversed request",
+          "then": "Agents complete transitions without snapping, overshooting, or sharing chairs and resume desk activity"
+        },
+        {
+          "id": "AC-04",
+          "given": "An avatar is seated at an authored workstation",
+          "when": "The avatar is working, thinking or reviewing",
+          "then": "Both wrist targets align to the actual keyboard halves or mouse surface using station-local orientation, and workstation IK is disabled during travel, meeting and non-interaction poses"
+        }
+      ],
+      "scope": "Bounded heading, acceleration and braking; correct one known static obstacle route; extend existing motion regression tests.",
+      "constraints": "Preserve office and identities, existing chair sequence, quality gates, auth and release version. No claim of full dynamic collision avoidance or foot contact.",
+      "assumptions": "Planter proxy radius 0.27 m based on build_scene.py; avatar clearance radius 0.22 m is an engineering estimate, not measured rig clearance.",
+      "dependencies": "Existing office-motion state machine and authored scene coordinates.",
+      "impact": "Visual travel and navigation; no actual agent execution changes.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/office-motion.mjs",
+        "assets/agile-office/office-characters.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "waypoint travel turns in place then accelerates and stops without overshoot",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "rear desk route clears the planter proxy in both travel directions",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "meeting reversal while walking returns all avatars without seat sharing",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "typing targets lie on opposite halves of the authored keyboard at key height",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "workstation IK is selected only for seated working and pointing activities",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-RENDER-001",
+      "source": "Owner: لاتُبقي أي شيء غير مكتمل; doing_0 master rendering prompt sections 9–10 and 14.",
+      "story": "As a workspace user, I want static lighting candidates to exclude movable-chair shadows and native Full HD renders to be preserved for review, so that office graphics can be validated before promotion.",
+      "priority": "P1",
+      "requirements": [
+        "FR-OFFICE-001",
+        "NFR-PERF-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Imported canonical office with independently movable chair meshes",
+          "when": "Cycles bakes the static lightmap",
+          "then": "Chair meshes are hidden from the bake and restored afterward, while exported geometry retains all original chair nodes"
+        },
+        {
+          "id": "AC-02",
+          "given": "Actual Blender diffuse and combined execution",
+          "when": "The asset job completes",
+          "then": "Four verified 1920x1080 PNGs, atlas and model candidates and both mode reports are preserved as review-only artifacts tied to the run"
+        },
+        {
+          "id": "AC-03",
+          "given": "Unreviewed experimental lightmaps and previews",
+          "when": "The app is packaged",
+          "then": "Existing verified default PBR assets and fallback remain unchanged"
+        }
+      ],
+      "scope": "Maintain original PBR runtime rendering while producing a review-only static light-bake candidate, four native 1920x1080 camera captures, and repeatable renderer diagnostics. Do not enable baked assets by default before visual and real-hardware sign-off.",
+      "constraints": "Do not ship unreviewed lightmaps or change release version. No fabricated screenshots or performance claims.",
+      "assumptions": "Cycles hide_render excludes chair meshes from rendered illumination; visual inspection and hardware comparison remain necessary.",
+      "dependencies": "Canonical GLB generation, actual Cycles integration test and existing CI asset job.",
+      "impact": "Review-only lighting and evidence pipeline; no default runtime changes.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/bake-office-candidate.py",
+        ".github/workflows/ci.yml",
+        "scripts/test_office_bake_execution.py",
+        "scripts/office-runtime-benchmark.cjs",
+        "docs/office-light-bake-review-1.6.18.md"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_office_bake_execution.py",
+          "id": "run_bake_coverage",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/office-runtime-benchmark.cjs",
+          "id": "previewView",
+          "level": "integration"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-QUALITY-003",
+      "source": "Owner: تابع ونفذ الباقي دون ان تتعارض مع انزال الاصدار الجديد — 2026-11-26",
+      "story": "As a maintainer, I want to reject malformed story references and unsupported evidence regardless of completion status, so that engineering evidence remains trustworthy.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A valid linked implementation change",
+          "when": "Traceability validation runs",
+          "then": "The structural gate accepts it"
+        },
+        {
+          "id": "AC-02",
+          "given": "Missing story, malformed criteria or unsupported completion",
+          "when": "Traceability validation runs",
+          "then": "The gate fails with a diagnostic"
+        }
+      ],
+      "scope": "reject malformed story references and unsupported evidence regardless of completion status",
+      "constraints": "Preserve all quality/security/release controls",
+      "assumptions": "Review checks meaning and pre-code chronology",
+      "dependencies": "Existing canonical RTM validator",
+      "impact": "CI/documentation only; no release or runtime change",
+      "status": "in progress",
+      "implementation": [
+        "scripts/validate_traceability.py",
+        "scripts/refactoring-gate.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_story_rejects_invalid_metadata_before_completion",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_changed_paths_require_active_stories",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-QUALITY-004",
+      "source": "Owner: تابع ونفذ الباقي دون ان تتعارض مع انزال الاصدار الجديد — 2026-11-26",
+      "story": "As a maintainer, I want to maintain experiment, recovery and hardware acceptance contracts without affecting release delivery, so that engineering evidence remains trustworthy.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A valid linked implementation change",
+          "when": "Traceability validation runs",
+          "then": "The structural gate accepts it"
+        },
+        {
+          "id": "AC-02",
+          "given": "Missing story, malformed criteria or unsupported completion",
+          "when": "Traceability validation runs",
+          "then": "The gate fails with a diagnostic"
+        }
+      ],
+      "scope": "maintain experiment, recovery and hardware acceptance contracts without affecting release delivery",
+      "constraints": "Preserve all quality/security/release controls",
+      "assumptions": "Review checks meaning and pre-code chronology",
+      "dependencies": "Existing canonical RTM validator",
+      "impact": "CI/documentation only; no release or runtime change",
+      "status": "in progress",
+      "implementation": [
+        "docs/engineering/acceptance-runbooks.md",
+        "docs/README.md"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_traceability.py",
+          "id": "test_repository_matrix",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-CI-004",
+      "source": "Owner: تابع العمل ونزل الاصدار — 2026-11-26; Windows CI run 45813294206 exposed cross-platform and stale-baseline regressions before release.",
+      "story": "As a maintainer, I want the exact 1.6.18 candidate to pass the same deterministic unit contracts on Windows and Linux, so that the release cannot advance with runtime defects or platform-dependent assertions.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "The canonical animation module is loaded without browser globals",
+          "when": "Secondary joint motion is evaluated in Node and Electron",
+          "then": "The module uses the rig quaternion interface without a browser global or forbidden static dependency and updates every audited joint without a ReferenceError"
+        },
+        {
+          "id": "AC-02",
+          "given": "Readiness results cross an isolated VM context",
+          "when": "Lifecycle tests validate success, fallback and cancellation",
+          "then": "Assertions compare the documented readiness fields without depending on cross-realm object prototypes"
+        },
+        {
+          "id": "AC-03",
+          "given": "The 1.6.18 scene, identity roster and reserved meeting routes",
+          "when": "Regression tests execute",
+          "then": "They use the current measured triangle baseline, approved role identities, rear-desk clearance route and explicit travel reservation contract"
+        },
+        {
+          "id": "AC-04",
+          "given": "A malformed seven-role monitor layout",
+          "when": "Duplicate-role validation is tested",
+          "then": "The fixture preserves the required list length and exercises the intended duplicate-layout branch"
+        },
+        {
+          "id": "AC-05",
+          "given": "The office entry imports the already architecture-checked pure startup deadline helper",
+          "when": "The prepared application architecture gate runs",
+          "then": "The specific local policy dependency is accepted, while static renderer and unrelated dependencies remain forbidden and all differential and mutation checks remain blocking"
+        }
+      ],
+      "scope": "Repair the exact Windows CI regressions on PR #37 and add focused platform-stable assertions before release validation resumes. Reconcile the startup deadline dependency reported by Windows job 139916360230 with the explicit architecture contract.",
+      "constraints": "Do not weaken coverage, SonarCloud, security, packaging or release gates; do not change product behavior merely to satisfy stale tests.",
+      "assumptions": "The measured canonical 1.6.18 geometry baseline is 116,332 triangles and meeting travel remains controlled by the queue reservation API.",
+      "dependencies": "Canonical overlay modules, generated app tests, Node VM lifecycle harness and Windows CI.",
+      "impact": "Release eligibility and regression reliability; no authentication, updater or public distribution change.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/agent-animation.mjs",
+        "assets/agile-office/agile-renderer.js",
+        "scripts/refactoring-gate.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/agent-animation.test.mjs",
+          "id": "rig-audit static neck, shoulder, wrist, thumb, toe and eye joints receive subtle secondary motion",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "workspace readiness resolves only after the first usable character frame",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "seated agents type, pull the chair, rise before walking, then sit and push it in",
+          "level": "unit"
+        },
+        {
+          "path": "assets/agile-office/office-performance.test.mjs",
+          "id": "actual packaged office: preserve all triangles and transparent materials during batching",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/refactoring-gate.mjs",
+          "id": "officeEntryImport",
+          "level": "integration"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-REL-002",
+      "source": "Owner: تابع العمل ونزل الاصدار — 2026-11-26; staged after the integrated 1.6.18 candidate and its blocking gates.",
+      "story": "As the product owner, I want the exact validated AgentOffice 1.6.18 candidate published through the existing automatic update channel, so that users receive the new office experience without bypassing quality or security checks.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "PR #37, its security scan and SonarCloud Quality Gate pass on one exact revision",
+          "when": "That revision is integrated into the protected development branch",
+          "then": "The development branch repeats CI, security and SonarCloud successfully before any version publication change is accepted"
+        },
+        {
+          "id": "AC-02",
+          "given": "Development is green and the current stable release is 1.6.17",
+          "when": "The release candidate version is changed",
+          "then": "Only release-version.txt advances to 1.6.18 and deterministic preparation propagates the version to the generated application"
+        },
+        {
+          "id": "AC-03",
+          "given": "The exact 1.6.18 development commit produces a verified Windows candidate",
+          "when": "The protected release workflow validates commit, run ID, version, lockfile and hashes",
+          "then": "It publishes exactly the installer, blockmap and latest.yml through the existing public update channel"
+        },
+        {
+          "id": "AC-04",
+          "given": "Any PR, development, security, SonarCloud, candidate provenance or publication check fails",
+          "when": "Release eligibility is evaluated",
+          "then": "No 1.6.18 tag or release is published and 1.6.17 remains the stable version"
+        }
+      ],
+      "scope": "Prepare the isolated 1.6.18 version-bump change and use the existing fail-closed development release workflow after the integrated candidate is green.",
+      "constraints": "No manual tag, no direct main push, no disabled gate, no fabricated benchmark claim, no mandatory code signing reintroduced, and no publication before post-merge development verification.",
+      "assumptions": "The current public stable tag is v1.6.17 and the repository's existing automatic update workflow remains the approved publication path.",
+      "dependencies": "PR #37 exact-head CI/security/Sonar success, protected development merge, post-merge development success and verified candidate artifacts.",
+      "impact": "Version metadata and public Windows update publication only; application behavior is inherited unchanged from the validated candidate.",
+      "status": "in progress",
+      "implementation": [
+        "release-version.txt"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_release_validation.py",
+          "id": "test_valid_candidate",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "retries stale public metadata without recreating or republishing the release",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "rejects an invalid draft without publishing it",
+          "level": "integration"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-QUALITY-005",
+      "source": "Owner request 2026-11-26: عالج الفشل; PR #37 run 45835984858 rejected unmapped Sonar coverage changes from commit 257bfd1c05af7a903b4c495d13584277e9b9bd33. Retrospective mapping; original implementation preceded this record.",
+      "story": "As a maintainer, I want the canonical role-screen overlay analyzed exactly once with its measured coverage transferred only after byte-equality validation, so that generated copies do not distort the blocking quality gate.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "The canonical screen-content overlay and its byte-identical prepared copy",
+          "when": "SonarCloud analysis runs",
+          "then": "Analyze the canonical source once, exclude only the prepared duplicate, and retain all quality thresholds."
+        },
+        {
+          "id": "AC-02",
+          "given": "Actual test coverage for prepared overlays",
+          "when": "Coverage is canonicalized",
+          "then": "Require byte-identical sources and reject missing required coverage, failed tests or duplicate source records."
+        },
+        {
+          "id": "AC-03",
+          "given": "The exact PR #37 changed implementation paths",
+          "when": "The story traceability gate runs",
+          "then": "Both the coverage runner and Sonar configuration are mapped to an active story with existing regression tests; no pass claim without exact-revision evidence."
+        }
+      ],
+      "scope": "Document and reconcile the existing canonical screen overlay coverage correction and its regression tests after the failed story gate; no new runtime changes.",
+      "constraints": "Keep the canonical runtime source, measured coverage, byte-equality checks, blocking SonarCloud and security gates unchanged. Do not claim completion before exact-head CI and post-merge verification.",
+      "assumptions": "The failed run identified missing story mapping, not a failed runtime test; the current canonical mapping still requires CI verification.",
+      "dependencies": "DR-QUALITY-001, scripts/coverage-report.test.cjs, canonical overlay mapping and PR #37.",
+      "impact": "Traceability documentation only; no version, distribution or runtime changes.",
+      "status": "in progress",
+      "implementation": [
+        "scripts/run-coverage.cjs",
+        "sonar-project.properties"
+      ],
+      "tests": [
+        {
+          "path": "scripts/coverage-report.test.cjs",
+          "id": "Sonar analyzes canonical overlays once and excludes their byte-identical prepared copies",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/coverage-report.test.cjs",
+          "id": "canonical mapping transfers only actual measurements from byte-identical overlays",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/coverage-report.test.cjs",
+          "id": "runner rejects child failure and missing required coverage without hiding the report",
+          "level": "unit"
         }
       ],
       "evidence": []

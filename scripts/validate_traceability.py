@@ -109,9 +109,10 @@ def validate_stories(matrix: dict, root: Path) -> None:
                 raise ValueError('Missing story field: ' + field)
         if story.get('status') not in ('proposed', 'ready', 'in progress', 'verified', 'blocked', 'done'):
             raise ValueError('Invalid story status')
+        if story.get('priority') not in ('P0', 'P1', 'P2', 'P3'):
+            raise ValueError('Invalid story priority')
         links = story.get('requirements')
-        if not isinstance(links, list) or not links or any(link not in requirements for link in links):
-            raise ValueError('Broken story requirement link')
+        validate_links(links, requirements)
         validate_criteria(story.get('criteria'))
         for field in ('implementation', 'tests', 'evidence'):
             if not isinstance(story.get(field), list):
@@ -119,8 +120,21 @@ def validate_stories(matrix: dict, root: Path) -> None:
         for path in story['implementation']:
             checked_file(root, path)
         validate_tests(story['tests'], root)
-        if story['status'] in ('verified', 'done'):
-            validate_evidence({**story, 'verification': 'VERIFIED PASS', 'validation': 'BLOCKED'}, root)
+        if story['status'] != 'proposed' and not story['tests']:
+            raise ValueError('Active story requires a validation plan')
+        status = 'VERIFIED PASS' if story['status'] in ('verified', 'done') else 'BLOCKED'
+        validate_evidence({**story, 'verification': status, 'validation': 'BLOCKED'}, root)
+
+
+def validate_links(links: list, requirements: set) -> None:
+    """Reject duplicate, malformed or unresolved requirement links with a stable diagnostic."""
+    if not isinstance(links, list) or not links:
+        raise ValueError('Missing story requirement links')
+    seen = set()
+    for link in links:
+        if not isinstance(link, str) or link not in requirements or link in seen:
+            raise ValueError('Broken or duplicate story requirement link')
+        seen.add(link)
 
 
 def validate_criteria(criteria: list) -> None:
@@ -142,7 +156,9 @@ def validate_criteria(criteria: list) -> None:
 
 def validate_changes(matrix: dict, changed: list) -> None:
     """Reject implementation paths without a story mapping; docs and test-only files are exempt."""
-    linked = {p for story in matrix.get('stories', []) for p in story['implementation']}
+    linked = {p for story in matrix.get('stories', [])
+              if story['status'] in ('ready', 'in progress', 'verified', 'done')
+              for p in story['implementation']}
     for path in changed:
         implementation = path.startswith(('assets/', 'scripts/', '.github/workflows/')) or path in ('AgentOffice-Source.zip', 'package-lock.json', 'release-version.txt', 'sonar-project.properties')
         test = '.test.' in path or Path(path).name.startswith(('test_', 'test-')) or '.Tests.' in path

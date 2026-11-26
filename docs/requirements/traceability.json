@@ -258,6 +258,46 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-MOTION-001",
+      "source": "Owner: اكمل ما هو غير مكتمل; doing_0 rendering master prompt sections 5–7, 12.",
+      "story": "As a workspace user, I want avatars to face their travel direction before walking, start and stop smoothly, and avoid the known planter obstruction on their route.",
+      "priority": "P1",
+      "requirements": [
+        "FR-MOTION-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A waypoint behind or to the side of an avatar",
+          "when": "Travel advances",
+          "then": "The avatar turns at bounded angular speed without translating sideways, then accelerates toward the target and brakes to a stop"
+        },
+        {
+          "id": "AC-02",
+          "given": "The canonical rear desk and planter coordinates",
+          "when": "Its meeting route is generated",
+          "then": "The route clears the planter proxy by the documented agent radius in both directions"
+        },
+        {
+          "id": "AC-03",
+          "given": "A meeting or return request",
+          "when": "The queue runs including a reversed request",
+          "then": "Agents complete transitions without snapping, overshooting, or sharing chairs and resume desk activity"
+        }
+      ],
+      "scope": "Bounded heading, acceleration and braking; correct one known static obstacle route; extend existing motion regression tests.",
+      "constraints": "Preserve office and identities, existing chair sequence, quality gates, auth and release version. No claim of full dynamic collision avoidance or foot contact.",
+      "assumptions": "Planter proxy radius 0.27 m based on build_scene.py; avatar clearance radius 0.22 m is an engineering estimate, not measured rig clearance.",
+      "dependencies": "Existing office-motion state machine and authored scene coordinates.",
+      "impact": "Visual travel and navigation; no actual agent execution changes.",
+      "status": "ready",
+      "implementation": [
+        "assets/agile-office/office-motion.mjs"
+      ],
+      "tests": [],
+      "evidence": []
     }
   ]
 }

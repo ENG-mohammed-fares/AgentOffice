@@ -109,6 +109,15 @@ jobs:
           python -m coverage xml -o coverage/python-coverage.xml
           if ($LASTEXITCODE -ne 0 -or !(Test-Path coverage/python-coverage.xml)) { throw 'Python coverage report missing.' }
 
+      - name: Validate user stories and changed implementation mappings
+        shell: pwsh
+        env:
+          STORY_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          STORY_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python scripts/validate_traceability.py
+          if ($LASTEXITCODE -ne 0) { throw 'Story traceability gate failed.' }
+
       - name: Validate and extract source archive
         shell: pwsh
         run: |

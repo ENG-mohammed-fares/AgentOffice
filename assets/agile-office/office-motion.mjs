@@ -78,7 +78,7 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
   function completeSeat(){setPosition(seat.at);rotation.y=yawFor(seat.forward);setOffset(seat,0);setPose(seatedPose());enter('seated');}
   completeSeat();
   return {
-    get phase(){return phase;},get location(){return seat.id;},get atDesk(){return phase==='seated'&&seat===plan.desk;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},get needsTravel(){return phase==='waiting-travel'&&seat!==desired;},get corridorClear(){return phase==='walk'&&cursor>=5;},get corridorReserved(){return travelAllowed&&phase==='walk'&&cursor<5;},
+    get phase(){return phase;},get location(){return seat.id;},get atDesk(){return phase==='seated'&&seat===plan.desk;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},get needsTravel(){return phase==='waiting-travel'&&seat!==desired;},get corridorClear(){return phase==='walk'&&cursor>=(seat===plan.desk?5:6);},get corridorReserved(){return travelAllowed&&phase==='walk'&&!this.corridorClear;},
     requestMeeting(value){desired=value?plan.meeting:plan.desk;},
     setTravelAllowed(value){travelAllowed=Boolean(value);},
     setActivity(value){activity=value;if(phase==='seated')setPose(seatedPose());},

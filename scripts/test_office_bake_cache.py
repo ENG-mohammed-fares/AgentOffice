@@ -128,6 +128,15 @@ class BakeCacheTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "Blender is required"):
                     tool_identity()
 
+    def test_workflow_reuses_only_verified_exact_input_cache_on_development_too(self):
+        """Development may reuse a verified identical bake, never skip validation."""
+        root = Path(__file__).resolve().parents[1]
+        workflow = (root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        self.assertIn("if: steps.bake_verify.outputs.valid != 'true'", workflow)
+        self.assertIn("python scripts/office_bake_cache.py verify", workflow)
+        self.assertIn("python scripts/office_bake_cache.py write", workflow)
+        self.assertNotIn("github.event_name != 'pull_request' || steps.bake_verify.outputs.valid", workflow)
+
     def test_cli_operations_and_failure(self):
         """Cache CLI dispatches actual operations and fails on malformed evidence."""
         with patch("office_bake_cache.source_paths", return_value=[]), patch(

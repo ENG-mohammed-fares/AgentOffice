@@ -74,7 +74,7 @@ jobs:
             echo 'Invalid cache; run the actual Blender bake.'
           fi
       - name: Measure actual Blender bake execution (review assets only)
-        if: github.event_name != 'pull_request' || steps.bake_verify.outputs.valid != 'true'
+        if: steps.bake_verify.outputs.valid != 'true'
         env:
           PYTHONPATH: /usr/lib/python3/dist-packages
         run: |
@@ -83,7 +83,7 @@ jobs:
           python scripts/ci_heartbeat.py blender
           test -s compressed/office-bake-coverage.xml
           python scripts/office_bake_cache.py write
-      - name: Preserve exact-input bake results for subsequent pull requests
+      - name: Preserve exact-input bake results for subsequent CI runs
         if: steps.bake_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:

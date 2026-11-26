@@ -2,10 +2,20 @@
 import hashlib
 import json
 import math
+import re
 import struct
 from pathlib import Path
 
 from character_assets import validate_model
+
+PROCEDURAL_JOINT_RULES = {
+    'thumb': re.compile(r'thumb', re.IGNORECASE),
+    'toe': re.compile(r'toe.?base', re.IGNORECASE),
+    'neck': re.compile(r'neck', re.IGNORECASE),
+    'shoulder': re.compile(r'shoulder', re.IGNORECASE),
+    'wrist': re.compile(r'(hand|wrist)', re.IGNORECASE),
+    'eye': re.compile(r'eye', re.IGNORECASE),
+}
 
 FORMATS = {5120: 'b', 5121: 'B', 5122: 'h', 5123: 'H', 5125: 'I', 5126: 'f'}
 SIZES = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4, 'MAT4': 16}
@@ -97,6 +107,23 @@ def weighted_joints(model: dict, binary: bytes) -> tuple:
     return influenced, primitive_count
 
 
+def procedural_joint_coverage(names: list) -> dict:
+    """Map non-varying joint names to the same secondary-motion categories as runtime.
+
+    This validates name coverage only. The separate Three.js test exercises quaternion
+    changes; neither check proves anatomical plausibility or visual contact quality.
+    """
+    coverage = {category: [] for category in PROCEDURAL_JOINT_RULES}
+    uncovered = []
+    for name in names:
+        category = next((key for key, pattern in PROCEDURAL_JOINT_RULES.items() if pattern.search(name)), None)
+        if category is None:
+            uncovered.append(name)
+        else:
+            coverage[category].append(name)
+    return {'categories': coverage, 'uncovered': uncovered}
+
+
 def audit(data: bytes) -> dict:
     """Audit one validated local asset; return identities, hierarchy, skin/clip evidence and gaps.
 
@@ -116,12 +143,16 @@ def audit(data: bytes) -> dict:
     moving = {index for clip in clips for index in clip['varying_nodes']}
     influenced, count = weighted_joints(model, binary)
     names = {index: model['nodes'][index].get('name', str(index)) for index in joints}
+    never_varying = [names[index] for index in sorted(joints - moving)]
+    secondary_motion = procedural_joint_coverage(never_varying)
     return {'sha256': hashlib.sha256(data).hexdigest(), 'joints': names,
             'hierarchy': {index: model['nodes'][index].get('children', []) for index in joints},
             'finger_joints': [name for name in names.values() if any(finger in name for finger in ('Thumb', 'Index', 'Middle', 'Ring', 'Pinky'))],
             'clips': clips, 'skinned_primitives': count,
             'unweighted_joint_indices': sorted(joints - influenced),
-            'never_varying_joints': [names[index] for index in sorted(joints - moving)]}
+            'never_varying_joints': never_varying,
+            'procedural_joint_coverage': secondary_motion['categories'],
+            'uncovered_procedural_joints': secondary_motion['uncovered']}
 
 
 def main() -> None:

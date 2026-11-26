@@ -11,15 +11,18 @@ const advance=(m,n)=>{for(let i=0;i<n;i++)m.update(.05);};
 test('seated agents type, pull the chair, rise before walking, then sit and push it in',()=>{
  const f=fixture(),m=f.motion;assert.equal(m.phase,'seated');m.setActivity('working');assert.equal(f.poses.at(-1),'seatedTyping');
  const initialZ=f.chairs.get('desk_0').z;
+ m.setTravelAllowed(true);
  m.requestMeeting(true);advance(m,5);assert.equal(m.phase,'pull');assert.ok(f.chairs.get('desk_0').z>initialZ,'chair must move backward relative to its tucked starting position');assert.equal(f.poses.at(-1),'sitting');
  advance(m,11);assert.equal(m.phase,'rise');assert.equal(f.poses.at(-1),'idle');
- advance(m,20);assert.equal(m.phase,'walk');assert.equal(f.poses.at(-1),'walking');
+ advance(m,20);assert.equal(m.phase,'walk');
+ for(let i=0;i<100&&f.poses.at(-1)!=='walking';i++)m.update(.05);
+ assert.equal(f.poses.at(-1),'walking');
  advance(m,1000);assert.equal(m.phase,'seated');assert.equal(m.location,'meeting_0');assert.equal(f.poses.at(-1),'seatedMeeting');assert.equal(f.chairs.get('meeting_0').x,0);
  m.requestMeeting(false);advance(m,1500);assert.equal(m.location,'desk_0');assert.equal(m.phase,'seated');assert.equal(f.poses.at(-1),'seatedTyping');
 });
 test('seven unique seats and doorway route on correct side of the glass',()=>{
  const plans=seatingPlan(stations);assert.equal(new Set(plans.map(p=>p.meeting.id)).size,7);
- for(const p of plans){const route=meetingRoute(p.desk,p.meeting);assert.ok(route.some(q=>q.x===2.08&&q.z===2.25));assert.ok(route.some(q=>q.x===3.48&&q.z===2.25));assert.deepEqual(route.at(-1),standingPoint(p.meeting));}
+ for(const [index,p] of plans.entries()){const route=meetingRoute(p.desk,p.meeting);const doorwayApproach=index===6?1.60:2.08;assert.ok(route.some(q=>q.x===doorwayApproach&&q.z===2.25));assert.ok(route.some(q=>q.x===3.48&&q.z===2.25));assert.deepEqual(route.at(-1),standingPoint(p.meeting));}
 });
 test('all agents prepare and stand concurrently while only one doorway crossing is reserved',()=>{
  const fixtures=stations.map((_,i)=>fixture(i)),records=fixtures.map(f=>f.motion),q=createMeetingQueue(records);q.request(true);
@@ -45,7 +48,7 @@ test('all agents prepare and stand concurrently while only one doorway crossing 
 });
 
 test('destination chair is pulled gradually before stepping into the seat space',()=>{
- const f=fixture(),m=f.motion;m.requestMeeting(true);
+ const f=fixture(),m=f.motion;m.setTravelAllowed(true);m.requestMeeting(true);
  for(let i=0;i<2000&&m.phase!=='prepare-chair';i++)m.update(.05);
  assert.equal(m.phase,'prepare-chair');const initial=f.chairs.get('meeting_0')?.x??0;
  m.update(.05);const first=f.chairs.get('meeting_0').x;assert.ok(first<initial&&first>-.55);

@@ -73,7 +73,8 @@ test('role identities use first names only and render bold names beside regular 
    fillText(value){drawn.push({value,font:this.font});}
   }}
  });
- const layer=await loadCharacterRoster({...base,read:f.read,loader:f.loader,canvasFactory});
+ const identityRoster=expected.map(([role],station)=>({role,file:'identity-'+String.fromCharCode(97+station)+'.glb',station}));
+ const layer=await loadCharacterRoster({...base,roster:identityRoster,read:f.read,loader:f.loader,canvasFactory});
  assert.equal(layer.labels,7);assert.equal(layer.group.children.length,14);
  assert.equal(layer.meetingAvailable,false,'meeting demo requires the complete movable-chair map');
  const root=layer.group.children.find(x=>x.name==='Product Owner');

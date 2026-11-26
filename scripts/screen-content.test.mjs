@@ -25,7 +25,9 @@ test('screen layouts provide unique role-specific monitor content for every stat
  assert.equal(placements.find(x=>x.role==='AI Engineer'&&x.variant==='evaluation').monitorIndex,1);
 });
 test('screen layout rejects duplicate roles, stations and monitor variants',()=>{
- assert.throws(()=>screenPlacements([...screens,{...screens[0],station:1}],stations),/Invalid role screen layout/);
+ const duplicateRole=screens.map(item=>({...item}));
+ duplicateRole[6]={...duplicateRole[6],role:screens[0].role};
+ assert.throws(()=>screenPlacements(duplicateRole,stations),/Invalid role screen layout/);
  const bad=screens.map(x=>({...x,monitors:x.monitors.map(y=>({...y}))}));
  bad[1].monitors[1].variant='code';
  assert.throws(()=>screenPlacements(bad,stations),/Invalid or duplicate role monitor variant/);

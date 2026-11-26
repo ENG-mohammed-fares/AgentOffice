@@ -3,6 +3,24 @@ export const AGENT_STATES=Object.freeze(['idle','walking','working','thinking','
 const loops=new Set(['idle','walking','working','thinking','reviewing','meeting','talking','sitting','seatedTyping','seatedMeeting']);
 const stateClips=Object.freeze({idle:'Idle',walking:'Walk',working:'Typing',thinking:'Thinking',reviewing:'Review',meeting:'Meeting',talking:'Talk',error:'Error',completed:'Celebrate',sitting:'Sitting',seatedTyping:'SeatedTyping',seatedMeeting:'SeatedMeeting'});
 /**
+ * Writes an XYZ Euler rotation into a quaternion-compatible object.
+ * Keeping this scalar conversion local preserves the animation module's dependency boundary.
+ * @param {object} quaternion - Mutable object exposing set(x, y, z, w).
+ * @param {number} x - X-axis rotation in radians.
+ * @param {number} y - Y-axis rotation in radians.
+ * @param {number} z - Z-axis rotation in radians.
+ */
+function setEulerQuaternion(quaternion,x,y,z){
+  const c1=Math.cos(x/2),c2=Math.cos(y/2),c3=Math.cos(z/2);
+  const s1=Math.sin(x/2),s2=Math.sin(y/2),s3=Math.sin(z/2);
+  quaternion.set(
+    s1*c2*c3+c1*s2*s3,
+    c1*s2*c3-s1*c2*s3,
+    c1*c2*s3+s1*s2*c3,
+    c1*c2*c3-s1*s2*s3
+  );
+}
+/**
  * Adds subtle, deterministic secondary motion to joints found static by the 1.6.18 rig audit.
  * Source clips remain authoritative for keyed joints; this only addresses neck, shoulders,
  * wrists, thumbs, toe bases and eye joints with small local rotations after mixer evaluation.
@@ -18,7 +36,7 @@ function createProceduralJointMotion(root){
     const match=rules.find(([pattern])=>pattern.test(bone.name||''));
     if(!match)return;
     const phase=[...(bone.name||'')].reduce((sum,char)=>sum+char.charCodeAt(0),0)*.071;
-    entries.push({bone,base:bone.quaternion.clone(),kind:match[1],phase});
+    entries.push({bone,base:bone.quaternion.clone(),delta:bone.quaternion.clone(),kind:match[1],phase});
   });
   let elapsed=0;
   return {count:entries.length,update(dt,state){
@@ -36,7 +54,8 @@ function createProceduralJointMotion(root){
         case 'toe':x=.012*wave*activity;break;
         case 'eye':y=.006*wave;break;
       }
-      item.bone.quaternion.copy(item.base).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(x,y,z,'XYZ')));
+      setEulerQuaternion(item.delta,x,y,z);
+      item.bone.quaternion.copy(item.base).multiply(item.delta);
     }
   }};
 }

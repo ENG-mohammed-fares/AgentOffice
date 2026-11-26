@@ -7,6 +7,13 @@ import * as THREE from 'three';
 import * as performancePolicy from '../src/office-performance.mjs';
 import * as batching from '../src/office-batching.mjs';
 const source=fileURLToPath(new URL('../src/agile-renderer.js',import.meta.url));
+function assertReadiness(actual,expected){
+  assert.equal(actual.ok,expected.ok);
+  assert.equal(actual.characters,expected.characters);
+  assert.equal(actual.labels,expected.labels);
+  assert.equal(actual.meetingAvailable,expected.meetingAvailable);
+  assert.equal(actual.reason,expected.reason);
+}
 async function fixture({fallback=false,noGL=false,failParse=false,cancelled=false,reduced=false,hidden=false,bakedCandidate=false,characterRoster=[],characterFailure=false}={}){
   let now=0,sequence=0,lost=0,renders=0,disposed=0,decoderDisposed=0,compiled=0;
   const frames=new Map(),events=new Map(),canvasEvents=new Map(),requests=[],characterStates=[],characterTicks=[];
@@ -77,7 +84,7 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
 }
 test('renderer controls camera/drag, pauses hidden work, and disposes real scene resources',async()=>{
   const f=await fixture(),renderer=await f.mount();
-  assert.deepEqual(await renderer.ready,{ok:true,characters:0,labels:0,meetingAvailable:false});
+  assertReadiness(await renderer.ready,{ok:true,characters:0,labels:0,meetingAvailable:false});
   assert.equal(f.host.dataset.textureFormat,'ktx2');
   assert.equal(f.decoderDisposed,1);assert.equal(f.texture.anisotropy,8);
   assert.equal(f.glass.castShadow,false);assert.equal(f.box.castShadow,true);
@@ -137,7 +144,7 @@ test('workspace readiness resolves only after the first usable character frame',
  const f=await fixture({characterRoster:[{}]});
  const renderer=await f.mount();let readiness=null;renderer.ready.then(value=>{readiness=value;});for(let i=0;i<8;i++)await Promise.resolve();
  assert.equal(renderer.metrics().characters,7);assert.equal(renderer.metrics().characterLabels,7);assert.equal(renderer.metrics().meetingAvailable,true);assert.equal(renderer.metrics().proceduralJoints,91);assert.equal(f.compiled,2);assert.equal(readiness,null,'readiness must wait for a usable character frame');
- f.tick(100);assert.deepEqual(await renderer.ready,{ok:true,characters:7,labels:7,meetingAvailable:true});
+ f.tick(100);assertReadiness(await renderer.ready,{ok:true,characters:7,labels:7,meetingAvailable:true});
  assert.equal(renderer.setAgentState('QA Engineer','working'),true);
  assert.deepEqual(f.characterStates.at(-1),['QA Engineer','working']);
  f.tick(120);f.tick(140);
@@ -152,14 +159,14 @@ test('character initialization failure returns a recoverable office fallback',as
  const bad=await fixture({characterRoster:[{}],characterFailure:true});
  const view=await bad.mount();for(let i=0;i<8;i++)await Promise.resolve();
  assert.equal(view.metrics().characters,0);assert.equal(view.metrics().characterStatus,'preview unavailable');
- assert.deepEqual(await view.ready,{ok:false,reason:'characters-unavailable'});
+ assertReadiness(await view.ready,{ok:false,reason:'characters-unavailable'});
  view.dispose();
 });
 
 test('disposing a loading renderer resolves readiness as cancelled',async()=>{
  const pending=await fixture({characterRoster:[{}]});
  const view=await pending.mount();view.dispose();
- assert.deepEqual(await view.ready,{ok:false,reason:'cancelled'});
+ assertReadiness(await view.ready,{ok:false,reason:'cancelled'});
 });
 
 test('renderer exposes three distinct workspace views and a separate meeting room camera',async()=>{

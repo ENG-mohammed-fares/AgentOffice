@@ -198,7 +198,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     if(isCancelled()||contextLost)throw Error('Office cancelled');
     setCamera(cameras[getInitialIndex()]||cameras[0]);
     onProgress('office-first-render');
-    if(document.hidden)frameScheduler.pause();else{renderer.render(scene,camera);report();if(!characterRoster.length)settleReady({ok:true,characters:0});}
+    if(document.hidden)frameScheduler.pause();else{renderer.render(scene,camera);report();if(!characterRoster.length)settleReady({ok:true,characters:0,labels:0,meetingAvailable:false});}
     onProgress('office-first-render-complete');
     readyMs=performance.now()-started;
     host.replaceChildren(canvas);observer=new ResizeObserver(resize);observer.observe(host);

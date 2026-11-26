@@ -1,4 +1,13 @@
 ## Change summary
+
+Story ID(s):
+Requirement ID(s) / AC IDs:
+Canonical story: `docs/requirements/traceability.json`
+Test/evidence links and exact revision:
+Assumptions, impact and scope changes:
+
+- [ ] Stories and measurable acceptance criteria were recorded and presented before implementation.
+- [ ] Changed canonical implementation paths and tests are mapped in the story records.
 <!-- Explain what changed and why. -->
 
 ## Verification evidence

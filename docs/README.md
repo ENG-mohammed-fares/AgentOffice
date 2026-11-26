@@ -1,5 +1,13 @@
 # Internal engineering documentation
 
+- [Requirements and acceptance](requirements/srs.md) · [Canonical traceability matrix](requirements/traceability.json)
+- [Engineering evidence, backlog and risks](engineering/foundation.md) · [Architecture and decisions](architecture/overview.md)
+
+Validate requirement references with `python scripts/validate_traceability.py`.
+The existing mandatory Python test discovery runs `scripts/test_traceability.py`,
+including the repository matrix and negative fixtures. Passing this check validates
+references and evidence structure, not product behavior or stakeholder acceptance.
+
 These documents are private. Do not copy them into the public distribution repository.
 
 - [Engineering README](../README.md) · [Release policy](../RELEASE-POLICY.md) · [Authentication configuration](../AUTH-SETUP.md) · [Security policy](../SECURITY.md) · [Deferred backlog](../DEFERRED.md) · [Historical changelog](../CHANGELOG.md)

@@ -224,7 +224,7 @@
         "assets/agile-office/main.js"
       ],
       "tests": [],
-      "verification": "NOT IMPLEMENTED",
+      "verification": "BLOCKED",
       "validation": "BLOCKED",
       "evidence": []
     },
@@ -244,7 +244,7 @@
         "scripts/office-motion.test.mjs"
       ],
       "tests": [],
-      "verification": "NOT IMPLEMENTED",
+      "verification": "BLOCKED",
       "validation": "BLOCKED",
       "evidence": []
     }
@@ -758,14 +758,21 @@
       "assumptions": "Rig inventory and current animation coverage must be inspected per GLB; if finger or other required joints are absent, the source rig/GLB assets must be updated rather than faking motion with mesh transforms.",
       "dependencies": "Seven GLB rigs, agent-animation.mjs, office-characters.mjs, office-motion.mjs, character-specific typing/meeting actions and IK.",
       "impact": "Character rigging and animation quality across office and meeting room.",
-      "status": "ready",
+      "status": "in progress",
       "implementation": [
         "assets/agile-office/office-characters.mjs",
         "assets/agile-office/agent-animation.mjs",
         "assets/agile-office/characters/manifest.json",
-        "scripts/office-motion.test.mjs"
+        "scripts/office-motion.test.mjs",
+        "scripts/audit_character_rigs.py"
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "scripts/test_rig_audit.py",
+          "id": "test_all_seven_assets",
+          "level": "integration"
+        }
+      ],
       "evidence": []
     }
   ]

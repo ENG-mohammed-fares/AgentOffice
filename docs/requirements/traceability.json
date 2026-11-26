@@ -1549,6 +1549,53 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-MEETING-002",
+      "source": "Owner: تابع المرحلة 2 — 2026-11-26; Windows review run 45824040272 failed after 180 seconds of slow rendered frames.",
+      "story": "As a workspace user, I want the seven agents' meeting movement to advance with elapsed real time even at low frame rates, so that their chairs and doorway sequence complete without becoming artificially slow.",
+      "priority": "P0",
+      "requirements": [
+        "FR-MOTION-001",
+        "FR-MOTION-002"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A slow renderer delivers a half-second frame interval",
+          "when": "The meeting queue advances",
+          "then": "Movement consumes the elapsed interval as bounded substeps, retaining the same destination and doorway reservation as short frames"
+        },
+        {
+          "id": "AC-02",
+          "given": "Seven agents enter and return through the narrow doorway",
+          "when": "The frame interval varies",
+          "then": "At most one agent reserves the doorway and at most one agent reserves each meeting aisle while all agents eventually return to their own chairs"
+        },
+        {
+          "id": "AC-03",
+          "given": "A hidden app resumes after a long pause",
+          "when": "Simulation updates",
+          "then": "The renderer resets elapsed frame time on visibility and rejects invalid or extreme intervals to avoid an unbounded catch-up stall"
+        }
+      ],
+      "scope": "Correct the motion queue's elapsed-time handling and verify the constrained room transition under slow frames; keep the existing meeting geometry and visuals.",
+      "constraints": "Do not increase test timeout to disguise lost simulation time; preserve narrow doorway and per-aisle exclusivity.",
+      "assumptions": "The runtime already resets its frame clock on visibility; a bounded maximum catch-up interval is appropriate for a stalled foreground frame.",
+      "dependencies": "Existing office-motion queue and rendered character update loop.",
+      "impact": "Meeting animation timing on slow or intermittently stalled renderers.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/office-motion.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "slow rendered frames retain meeting timing and safe doorway reservations",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
     }
   ]
 }

@@ -108,7 +108,7 @@ export function advanceWalk(position,yaw,target,speed,dt){
  * @returns {object} Motion controller with activity and meeting requests and phase queries.
  */
 export function createSeatedMotion({plan,position,rotation,setPose,setChair,groundY=0}){
-  let seat=plan.desk,desired=seat,phase='seated',clock=0,activity='idle',route=[],cursor=0,arrivalPull=0,travelAllowed=false,travelSpeed=0,prepareDelay=0;
+  let seat=plan.desk,desired=seat,phase='seated',clock=0,activity='idle',route=[],cursor=0,arrivalPull=0,travelAllowed=false,laneAllowed=false,travelSpeed=0,prepareDelay=0;
   const setPosition=p=>{position.x=p.x;position.z=p.z;position.y=groundY;};
   const pulls=new Map([[plan.desk.id,0],[plan.meeting.id,0]]);
   const setOffset=(s,n)=>{pulls.set(s.id,n);setChair(s.id,chairOffset(s,n));};
@@ -124,9 +124,9 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
   function completeSeat(){setPosition(seat.at);rotation.y=yawFor(seat.forward);setOffset(seat,0);setPose(seatedPose());enter('seated');}
   completeSeat();
   return {
-    get phase(){return phase;},get location(){return seat.id;},get atDesk(){return phase==='seated'&&seat===plan.desk;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},get needsTravel(){return phase==='waiting-travel'&&seat!==desired;},get corridorClear(){return phase==='walk'&&cursor>=(seat===plan.desk?5:6);},get corridorReserved(){return travelAllowed&&phase==='walk'&&!this.corridorClear;},
+    get phase(){return phase;},get location(){return seat.id;},get atDesk(){return phase==='seated'&&seat===plan.desk;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},get needsTravel(){return phase==='waiting-travel'&&seat!==desired;},get laneKey(){return plan.meeting.at.x<5?'left':'right';},get corridorClear(){return phase==='walk'&&cursor>=(seat===plan.desk?5:6);},get corridorReserved(){return travelAllowed&&phase==='walk'&&!this.corridorClear;},get laneClear(){return phase==='walk'&&cursor>=(seat===plan.desk?7:4);},get laneReserved(){return laneAllowed&&phase==='walk'&&!this.laneClear;},
     requestMeeting(value,stagger=0){const next=value?plan.meeting:plan.desk;if(next!==desired&&phase==='seated'&&seat!==next)prepareDelay=Math.max(0,stagger);desired=next;},
-    setTravelAllowed(value){travelAllowed=Boolean(value);},
+    setTravelAllowed(value){travelAllowed=Boolean(value);},setLaneAllowed(value){laneAllowed=Boolean(value);},
     setActivity(value){activity=value;if(phase==='seated')setPose(seatedPose());},
     update(seconds){
       if(!Number.isFinite(seconds)||seconds<=0)return;
@@ -179,6 +179,12 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
  */
 export function createMeetingQueue(records){
   let target=false,active=null;
+  const lanes=new Map();
+  const releaseClearLanes=()=>{
+    for(const [key,record] of lanes){
+      if(record.laneClear){record.setLaneAllowed(false);lanes.delete(key);}
+    }
+  };
   return {
     request(value){
       target=Boolean(value);
@@ -186,14 +192,16 @@ export function createMeetingQueue(records){
     },
     update(dt){
       if(active?.corridorClear){active.setTravelAllowed(false);active=null;}
+      releaseClearLanes();
       if(!active){
-        active=records.find(record=>record.needsTravel)||null;
-        active?.setTravelAllowed(true);
+        active=records.find(record=>record.needsTravel&&!lanes.has(record.laneKey))||null;
+        if(active){lanes.set(active.laneKey,active);active.setLaneAllowed(true);active.setTravelAllowed(true);}
       }
-      // Everyone prepares, stands, and seats independently. Only the doorway segment
-      // is reserved, and the next mover may enter as soon as the previous one clears it.
+      // All agents prepare and seat independently. The doorway is globally single-occupancy;
+      // each side's outer aisle is separately reserved until that agent reaches its unique row.
       for(const record of records)record.update(dt);
       if(active?.corridorClear){active.setTravelAllowed(false);active=null;}
+      releaseClearLanes();
     }
   };
 }

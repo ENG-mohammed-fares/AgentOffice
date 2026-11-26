@@ -388,6 +388,48 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-RENDER-001",
+      "source": "Owner: لاتُبقي أي شيء غير مكتمل; doing_0 master rendering prompt sections 9–10 and 14.",
+      "story": "As a workspace user, I want static lighting candidates to exclude movable-chair shadows and native Full HD renders to be preserved for review, so that office graphics can be validated before promotion.",
+      "priority": "P1",
+      "requirements": [
+        "FR-OFFICE-001",
+        "NFR-PERF-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Imported canonical office with independently movable chair meshes",
+          "when": "Cycles bakes the static lightmap",
+          "then": "Chair meshes are hidden from the bake and restored afterward, while exported geometry retains all original chair nodes"
+        },
+        {
+          "id": "AC-02",
+          "given": "Actual Blender diffuse and combined execution",
+          "when": "The asset job completes",
+          "then": "Three verified 1920x1080 PNGs, atlas and model candidates and both mode reports are preserved as review-only artifacts tied to the run"
+        },
+        {
+          "id": "AC-03",
+          "given": "Unreviewed experimental lightmaps and previews",
+          "when": "The app is packaged",
+          "then": "Existing verified default PBR assets and fallback remain unchanged"
+        }
+      ],
+      "scope": "Fix chair participation in bake, strengthen actual Blender integration checks, preserve genuine native previews and hybrid candidate artifacts.",
+      "constraints": "Do not ship unreviewed lightmaps or change release version. No fabricated screenshots or performance claims.",
+      "assumptions": "Cycles hide_render excludes chair meshes from rendered illumination; visual inspection and hardware comparison remain necessary.",
+      "dependencies": "Canonical GLB generation, actual Cycles integration test and existing CI asset job.",
+      "impact": "Review-only lighting and evidence pipeline; no default runtime changes.",
+      "status": "ready",
+      "implementation": [
+        "assets/agile-office/bake-office-candidate.py",
+        ".github/workflows/ci.yml"
+      ],
+      "tests": [],
+      "evidence": []
     }
   ]
 }

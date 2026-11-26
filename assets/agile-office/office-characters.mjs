@@ -82,7 +82,7 @@ function createIdentitySprite(role,root,group,canvasFactory){
   const roleFont='400 42px Inter, Segoe UI, Arial, sans-serif';
   const separatorFont='400 34px Inter, Segoe UI, Arial, sans-serif';
   context.font=nameFont;const nameWidth=context.measureText(identity.firstName).width;
-  context.font=separatorFont;const separator='  |  ',separatorWidth=context.measureText(separator).width;
+  context.font=separatorFont;const separator='  ·  ',separatorWidth=context.measureText(separator).width;
   context.font=roleFont;const roleWidth=context.measureText(identity.role).width;
   const total=nameWidth+separatorWidth+roleWidth;
   canvas.width=Math.ceil(total+72);canvas.height=128;

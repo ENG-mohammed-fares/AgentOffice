@@ -7,19 +7,26 @@ import * as THREE from 'three';
 import * as performancePolicy from '../src/office-performance.mjs';
 import * as batching from '../src/office-batching.mjs';
 const source=fileURLToPath(new URL('../src/agile-renderer.js',import.meta.url));
-async function fixture({fallback=false,noGL=false,failParse=false,cancelled=false,reduced=false,hidden=false,bakedCandidate=false,characterRoster=[],characterFailure=false}={}){
+function assertReadiness(actual,expected){
+  assert.equal(actual.ok,expected.ok);
+  assert.equal(actual.characters,expected.characters);
+  assert.equal(actual.labels,expected.labels);
+  assert.equal(actual.meetingAvailable,expected.meetingAvailable);
+  assert.equal(actual.reason,expected.reason);
+}
+async function fixture({fallback=false,noGL=false,failParse=false,cancelled=false,reduced=false,hidden=false,bakedCandidate=false,characterRoster=[],characterFailure=false,failFrame=false,reviewCapture=false}={}){
   let now=0,sequence=0,lost=0,renders=0,disposed=0,decoderDisposed=0,compiled=0;
   const frames=new Map(),events=new Map(),canvasEvents=new Map(),requests=[],characterStates=[],characterTicks=[];
   let characterDisposed=0;
-  const characterLayer={group:new THREE.Group(),count:7,setState(role,state){characterStates.push([role,state]);return true},update(dt){characterTicks.push(dt)},dispose(){characterDisposed++;this.group.removeFromParent()}};
+  const characterLayer={group:new THREE.Group(),count:7,labels:7,meetingAvailable:true,proceduralJoints:91,setState(role,state){characterStates.push([role,state]);return true},update(dt){characterTicks.push(dt)},dispose(){characterDisposed++;this.group.removeFromParent()}};
   const canvas={getContext:()=>noGL?null:{},addEventListener:(key,fn)=>canvasEvents.set(key,fn),
-    removeEventListener:key=>canvasEvents.delete(key),setPointerCapture:()=>{},remove(){this.removed=true}};
+    removeEventListener:key=>canvasEvents.delete(key),setPointerCapture:()=>{},toDataURL(type){assert.equal(type,'image/png');assert.equal(this.width,1920);assert.equal(this.height,1080);return 'data:image/png;base64,fixture';},remove(){this.removed=true}};
   const document={hidden,createElement:()=>canvas,addEventListener:(key,fn)=>events.set(key,fn),
     removeEventListener:key=>events.delete(key)};
   const host={dataset:{},clientWidth:800,clientHeight:450,replaceChildren:()=>{}};
   class Renderer{
     constructor(){this.shadowMap={};this.info={render:{calls:2,triangles:24}};this.capabilities={getMaxAnisotropy:()=>16}}
-    setDrawingBufferSize(w,h,ratio){this.ratio=ratio;canvas.width=w*ratio;canvas.height=h*ratio;} async compileAsync(){compiled++;} render(){assert.ok(compiled,'compile before render');renders++} dispose(){disposed++}
+    setDrawingBufferSize(w,h,ratio){this.ratio=ratio;canvas.width=w*ratio;canvas.height=h*ratio;} async compileAsync(){compiled++;} render(){assert.ok(compiled,'compile before render');if(failFrame&&renders>=1)throw Error('First character frame failed');renders++} dispose(){disposed++}
   }
   const texture=new THREE.Texture(),material=new THREE.MeshStandardMaterial({map:texture});
   const model=new THREE.Group();
@@ -58,7 +65,8 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
     'three/addons/environments/RoomEnvironment.js':{RoomEnvironment:class{dispose(){}}},
     './agile-layout.json':{default:JSON.parse(readFileSync(new URL('../src/agile-layout.json',import.meta.url),'utf8'))},
     './office-performance.mjs':performancePolicy,'./office-batching.mjs':batching,
-    './office-characters.mjs':{async loadCharacterRoster(){if(characterFailure)throw Error('Invalid roster');return characterLayer}}};
+    './office-characters.mjs':{async loadCharacterRoster(){if(characterFailure)throw Error('Invalid roster');return characterLayer}},
+     './screen-content.mjs':{createRoleScreens({screens=[]}={}){return {group:new THREE.Group(),count:screens.reduce((sum,item)=>sum+(item.monitors?.length??0),0)}}}};
   const module=new SourceTextModule(readFileSync(source,'utf8'),{context,identifier:source});
   await module.link(name=>{
     const namespace=namespaces[name];assert.ok(namespace,'Unexpected renderer import '+name);
@@ -68,7 +76,7 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
   });
   await module.evaluate();
   const mount=()=>module.namespace.mountAgileRenderer(host,'file:///fixture/office/office.glb',
-    {onLost:()=>{lost++},isCancelled:()=>cancelled,bakedCandidate,characterRoster});
+    {onLost:()=>{lost++},isCancelled:()=>cancelled,bakedCandidate,characterRoster,reviewCapture});
   const tick=time=>{now=time;const pending=[...frames.values()];frames.clear();for(const fn of pending)fn(time)};
   return {mount,host,canvas,canvasEvents,events,document,frames,tick,requests,box,glass,texture,characterStates,characterTicks,get characterDisposed(){return characterDisposed},
     get lost(){return lost},get renders(){return renders},get disposed(){return disposed},
@@ -76,14 +84,15 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
 }
 test('renderer controls camera/drag, pauses hidden work, and disposes real scene resources',async()=>{
   const f=await fixture(),renderer=await f.mount();
+  assertReadiness(await renderer.ready,{ok:true,characters:0,labels:0,meetingAvailable:false});
   assert.equal(f.host.dataset.textureFormat,'ktx2');
   assert.equal(f.decoderDisposed,1);assert.equal(f.texture.anisotropy,8);
   assert.equal(f.glass.castShadow,false);assert.equal(f.box.castShadow,true);
-  assert.equal(renderer.metrics().triangles,24);assert.equal(f.compiled,1);
+  assert.equal(renderer.metrics().triangles,24);assert.equal(renderer.metrics().cameraCount,4);assert.equal(renderer.metrics().roleScreens,13);assert.equal(renderer.metrics().cameraIndex,0);assert.equal(f.compiled,1);
   assert.equal(renderer.metrics().preset,'balanced');renderer.setGraphicsPreset('invalid');assert.equal(renderer.metrics().preset,'balanced');
   renderer.setGraphicsPreset('performance');assert.equal(renderer.metrics().pixelRatio,1);renderer.setGraphicsPreset('performance');
   f.tick(1);const idle=f.renders;f.tick(2);assert.equal(f.renders,idle);
-  renderer.go(999);renderer.go(2);f.tick(1500);f.tick(4000);f.tick(5000);
+  assert.equal(renderer.go(999),false);assert.equal(renderer.go(2),true);assert.equal(renderer.metrics().cameraIndex,2);assert.equal(renderer.go(3),true);assert.equal(renderer.metrics().cameraIndex,3);f.tick(1500);f.tick(4000);f.tick(5000);
   f.canvasEvents.get('pointerdown')({clientX:10,clientY:10,pointerId:1});
   f.canvasEvents.get('pointermove')({clientX:35,clientY:22});
   f.tick(5020);f.tick(5050);assert.ok(renderer.metrics().frameTimeMs>0);assert.ok(renderer.metrics().samples>0);f.canvasEvents.get('pointerup')();f.tick(5070);
@@ -131,19 +140,60 @@ test('compressed baked benchmark reuses Basis decoding and never silently falls 
  assert.equal(bad.requests.length,1);
 });
 
-test('character preview remains independent of the initial office and pauses when hidden',async()=>{
+test('workspace readiness resolves only after the first usable character frame',async()=>{
  const f=await fixture({characterRoster:[{}]});
- const renderer=await f.mount();for(let i=0;i<8;i++)await Promise.resolve();
- assert.equal(renderer.metrics().characters,7);assert.equal(f.compiled,2);
+ const renderer=await f.mount();let readiness=null;renderer.ready.then(value=>{readiness=value;});for(let i=0;i<8;i++)await Promise.resolve();
+ assert.equal(renderer.metrics().characters,7);assert.equal(renderer.metrics().characterLabels,7);assert.equal(renderer.metrics().meetingAvailable,true);assert.equal(renderer.metrics().proceduralJoints,91);assert.equal(f.compiled,2);assert.equal(readiness,null,'readiness must wait for a usable character frame');
+ f.tick(100);assertReadiness(await renderer.ready,{ok:true,characters:7,labels:7,meetingAvailable:true});
  assert.equal(renderer.setAgentState('QA Engineer','working'),true);
  assert.deepEqual(f.characterStates.at(-1),['QA Engineer','working']);
- f.tick(100);f.tick(120);f.tick(140);
+ f.tick(120);f.tick(140);
  assert.ok(f.characterTicks.length>=1);
  f.document.hidden=true;f.events.get('visibilitychange')();
  assert.equal(f.frames.size,0);
  renderer.dispose();renderer.dispose();assert.equal(f.characterDisposed,1);
+
+});
+
+test('character initialization failure returns a recoverable office fallback',async()=>{
  const bad=await fixture({characterRoster:[{}],characterFailure:true});
  const view=await bad.mount();for(let i=0;i<8;i++)await Promise.resolve();
  assert.equal(view.metrics().characters,0);assert.equal(view.metrics().characterStatus,'preview unavailable');
+ assertReadiness(await view.ready,{ok:false,reason:'characters-unavailable'});
  view.dispose();
+});
+
+test('disposing a loading renderer resolves readiness as cancelled',async()=>{
+ const pending=await fixture({characterRoster:[{}]});
+ const view=await pending.mount();view.dispose();
+ assertReadiness(await view.ready,{ok:false,reason:'cancelled'});
+});
+
+test('renderer exposes three distinct workspace views and a separate meeting room camera',async()=>{
+ const layout=JSON.parse(readFileSync(new URL('../src/agile-layout.json',import.meta.url),'utf8'));
+ assert.deepEqual(layout.cameras.map(camera=>camera.name),['Desk View','Overview','Team View','Meeting Room']);
+ const f=await fixture(),renderer=await f.mount();
+ assert.equal(renderer.metrics().cameraCount,4);
+ for(let index=0;index<4;index++)assert.equal(renderer.go(index),true);
+ assert.equal(renderer.metrics().cameraIndex,3);
+ renderer.dispose();
+});
+
+test('a failed scheduled character frame settles readiness and disposes the renderer',async()=>{
+ const f=await fixture({characterRoster:[{}],failFrame:true});
+ const view=await f.mount();for(let i=0;i<8;i++)await Promise.resolve();
+ f.tick(100);assertReadiness(await view.ready,{ok:false,reason:'frame-failed'});
+ assert.equal(f.lost,1);assert.equal(f.disposed,1);assert.equal(f.characterDisposed,1);assert.equal(f.frames.size,0);
+ view.dispose();assert.equal(f.disposed,1);
+});
+
+test('native review capture uses a Full HD drawing buffer and restores live resolution',async()=>{
+ const regular=await fixture(),normal=await regular.mount();
+ assert.throws(()=>normal.captureReviewFrame(),/unavailable/);normal.dispose();
+ const f=await fixture({reviewCapture:true}),view=await f.mount();
+ const before=view.metrics(),renders=f.renders;const frame=view.captureReviewFrame();
+ assert.equal(frame.width,1920);assert.equal(frame.height,1080);assert.equal(frame.png,'data:image/png;base64,fixture');
+ assert.equal(frame.drawCalls,2);assert.equal(frame.triangles,24);assert.equal(f.renders,renders+1);
+ assert.equal(view.metrics().width,before.width);assert.equal(view.metrics().height,before.height);assert.equal(view.metrics().pixelRatio,before.pixelRatio);
+ view.dispose();assert.throws(()=>view.captureReviewFrame(),/unavailable/);
 });

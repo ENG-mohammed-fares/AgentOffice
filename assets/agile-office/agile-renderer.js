@@ -7,6 +7,7 @@ import {makeFrameScheduler,makeResolutionController,graphicsPixelRatio,makeFrame
 import {optimizeStaticMeshes} from './office-batching.mjs';
 import {KTX2Loader} from 'three/addons/loaders/KTX2Loader.js';
 import {loadCharacterRoster} from './office-characters.mjs';
+import {createRoleScreens} from './screen-content.mjs';
 
 const v=p=>new THREE.Vector3(p[0],p[2],-p[1]);
 const cameras=layout.cameras.map(c=>({position:v(c.pos),target:v(c.target),fov:2*Math.atan(Math.tan(c.fov*Math.PI/360)/(16/9))*180/Math.PI}));
@@ -59,13 +60,16 @@ async function loadOfficeModel(renderer,url,isCancelled,bakedCandidate){
   return {gltf:await new GLTFLoader().parseAsync(raw,new URL('./',url).href),format:'original'};
 }
 
-export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitialIndex=()=>0,preset='balanced',bakedCandidate=false,characterRoster=[],onProgress=()=>{}}){
+export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitialIndex=()=>0,preset='balanced',bakedCandidate=false,characterRoster=[],onProgress=()=>{},reviewCapture=false}){
   const canvas=document.createElement('canvas'),gl=canvas.getContext('webgl2',{alpha:false,antialias:true,powerPreference:'high-performance'});
   if(!gl)throw Error('WebGL2 unavailable');
   let renderer,scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,1,.045,130),environment,pmrem,model,observer,disposed=false,move=null,drag=null,frameScheduler,resolution,stats,lastFrame=0,settleFrames=0,frames=0;
   const started=performance.now(),motionMetrics=makeFrameMetrics();
   let contextLost=false,assetLoadMs=0,readyMs=0,selectedPreset=preset;
   let characters=null,pendingRoster=null,characterFrame=0,characterStatus=characterRoster.length?'loading':'not bundled';
+  let resolveReady,readinessSettled=false;
+  const ready=new Promise(resolve=>{resolveReady=resolve;});
+  const settleReady=result=>{if(!readinessSettled){readinessSettled=true;resolveReady(result);}};
   const activity=new Map();let meetingRequested=false;
   const maxRatio=()=>graphicsPixelRatio(selectedPreset,devicePixelRatio,host.clientWidth,host.clientHeight);
   const gpuExtension=gl.getExtension?.('WEBGL_debug_renderer_info');
@@ -78,13 +82,19 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     scene.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);for(const t of Object.values(m))if(t?.isTexture)textures.add(t);}});
     textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());
   };
-  const lost=e=>{e.preventDefault();contextLost=true;onLost?.();};
-  const dispose=()=>{if(disposed)return;disposed=true;characters?.dispose();characters=null;pendingRoster?.dispose();pendingRoster=null;frameScheduler?.dispose();document.removeEventListener('visibilitychange',visibility);observer?.disconnect();canvas.removeEventListener('webglcontextlost',lost);disposeScene();environment?.dispose();pmrem?.dispose();renderer?.dispose();canvas.remove();};
-  function visibility(){characterFrame=0;if(document.hidden){frameScheduler?.pause();lastFrame=0;}else{lastFrame=0;frameScheduler?.resume();}}
+  const lost=e=>{e.preventDefault();contextLost=true;settleReady({ok:false,reason:'context-lost'});onLost?.();};
+  const dispose=()=>{if(disposed)return;disposed=true;settleReady({ok:false,reason:'cancelled'});characters?.dispose();characters=null;pendingRoster?.dispose();pendingRoster=null;frameScheduler?.dispose();document.removeEventListener('visibilitychange',visibility);observer?.disconnect();canvas.removeEventListener('webglcontextlost',lost);disposeScene();environment?.dispose();pmrem?.dispose();renderer?.dispose();canvas.remove();};
+  function visibility(){characterFrame=0;if(document.hidden){frameScheduler?.pause();lastFrame=0;}else{lastFrame=0;frameScheduler?.resume();frameScheduler?.request();}}
   try{
     renderer=new THREE.WebGLRenderer({canvas,context:gl,antialias:true});
     resolution=makeResolutionController(maxRatio(),{stable:true});
-    frameScheduler=makeFrameScheduler(requestAnimationFrame,cancelAnimationFrame,draw);
+    frameScheduler=makeFrameScheduler(requestAnimationFrame,cancelAnimationFrame,now=>{
+      try{draw(now);}catch(error){
+        console.warn('Office frame failed',error?.message);
+        settleReady({ok:false,reason:'frame-failed'});
+        dispose();onLost?.();
+      }
+    });
     canvas.addEventListener('webglcontextlost',lost);
     renderer.outputColorSpace=THREE.SRGBColorSpace;
     renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
@@ -131,6 +141,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     }
     if(chairs.size&&chairs.size!==15)throw Error('Incomplete movable chair geometry');
     stats=optimizeStaticMeshes(model);
+     const screens=createRoleScreens({screens:layout.screens,stations:layout.stations});scene.add(screens.group);
     const report=()=>{host.dataset.frames=String(++frames);host.dataset.drawCalls=String(renderer.info.render.calls);host.dataset.triangles=String(renderer.info.render.triangles);host.dataset.pixelRatio=resolution.ratio.toFixed(2);host.dataset.batchesBefore=String(stats.before);host.dataset.batchesAfter=String(stats.after);host.dataset.instances=String(stats.instances);};
     let qualityCap=maxRatio();
     const sizeToHost=()=>{const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);renderer.setDrawingBufferSize(w,h,resolution.ratio);camera.aspect=w/h;camera.updateProjectionMatrix();};
@@ -143,9 +154,10 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
       if(!['high','balanced','performance'].includes(value)||value===selectedPreset)return;
       selectedPreset=value;qualityCap=maxRatio();resolution=makeResolutionController(qualityCap,{stable:true});sizeToHost();frameScheduler.request();
     }
+    let activeCameraIndex=Math.max(0,Math.min(cameras.length-1,getInitialIndex()));
     function setCamera(c){camera.position.copy(c.position);target.copy(c.target);camera.fov=c.fov;camera.updateProjectionMatrix();camera.lookAt(target);}
     function go(i,instant=false){
-      const c=cameras[i];if(!c)return;
+      const c=cameras[i];if(!c)return false;activeCameraIndex=i;
       if(instant||reduced()){setCamera(c);move=null;}
       else{
         // Avoid a straight flight through the glass partition. The actual doorway
@@ -155,7 +167,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
         if(crossing){const a=c.position.x>3.05?2.45:3.65,b=c.position.x>3.05?3.65:2.45;pts.push(new THREE.Vector3(a,1.68,2.25),new THREE.Vector3(b,1.68,2.25));}
         pts.push(c.position.clone());move={start:performance.now(),duration:crossing?2100:950,path:new THREE.CatmullRomCurve3(pts,false,'centripetal'),from:target.clone(),to:c.target.clone(),fov:camera.fov,endFov:c.fov};
       }
-      lastFrame=0;settleFrames=0;frameScheduler.request();
+      lastFrame=0;settleFrames=0;frameScheduler.request();return true;
     }
     function draw(now){
       if(disposed)return;
@@ -174,7 +186,8 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
       const firstCharacterFrame=characters&&characterStatus==='preview ready';
       if(firstCharacterFrame)onProgress('avatar-first-render');
       renderer.render(scene,camera);report();
-      if(firstCharacterFrame){characterStatus='rendering';onProgress('avatar-first-render-complete');}
+      if(firstCharacterFrame){characterStatus='rendering';onProgress('avatar-first-render-complete');settleReady({ok:true,characters:characters.count,labels:characters.labels,meetingAvailable:characters.meetingAvailable});}
+      else if(!characterRoster.length)settleReady({ok:true,characters:0,labels:0,meetingAvailable:false});
       if(characters||move||drag){settleFrames=0;frameScheduler.request();}
       else if(moving||settleFrames===1){if(settleFrames===0){settleFrames=1;frameScheduler.request();}else settleFrames=0;}
     }
@@ -191,7 +204,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     if(isCancelled()||contextLost)throw Error('Office cancelled');
     setCamera(cameras[getInitialIndex()]||cameras[0]);
     onProgress('office-first-render');
-    if(document.hidden)frameScheduler.pause();else{renderer.render(scene,camera);report();}
+    if(document.hidden)frameScheduler.pause();else{renderer.render(scene,camera);report();if(!characterRoster.length)settleReady({ok:true,characters:0,labels:0,meetingAvailable:false});}
     onProgress('office-first-render-complete');
     readyMs=performance.now()-started;
     host.replaceChildren(canvas);observer=new ResizeObserver(resize);observer.observe(host);
@@ -199,7 +212,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     if(characterRoster.length){
       // Load only after the first office frame; keep the office usable on failure.
       loadCharacterRoster({roster:characterRoster,stations:layout.stations,officeURL:url,isCancelled:()=>disposed||contextLost||isCancelled(),onProgress,chairs:chairs.size===15?chairs:null}).then(async roster=>{
-        if(disposed||contextLost||isCancelled()){roster.dispose();return;}
+        if(disposed||contextLost||isCancelled()){roster.dispose();settleReady({ok:false,reason:'cancelled'});return;}
         pendingRoster=roster;characterStatus='compiling characters';onProgress('avatar-shader-compile');
         try{await renderer.compileAsync(roster.group,camera,scene);}
         catch(error){if(pendingRoster===roster){pendingRoster=null;roster.dispose();}throw error;}
@@ -209,10 +222,22 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
         for(const [role,state] of activity)roster.setState(role,state);
         roster.setMeeting?.(meetingRequested);
         frameScheduler.request();
-      }).catch(err=>{if(!disposed&&!contextLost){characterStatus='preview unavailable';onProgress('avatar-roster-failed');console.warn('Character preview unavailable',err?.message);}});
+      }).catch(err=>{if(!disposed&&!contextLost){characterStatus='preview unavailable';onProgress('avatar-roster-failed');console.warn('Character preview unavailable',err?.message);settleReady({ok:false,reason:'characters-unavailable'});}else settleReady({ok:false,reason:'cancelled'});});
     }
     function setAgentState(role,state){activity.set(role,state);return characters?.setState(role,state)??false;}
     function setMeeting(value){meetingRequested=Boolean(value);characters?.setMeeting?.(meetingRequested);}
-    return {go,dispose,setGraphicsPreset,setAgentState,setMeeting,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,characters:characters?.count??0,seated:characters?.seated??0,meetingSeated:characters?.meetingSeated??0,movableChairs:chairs.size,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
+    // Review-only: render the current scene at native Full HD, independently of
+    // the desktop's display resolution and adaptive live-rendering policy.
+    function captureReviewFrame(){
+      if(!reviewCapture||disposed||contextLost||isCancelled())throw Error('Native review capture unavailable');
+      try{
+        renderer.setDrawingBufferSize(1920,1080,1);
+        camera.aspect=1920/1080;camera.updateProjectionMatrix();
+        renderer.render(scene,camera);
+        if(canvas.width!==1920||canvas.height!==1080)throw Error('Native review drawing buffer is not Full HD');
+        return {png:canvas.toDataURL('image/png'),width:canvas.width,height:canvas.height,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles};
+      }finally{sizeToHost();frameScheduler.request();}
+    }
+    return {go,dispose,ready,setGraphicsPreset,setAgentState,setMeeting,captureReviewFrame,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,roleScreens:screens.count,cameraCount:cameras.length,cameraIndex:activeCameraIndex,characters:characters?.count??0,characterLabels:characters?.labels??0,meetingAvailable:characters?.meetingAvailable??false,proceduralJoints:characters?.proceduralJoints??0,seated:characters?.seated??0,meetingSeated:characters?.meetingSeated??0,movableChairs:chairs.size,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
   }catch(err){dispose();throw err;}
 }

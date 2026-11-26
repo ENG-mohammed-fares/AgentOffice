@@ -18,6 +18,7 @@ function fixture() {
     'app/src/office-task-panel.mjs':'assets/agile-office/office-task-panel.mjs',
     'app/src/agent-animation.mjs':'assets/agile-office/agent-animation.mjs',
     'app/src/office-characters.mjs':'assets/agile-office/office-characters.mjs',
+    'app/src/screen-content.mjs':'assets/agile-office/screen-content.mjs',
     'app/src/office-motion.mjs':'assets/agile-office/office-motion.mjs',
     'app/electron/crash-monitor.cjs':'assets/crash-monitor/crash-monitor.cjs'};
   for(const file of Object.entries(aliases).flat()) {

@@ -9,7 +9,8 @@ const required = [
   'app/electron/identity.cjs',
   'app/electron/update-policy.cjs',
   'app/src/office-performance.mjs',
-  'app/src/office-batching.mjs'
+  'app/src/office-batching.mjs',
+  'app/src/screen-content.mjs'
 ];
 const slash = p => p.split(path.sep).join('/');
 function inventory(dir, rootDir) {
@@ -113,6 +114,7 @@ const overlays=Object.freeze({
   'app/src/office-task-panel.mjs':'assets/agile-office/office-task-panel.mjs',
   'app/src/agent-animation.mjs':'assets/agile-office/agent-animation.mjs',
   'app/src/office-characters.mjs':'assets/agile-office/office-characters.mjs',
+  'app/src/screen-content.mjs':'assets/agile-office/screen-content.mjs',
   'app/src/office-motion.mjs':'assets/agile-office/office-motion.mjs',
   'app/electron/crash-monitor.cjs':'assets/crash-monitor/crash-monitor.cjs'
 });
@@ -144,5 +146,5 @@ function writeCanonical(rootDir=root){
 }
 
 if(require.main===module){if(process.argv[2]==='--canonicalize')writeCanonical();else main()}
-module.exports={collect,main,canonicalize,writeCanonical};
+module.exports={collect,main,canonicalize,writeCanonical,overlays};
 

@@ -34,3 +34,41 @@ export function mountTaskPanel(stage,user,{roles,getStorage=()=>globalThis.local
   render();
   return()=>{demo.dispose();off();toggle.onclick=null;$('office-task-close').onclick=null;form.onsubmit=null;demoButton.onclick=null;list.replaceChildren()};
 }
+
+ 
+/**
+ * Binds four independent camera presets and an explicit, reversible meeting simulation.
+ * @param {object} stage - Workspace element containing camera and meeting controls.
+ * @param {object} callbacks - onView(index) navigates; onMeeting(boolean) requests motion.
+ * @returns {object} Availability and lifecycle methods for the mounted workspace.
+ */
+export function mountOfficeControls(stage,{onView,onMeeting}){
+  const el=id=>stage.querySelector('#'+id);
+  const cameraButtons=[['office-workspace',0],['office-overview',1],['office-team',2],['office-meeting',3]];
+  const demo=el('office-meeting-demo'),status=el('office-meeting-demo-status');
+  let available=false,active=false,disposed=false;
+  function renderMeeting(){
+    demo.disabled=!available||disposed;
+    demo.setAttribute('aria-pressed',String(active));
+    demo.textContent=active?'End meeting demo':'Start meeting demo';
+    status.textContent=!available?'Live 3D character preview required. No real meeting is connected.':
+      active?'Meeting simulation running. No real meeting is connected.':'Meeting simulation idle. No real meeting is connected.';
+  }
+  function reset(){
+    if(active){active=false;onMeeting(false);}
+    renderMeeting();
+  }
+  for(const [id,index] of cameraButtons){
+    const button=el(id);
+    button.onclick=()=>{if(!disposed)onView(index);};
+  }
+  demo.onclick=()=>{
+    if(!available||disposed)return;
+    active=!active;onMeeting(active);renderMeeting();
+  };
+  renderMeeting();
+  return {
+    setAvailable(value){if(disposed)return;available=Boolean(value);if(!available)reset();else renderMeeting();},
+    dispose(){if(disposed)return;disposed=true;available=false;reset();for(const [id] of cameraButtons)el(id).onclick=null;demo.onclick=null;}
+  };
+}

@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import {createAgentAnimator,createRouteFollower,taskActivity} from '../src/agent-animation.mjs';
 function fixture(names=['Idle','Walk','Typing','Celebrate']){
   const calls=[],events=new Map(),root={},actions=new Map();
@@ -51,4 +52,17 @@ test('immediate transition stops old action and validates malformed configuratio
  assert.throws(()=>createAgentAnimator({...options(f),clips:[{name:'Idle',duration:1}]}),/Invalid animation tracks/);
  assert.throws(()=>createRouteFollower({position:{x:0,z:0},face:()=>{},speed:0}),/Invalid movement/);
  assert.equal(taskActivity(null,'QA'),'idle');
+});
+
+test('rig-audit static neck, shoulder, wrist, thumb, toe and eye joints receive subtle secondary motion',()=>{
+ const root=new THREE.Group();
+ const names=['Neck','LeftShoulder','RightHand','LeftHandThumb1','RightToeBase','Eye_L'];
+ const bones=names.map(name=>{const bone=new THREE.Bone();bone.name=name;root.add(bone);return bone;});
+ const before=bones.map(bone=>bone.quaternion.clone());
+ const mixer=new THREE.AnimationMixer(root);
+ const animator=createAgentAnimator({root,clips:[new THREE.AnimationClip('Idle',1,[])],mixer,loopRepeat:THREE.LoopRepeat,loopOnce:THREE.LoopOnce,fade:0});
+ assert.equal(animator.proceduralJointCount,6);
+ animator.update(.1);animator.update(.1);
+ assert.ok(bones.every((bone,i)=>bone.quaternion.angleTo(before[i])>1e-5));
+ animator.dispose();
 });

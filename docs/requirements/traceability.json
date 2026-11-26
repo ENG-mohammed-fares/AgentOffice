@@ -1261,13 +1261,8 @@
           "level": "integration"
         },
         {
-          "path": "scripts/test_office_bake_execution.py",
-          "id": "test_candidate_bake_preserves_source_triangle_count_and_exports_four_native_previews",
-          "level": "integration"
-        },
-        {
           "path": "scripts/office-runtime-benchmark.cjs",
-          "id": "capture-view-0",
+          "id": "previewView",
           "level": "integration"
         }
       ],

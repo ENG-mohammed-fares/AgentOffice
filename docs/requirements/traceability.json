@@ -1324,7 +1324,8 @@
       "impact": "CI/documentation only; no release or runtime change",
       "status": "in progress",
       "implementation": [
-        "scripts/validate_traceability.py"
+        "scripts/validate_traceability.py",
+        "scripts/refactoring-gate.mjs"
       ],
       "tests": [
         {

@@ -206,19 +206,33 @@
     },
     {
       "id": "FR-OFFICE-003",
-      "summary": "Provide multiple selectable office camera perspectives",
+      "summary": "Provide three distinct workspace camera perspectives and a separate meeting-room perspective",
       "component": "office camera navigation",
       "priority": "P1",
       "source": "Owner-approved 1.6.18 addition, 2026-11-26: the office must not be limited to a single camera angle; expose multiple useful perspectives.",
       "owner": "Product owner / maintainer",
       "decision": "accepted",
-      "acceptance": "Provide a clear, discoverable camera-view selector for multiple authored office perspectives, including the main workspace, wider workspace/city overview and meeting room. Preserve free-look mouse navigation, smooth transitions, and camera framing that keeps the authored architecture and furniture unchanged.",
+      "acceptance": "Expose four authored camera presets: Desk View, Team View and Overview within the workspace, plus a separate Meeting Room view. Camera selection must not trigger or cancel meeting simulation or move characters. Preserve free-look, smooth transitions, reduced-motion behavior, and the authored office geometry and furniture.",
       "implementation": [
-        "assets/agile-office/office-layout.json",
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/main.js",
         "assets/agile-office/agile-renderer.js",
-        "assets/agile-office/main.js"
+        "assets/agile-office/office-task-panel.mjs",
+        "scripts/office-runtime-benchmark.cjs",
+        "assets/agile-office/bake-office-candidate.py"
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "renderer exposes three distinct workspace views and a separate meeting room camera",
+          "level": "integration"
+        },
+        {
+          "path": "assets/agile-office/office-task-panel.test.mjs",
+          "id": "camera view buttons change only the camera; meeting simulation remains explicit and resets when unavailable",
+          "level": "unit"
+        }
+      ],
       "verification": "IMPLEMENTED BUT UNVERIFIED",
       "validation": "BLOCKED",
       "evidence": []
@@ -237,7 +251,13 @@
         "assets/agile-office/office-characters.mjs",
         "assets/agile-office/main.js"
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "roster identity labels are role-based and first-name only",
+          "level": "unit"
+        }
+      ],
       "verification": "BLOCKED",
       "validation": "BLOCKED",
       "evidence": []
@@ -258,6 +278,80 @@
         "scripts/office-motion.test.mjs"
       ],
       "tests": [],
+      "verification": "BLOCKED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-OFFICE-004",
+      "summary": "Render distinct role-specific content on every workstation monitor",
+      "component": "office screen presentation",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), sections 7 and 16.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "Every monitor displays clear, distinct, role-appropriate content: Product Owner roadmap/backlog; Frontend code and UI preview; AI Engineer agent workflow and evaluation; Backend API/database/logs; QA test results and bugs; DevOps CI/CD and terminal; Scrum Master sprint board. Multi-monitor roles use different content on each display. Preserve monitor geometry, aspect ratio, and readable texture resolution; no unnecessary third-party branding.",
+      "implementation": [
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/screen-content.mjs",
+        "assets/agile-office/agile-renderer.js",
+        "scripts/apply-agile-office.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "screen layouts provide unique role-specific monitor content for every station",
+          "level": "unit"
+        }
+      ],
+      "verification": "BLOCKED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-CHAR-007",
+      "summary": "Keep both hands naturally positioned on the workstation mouse surface without desk or prop penetration",
+      "component": "avatar ergonomics and hand IK",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 6.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "Both hands must reach the workstation mouse interaction surface using the actual shoulder, elbow, forearm and wrist joints. Adjust the interaction prop only as needed to support the two-hand pose. No hand may penetrate the desk, float, stretch a limb, or intersect the keyboard/mouse geometry. Preserve character proportions and desk height.",
+      "implementation": [
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/office-characters.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "both hand IK targets remain on the workstation mouse surface",
+          "level": "unit"
+        }
+      ],
+      "verification": "BLOCKED",
+      "validation": "BLOCKED",
+      "evidence": []
+    },
+    {
+      "id": "FR-MOTION-002",
+      "summary": "Coordinate near-concurrent meeting preparation with safe reserved doorway travel",
+      "component": "meeting movement coordination",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 10.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "All seven characters begin stopping work, moving hands, pulling chairs and standing within a short staggered interval. Reserve the narrow doorway and unique destination chairs; never allow overlapping doorway occupancy or shared seats. Use independent state machines, queue only the constrained travel segment, and measure total transition duration before and after. Return all characters to their assigned desks when the meeting ends.",
+      "implementation": [
+        "assets/agile-office/office-motion.mjs",
+        "assets/agile-office/office-characters.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "meeting preparation starts for all seven agents before reserved doorway travel",
+          "level": "unit"
+        }
+      ],
       "verification": "BLOCKED",
       "validation": "BLOCKED",
       "evidence": []
@@ -653,7 +747,7 @@
           "id": "AC-01",
           "given": "The interactive office is ready",
           "when": "The user opens the camera view selector",
-          "then": "All approved authored perspectives are visible with clear labels, including Agile Workspace, Workspace and city, and Meeting Room"
+          "then": "Desk View, Team View, Overview and Meeting Room are visible with clear labels; the three workspace perspectives are distinct authored camera positions"
         },
         {
           "id": "AC-02",
@@ -674,18 +768,32 @@
           "then": "The office remains framed usefully without altering geometry, furniture layout, materials, or camera controls"
         }
       ],
-      "scope": "Expose existing authored camera presets in a discoverable selector and assess adding further genuinely useful office viewpoints after visual review. This applies to interactive office navigation; startup poster previews should match the approved views where feasible.",
+      "scope": "Author and expose three genuinely distinct workspace camera perspectives (Desk View, Team View, Overview) and retain a separate Meeting Room perspective. Keep camera navigation independent of meeting simulation and capture all four views in the native-resolution review harness.",
       "constraints": "No office redesign or geometry changes. Keep meeting simulation independent from camera navigation. Preserve drag-to-look and reduced-motion behavior.",
       "assumptions": "The three current camera definitions are intended approved views; any additional positions require visual validation against the actual office model.",
       "dependencies": "office-layout.json camera definitions, agile-renderer.go(index), main.js view controls, renderer lifecycle tests.",
       "impact": "Office camera navigation and preview coverage only; no authentication or agent activity change.",
-      "status": "ready",
+      "status": "in progress",
       "implementation": [
-        "assets/agile-office/office-layout.json",
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/main.js",
         "assets/agile-office/agile-renderer.js",
-        "assets/agile-office/main.js"
+        "assets/agile-office/office-task-panel.mjs",
+        "scripts/office-runtime-benchmark.cjs",
+        "assets/agile-office/bake-office-candidate.py"
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "renderer exposes three distinct workspace views and a separate meeting room camera",
+          "level": "integration"
+        },
+        {
+          "path": "assets/agile-office/office-task-panel.test.mjs",
+          "id": "camera view buttons change only the camera; meeting simulation remains explicit and resets when unavailable",
+          "level": "unit"
+        }
+      ],
       "evidence": []
     },
     {
@@ -727,13 +835,19 @@
       "assumptions": "Use a lightweight Three.js sprite or HTML overlay integrated with existing renderer; verify legibility at FHD and all approved views.",
       "dependencies": "Character roster and office character manager, renderer camera, avatar world transforms.",
       "impact": "Avatar identity presentation only; no agent execution or authentication changes.",
-      "status": "ready",
+      "status": "in progress",
       "implementation": [
         "assets/agile-office/character-roster.json",
         "assets/agile-office/office-characters.mjs",
         "assets/agile-office/main.js"
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "roster identity labels are role-based and first-name only",
+          "level": "unit"
+        }
+      ],
       "evidence": []
     },
     {
@@ -801,6 +915,156 @@
           "path": "scripts/test_rig_audit.py",
           "id": "test_all_seven_assets",
           "level": "integration"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-SCREENS-001",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), sections 7 and 16.",
+      "story": "As a workspace user, I want each monitor to show meaningful content for its owner's role, so that the office looks like a functioning professional team rather than repeated generic screens.",
+      "priority": "P1",
+      "requirements": [
+        "FR-OFFICE-004"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "All seven workstations and their monitors are generated",
+          "when": "Role-specific screen textures are assigned",
+          "then": "Every monitor has a distinct layout reflecting its role and monitor purpose"
+        },
+        {
+          "id": "AC-02",
+          "given": "A role has multiple monitors",
+          "when": "Screen content is generated",
+          "then": "Each monitor displays a different relevant view rather than a duplicate texture"
+        },
+        {
+          "id": "AC-03",
+          "given": "The office is rendered at Full HD from each authored camera",
+          "when": "Screens are inspected",
+          "then": "Content remains correctly oriented, legible and within the existing monitor geometry"
+        }
+      ],
+      "scope": "Generate lightweight original screen graphics for the seven roles and every monitor, with separate variants for multi-monitor roles.",
+      "constraints": "Do not redesign furniture or resize/reposition monitors; avoid unnecessary third-party logos or runtime dependencies.",
+      "assumptions": "Screen surfaces can use lightweight CanvasTexture overlays placed just in front of the authored display panels.",
+      "dependencies": "Canonical build_scene monitor coordinates, generated agile-layout metadata and Three.js renderer.",
+      "impact": "Workstation display realism only.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/screen-content.mjs",
+        "assets/agile-office/agile-renderer.js",
+        "scripts/apply-agile-office.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/screen-content.test.mjs",
+          "id": "screen layouts provide unique role-specific monitor content for every station",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-ERGONOMICS-001",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 6.",
+      "story": "As a workspace user, I want both hands to rest naturally on the mouse interaction surface without intersecting the desk, so that the seated avatars look physically credible.",
+      "priority": "P1",
+      "requirements": [
+        "FR-CHAR-007"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A character is seated at its assigned desk",
+          "when": "The workstation interaction pose is applied",
+          "then": "Both hand targets lie on the mouse surface at desk height and remain reachable through the existing arm joints"
+        },
+        {
+          "id": "AC-02",
+          "given": "The IK solution is evaluated",
+          "when": "The avatar reaches the mouse",
+          "then": "Shoulders, elbows, forearms and wrists rotate without limb stretching or mesh penetration"
+        },
+        {
+          "id": "AC-03",
+          "given": "All seven avatars are loaded",
+          "when": "Their desk poses are validated",
+          "then": "Each character uses its own role/station mapping and preserves its proportions"
+        }
+      ],
+      "scope": "Replace keyboard-only arm targets with validated two-hand mouse-surface targets and adjust the existing mouse prop only enough to support the requested pose.",
+      "constraints": "Preserve desk height, monitor placement, character proportions and office design. No arbitrary mesh translation.",
+      "assumptions": "The existing arm rig exposes LeftArm/RightArm, ForeArm and Hand joints; per-rig visual contact still requires rendered review.",
+      "dependencies": "Seven GLB rigs, seatingPlan, mouse geometry and two-bone arm IK.",
+      "impact": "Seated character ergonomics only.",
+      "status": "ready",
+      "implementation": [
+        "assets/agile-office/build_scene.py",
+        "assets/agile-office/office-characters.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "both hand IK targets remain on the workstation mouse surface",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-MEETING-001",
+      "source": "Owner-approved 1.6.18 rendering requirements, doing_0 Pasted text(7), section 10.",
+      "story": "As a workspace user, I want all seven characters to prepare for a meeting together while safely reserving the narrow doorway and individual chairs, so that I do not wait through seven complete sequential animations.",
+      "priority": "P1",
+      "requirements": [
+        "FR-MOTION-001",
+        "FR-MOTION-002"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A meeting is requested",
+          "when": "The seven state machines receive the request",
+          "then": "All agents begin stopping work, pulling chairs and standing within a short controlled stagger"
+        },
+        {
+          "id": "AC-02",
+          "given": "Agents are ready to travel",
+          "when": "The doorway is occupied",
+          "then": "Only the permitted mover enters the constrained corridor and no other agent overlaps its reserved path"
+        },
+        {
+          "id": "AC-03",
+          "given": "An agent reaches the meeting room",
+          "when": "It approaches its destination",
+          "then": "It uses its unique reserved chair and sits without teleportation or furniture intersection"
+        },
+        {
+          "id": "AC-04",
+          "given": "The meeting ends",
+          "when": "Agents return to their desks",
+          "then": "Each agent restores its own chair, returns to its assigned station and resumes the appropriate activity"
+        }
+      ],
+      "scope": "Overlap preparation and standing for all seven avatars while preserving serialized reservation of the narrow doorway; measure complete meeting and return duration.",
+      "constraints": "No teleportation, shared chairs, collisions, wall/furniture clipping, or camera-triggered meeting requests.",
+      "assumptions": "Doorway remains a single-occupancy constraint until measured clearance supports a wider safe policy.",
+      "dependencies": "office-motion.mjs state machines, seven unique seating plans and camera/meeting control separation.",
+      "impact": "Meeting simulation timing and movement coordination.",
+      "status": "ready",
+      "implementation": [
+        "assets/agile-office/office-motion.mjs",
+        "assets/agile-office/office-characters.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "meeting preparation starts for all seven agents before reserved doorway travel",
+          "level": "unit"
         }
       ],
       "evidence": []

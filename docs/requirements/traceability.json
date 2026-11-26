@@ -208,6 +208,25 @@
       "verification": "IMPLEMENTED BUT UNVERIFIED",
       "validation": "BLOCKED",
       "evidence": []
+    },
+    {
+      "id": "FR-CHAR-005",
+      "summary": "Show culturally appropriate first name and role above every avatar with typographic hierarchy",
+      "component": "avatar identity labels",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26: labels above all seven characters; first name only, separator as a dot, name bold and job title regular.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "Render one compact camera-facing label above each avatar: bold first name, a middle dot separator (·), and regular-weight role title. Use exactly the approved first-name/role pairs: Sara · Frontend Developer; Aiko · AI Engineer; Kwame · DevOps Engineer; Freja · Scrum Master; Arjun · QA Engineer; Diego · Backend Developer; Luca · Product Owner. Do not add surnames. Keep the label readable, positioned above the head, not occluding the face, following the avatar and remaining stable across all workspace camera views.",
+      "implementation": [
+        "assets/agile-office/character-roster.json",
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/main.js"
+      ],
+      "tests": [],
+      "verification": "NOT IMPLEMENTED",
+      "validation": "BLOCKED",
+      "evidence": []
     }
   ],
   "stories": [
@@ -614,6 +633,54 @@
       "implementation": [
         "assets/agile-office/office-layout.json",
         "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/main.js"
+      ],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "US-IDENTITY-001",
+      "source": "Owner-approved 1.6.18 additions, 2026-11-26: avatar name and role labels; follow-up explicitly replaces the vertical bar with a dot and requests only the name in bold.",
+      "story": "As a workspace user, I want to identify each avatar by a short first name and role label above their head, so that the seven team members are easy to recognize from every camera angle.",
+      "priority": "P1",
+      "requirements": [
+        "FR-CHAR-005"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "All seven office avatars are loaded",
+          "when": "Identity labels are rendered",
+          "then": "Each avatar displays exactly its approved first name, a middle dot separator, and its role; no surnames are shown"
+        },
+        {
+          "id": "AC-02",
+          "given": "A label is displayed",
+          "when": "Typography is rendered",
+          "then": "Only the first name is bold; the separator and role title use regular weight"
+        },
+        {
+          "id": "AC-03",
+          "given": "The user changes camera view or the avatar moves",
+          "when": "The scene updates",
+          "then": "The label follows the correct avatar, faces the camera, remains readable and does not cover the face"
+        },
+        {
+          "id": "AC-04",
+          "given": "The seven character assets are loaded in any roster order",
+          "when": "Labels are assigned",
+          "then": "Names are mapped by role, never by array position"
+        }
+      ],
+      "scope": "Add camera-facing name/role labels for all seven characters, mapped by stable role identifiers. The name is bold, the middle-dot separator and role are regular weight.",
+      "constraints": "First names only; no surname; do not infer or change character appearance; no UI redesign; preserve camera navigation and character lifecycle/disposal.",
+      "assumptions": "Use a lightweight Three.js sprite or HTML overlay integrated with existing renderer; verify legibility at FHD and all approved views.",
+      "dependencies": "Character roster and office character manager, renderer camera, avatar world transforms.",
+      "impact": "Avatar identity presentation only; no agent execution or authentication changes.",
+      "status": "ready",
+      "implementation": [
+        "assets/agile-office/character-roster.json",
+        "assets/agile-office/office-characters.mjs",
         "assets/agile-office/main.js"
       ],
       "tests": [],

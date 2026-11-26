@@ -15,11 +15,17 @@ const dist=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 export function seatingPlan(stations){
   return stations.map(([x,y,a],i)=>{
     const forward=point(-Math.sin(a),-Math.cos(a));
-    const desk={id:'desk_'+i,at:plus(point(x,-y),forward,-.91+DESK_TUCK),forward,keyboard:point(x-.19,-y+.19)};
+    const local=(lx,ly)=>point(x+Math.cos(a)*lx-Math.sin(a)*ly,-(y+Math.sin(a)*lx+Math.cos(a)*ly));
+    const desk={id:'desk_'+i,at:plus(point(x,-y),forward,-.91+DESK_TUCK),forward,keyboard:local(-.19,-.19),mouse:local(.16,-.20)};
     const row=Math.floor(i/2),right=i%2===1;
     const meeting={id:'meeting_'+i,at:point(right?6.76:4.34,.97-row*1.08),forward:point(right?-1:1,0)};
     return {desk,meeting};
   });
+}
+/** Returns two symmetrical wrist targets over the existing desk-mat mouse surface. */
+export function mouseSurfaceTargets(mouse,halfSpan=.09){
+  if(!mouse||!Number.isFinite(mouse.x)||!Number.isFinite(mouse.z)||!Number.isFinite(halfSpan)||halfSpan<=0||halfSpan>.18)throw Error('Invalid mouse surface');
+  return [point(mouse.x-halfSpan,mouse.z),point(mouse.x+halfSpan,mouse.z)];
 }
 /**
  * Computes a chair translation relative to its exported geometry, including desk tuck.

@@ -227,6 +227,26 @@
       "verification": "NOT IMPLEMENTED",
       "validation": "BLOCKED",
       "evidence": []
+    },
+    {
+      "id": "FR-CHAR-006",
+      "summary": "Fully articulate every character joint with natural, action-appropriate motion and no permanently stiff or omitted joints",
+      "component": "character skeletons, animation clips and IK",
+      "priority": "P1",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26: every joint must move; no fixed or stiff joints. Combined with prior request for realistic legs, arms, hands and fingers.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "All seven character rigs must expose every intended anatomical joint for animation, including neck/head, spine, shoulders, elbows, wrists, fingers, pelvis, hips, knees, ankles and toes where present in the character design. No joint may be permanently locked, omitted from the rig, or left stiff across the animation system. Each relevant action must animate its appropriate joints with coordinated, continuous motion. Idle may hold a stable stance but must include subtle natural secondary motion; joints do not need to move continuously or simultaneously when biomechanics call for stability. Finger joints must articulate individually during typing and other hand actions. Apply anatomical joint limits and IK constraints; no stretching, snapping, jitter, hyperextension or detached limbs.",
+      "implementation": [
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/agent-animation.mjs",
+        "assets/agile-office/characters/manifest.json",
+        "scripts/office-motion.test.mjs"
+      ],
+      "tests": [],
+      "verification": "NOT IMPLEMENTED",
+      "validation": "BLOCKED",
+      "evidence": []
     }
   ],
   "stories": [
@@ -682,6 +702,68 @@
         "assets/agile-office/character-roster.json",
         "assets/agile-office/office-characters.mjs",
         "assets/agile-office/main.js"
+      ],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "US-ANIMATION-001",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26: every joint must be capable of movement; no fixed or stiff joints. Builds on prior requests for natural leg, hand and finger movement.",
+      "story": "As a workspace user, I want every character joint to be properly rigged and naturally articulated during relevant actions, so that the team never looks rigid, mechanical or partially frozen.",
+      "priority": "P1",
+      "requirements": [
+        "FR-CHAR-006",
+        "FR-MOTION-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Each of the seven character assets is loaded",
+          "when": "The rig is validated",
+          "then": "The expected anatomical joint inventory is present and every intended joint is addressable by the animation system; no required joint is permanently locked or omitted"
+        },
+        {
+          "id": "AC-02",
+          "given": "A character performs idle, typing, thinking, standing, walking, sitting and meeting actions",
+          "when": "Each corresponding animation plays",
+          "then": "All relevant body regions articulate with coordinated motion; no relevant limb, wrist, hand, finger, foot, head or torso remains unnaturally stiff throughout that action"
+        },
+        {
+          "id": "AC-03",
+          "given": "A character types or interacts with desk equipment",
+          "when": "Hand animation plays",
+          "then": "Individual finger joints, wrists, elbows and shoulders move in a coordinated way appropriate to the interaction"
+        },
+        {
+          "id": "AC-04",
+          "given": "A character walks, sits, stands or turns",
+          "when": "The motion transitions between clips or IK states",
+          "then": "Pelvis, hips, knees, ankles, toes, spine, shoulders and arms move continuously within anatomical limits without foot sliding, limb penetration, snapping or stretching"
+        },
+        {
+          "id": "AC-05",
+          "given": "A character is in a stable resting or support pose",
+          "when": "The pose is held",
+          "then": "Joints may remain stable when required by biomechanics, while subtle secondary motion prevents an unnaturally frozen appearance; not every joint is forced to move simultaneously"
+        },
+        {
+          "id": "AC-06",
+          "given": "Automated animation validation runs",
+          "when": "Rig and clip coverage is checked",
+          "then": "Tests verify joint inventory, required track coverage and meaningful transform changes for each applicable action, while allowing biomechanically valid stable joints"
+        }
+      ],
+      "scope": "Audit and improve all seven rigs and their animation clips so every intended joint is fully articulatable. Coordinate full-body movement, hand/finger articulation and IK for desk, walking and meeting actions. Preserve character identity and proportions.",
+      "constraints": "Do not add artificial motion to every joint at every frame. Maintain biomechanical plausibility, joint limits, stable contacts, no foot sliding, no mesh intersections, no limb stretching or snapping. No character appearance redesign.",
+      "assumptions": "Rig inventory and current animation coverage must be inspected per GLB; if finger or other required joints are absent, the source rig/GLB assets must be updated rather than faking motion with mesh transforms.",
+      "dependencies": "Seven GLB rigs, agent-animation.mjs, office-characters.mjs, office-motion.mjs, character-specific typing/meeting actions and IK.",
+      "impact": "Character rigging and animation quality across office and meeting room.",
+      "status": "ready",
+      "implementation": [
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/agent-animation.mjs",
+        "assets/agile-office/characters/manifest.json",
+        "scripts/office-motion.test.mjs"
       ],
       "tests": [],
       "evidence": []

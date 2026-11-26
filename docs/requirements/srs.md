@@ -26,6 +26,7 @@ are not proof those tests passed on a later revision.
 | NFR-PERF-001 | As a user I get responsive clear camera motion | Given capable reference hardware, when navigating at native FHD, then target 60 FPS / 16.67 ms with reported p95 intervals and resolution; measurement remains pending |
 | NFR-IDLE-001 | As a user I avoid unnecessary idle GPU work | Given no camera or animation changes, when settled, then no additional scene frames are submitted |
 | FR-MOTION-001 | As a user I see credible office activity | Given a seated avatar, when meeting is requested, then chair pull precedes standing, skeletal walking crosses the doorway, seating/return restores chair position |
+| FR-CHAR-006 | As a user I see fully articulated characters | Given any of the seven character rigs, when the avatar performs an applicable action, then every intended anatomical joint is available to animation and relevant joints move in coordinated, natural ways; no joint is permanently stiff or omitted, while biomechanically stable poses remain valid |
 
 Constraints: no paid services, no secret exposure, no redesign, preserve authentication,
 updates and original assets, no mandatory signing reintroduced, no publication before

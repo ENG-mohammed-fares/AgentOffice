@@ -70,7 +70,7 @@ window.benchmarkResult=(async()=>{
   try{
     const start=performance.now();
     stage('mount-start');
-    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)},bakedCandidate:${JSON.stringify(bakedCandidate)},characterRoster:characterReview?layout.characters:[],onProgress:stage});
+    view=await mountAgileRenderer(host,new URL('/office/office.glb',location.href).href,{onLost:()=>{contextLost=true},isCancelled:()=>contextLost,preset:${JSON.stringify(preset)},bakedCandidate:${JSON.stringify(bakedCandidate)},characterRoster:characterReview?layout.characters:[],onProgress:stage,reviewCapture:${JSON.stringify(previewMode)}});
     stage('office-first-frame');
     const firstFrameMs=round(performance.now()-start);
     if(characterReview){
@@ -83,6 +83,7 @@ window.benchmarkResult=(async()=>{
       window.previewView=async index=>{
         const before=count();view.go(index,true);if(characterReview)await waitFrame(before);else await quiet(before);return view.metrics();
       };
+      window.captureReviewFrame=()=>view.captureReviewFrame();
       window.requestMeetingDemo=value=>{if(!view.metrics().meetingAvailable)throw Error('Movable-chair meeting simulation is unavailable');view.setMeeting(Boolean(value));return view.metrics();};
       window.waitForMeetingDemo=async value=>{
         const expected=Boolean(value),deadline=performance.now()+180000;
@@ -124,6 +125,20 @@ async function boundedResult(){
   };
   try{return await Promise.race([read(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Benchmark timeout at stage: '+lastStage)),timeoutMs);})]);}
   finally{clearTimeout(timer);}
+}
+async function saveNativeCapture(destination,name){
+  const frame=await win.webContents.executeJavaScript('window.captureReviewFrame()');
+  assert.equal(frame.width,1920,'Native WebGL buffer width');
+  assert.equal(frame.height,1080,'Native WebGL buffer height');
+  assert.ok(frame.drawCalls>0&&frame.triangles>0,'Capture must contain an actual rendered scene');
+  const prefix='data:image/png;base64,';
+  assert.ok(frame.png.startsWith(prefix),'Renderer did not produce a PNG');
+  const raw=Buffer.from(frame.png.slice(prefix.length),'base64');
+  assert.ok(raw.length>24&&raw.subarray(0,8).toString('hex')==='89504e470d0a1a0a'&&raw.subarray(12,16).toString()==='IHDR','Invalid native PNG');
+  assert.equal(raw.readUInt32BE(16),1920,'Native PNG width');
+  assert.equal(raw.readUInt32BE(20),1080,'Native PNG height');
+  fs.writeFileSync(path.join(destination,name),raw,{flag:'wx'});
+  return {width:frame.width,height:frame.height,pixelRatio:1,drawCalls:frame.drawCalls,triangles:frame.triangles,captureMode:'native-webgl'};
 }
 async function run(){
   assert.ok(fs.existsSync(path.join(appDir,'src','agile-renderer.js')),'Prepare the current app source first');
@@ -168,36 +183,27 @@ async function run(){
       lastStage='capture-view-'+index;
       const metrics=await win.webContents.executeJavaScript('window.previewView('+index+')');
       assert.equal(metrics.cameraIndex,index,'Capture must match the selected authored camera');
-      assert.ok(metrics.width>=1920&&metrics.height>=1080,'Actual rendering buffer is below Full HD; select High or use a larger display.');
       if(characterReview){assert.equal(metrics.characters,7);assert.equal(metrics.characterLabels,7);if(seatedReview)assert.equal(metrics.seated,7);}
-      const shot=await win.webContents.capturePage();
-      const {width,height}=shot.getSize();
-      assert.ok(width>=1920&&height>=1080,'Captured viewport is below Full HD.');
-      fs.writeFileSync(path.join(destination,'view-'+index+'.png'),shot.toPNG(),{flag:'wx'});
-      views.push({index,width,height,...metrics});
+      const capture=await saveNativeCapture(destination,'view-'+index+'.png');
+      views.push({index,...metrics,liveBuffer:{width:metrics.width,height:metrics.height,pixelRatio:metrics.pixelRatio},...capture});
     }
     if(characterReview&&seatedReview){
       await win.webContents.executeJavaScript('window.requestMeetingDemo(true)');
       await new Promise(resolve=>setTimeout(resolve,1500));
       await win.webContents.executeJavaScript('window.previewView(3)');
-      const movingShot=await win.webContents.capturePage();
-      const movingSize=movingShot.getSize();assert.ok(movingSize.width>=1920&&movingSize.height>=1080,'Meeting transition capture is below Full HD');
-      fs.writeFileSync(path.join(destination,'meeting-transition.png'),movingShot.toPNG(),{flag:'wx'});
+      await saveNativeCapture(destination,'meeting-transition.png');
       meetingReview=await win.webContents.executeJavaScript('window.waitForMeetingDemo(true)');
       assert.equal(meetingReview.meetingSeated,7);assert.equal(meetingReview.seated,7);
       await win.webContents.executeJavaScript('window.previewView(3)');
-      const seatedShot=await win.webContents.capturePage();
-      fs.writeFileSync(path.join(destination,'meeting-room-seated.png'),seatedShot.toPNG(),{flag:'wx'});
+      await saveNativeCapture(destination,'meeting-room-seated.png');
       await win.webContents.executeJavaScript('window.requestMeetingDemo(false)');
       await new Promise(resolve=>setTimeout(resolve,1500));
       await win.webContents.executeJavaScript('window.previewView(0)');
-      const returnShot=await win.webContents.capturePage();
-      fs.writeFileSync(path.join(destination,'meeting-return-transition.png'),returnShot.toPNG(),{flag:'wx'});
+      await saveNativeCapture(destination,'meeting-return-transition.png');
       returnReview=await win.webContents.executeJavaScript('window.waitForMeetingDemo(false)');
       assert.equal(returnReview.meetingSeated,0);assert.equal(returnReview.seated,7);
       await win.webContents.executeJavaScript('window.previewView(0)');
-      const desksShot=await win.webContents.capturePage();
-      fs.writeFileSync(path.join(destination,'agents-returned-to-desks.png'),desksShot.toPNG(),{flag:'wx'});
+      await saveNativeCapture(destination,'agents-returned-to-desks.png');
     }
     if(characterReview){
       fs.writeFileSync(path.join(destination,'review.json'),JSON.stringify({schemaVersion:1,ciReview,gpuFeatures:app.getGPUFeatureStatus(),gpuInfo:await app.getGPUInfo('basic').catch(()=>null),...result,views,meetingReview,returnReview},null,2)+'\n');

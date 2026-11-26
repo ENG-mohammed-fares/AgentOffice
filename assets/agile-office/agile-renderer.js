@@ -60,7 +60,7 @@ async function loadOfficeModel(renderer,url,isCancelled,bakedCandidate){
   return {gltf:await new GLTFLoader().parseAsync(raw,new URL('./',url).href),format:'original'};
 }
 
-export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitialIndex=()=>0,preset='balanced',bakedCandidate=false,characterRoster=[],onProgress=()=>{}}){
+export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitialIndex=()=>0,preset='balanced',bakedCandidate=false,characterRoster=[],onProgress=()=>{},reviewCapture=false}){
   const canvas=document.createElement('canvas'),gl=canvas.getContext('webgl2',{alpha:false,antialias:true,powerPreference:'high-performance'});
   if(!gl)throw Error('WebGL2 unavailable');
   let renderer,scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(60,1,.045,130),environment,pmrem,model,observer,disposed=false,move=null,drag=null,frameScheduler,resolution,stats,lastFrame=0,settleFrames=0,frames=0;
@@ -226,6 +226,18 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     }
     function setAgentState(role,state){activity.set(role,state);return characters?.setState(role,state)??false;}
     function setMeeting(value){meetingRequested=Boolean(value);characters?.setMeeting?.(meetingRequested);}
-    return {go,dispose,ready,setGraphicsPreset,setAgentState,setMeeting,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,roleScreens:screens.count,cameraCount:cameras.length,cameraIndex:activeCameraIndex,characters:characters?.count??0,characterLabels:characters?.labels??0,meetingAvailable:characters?.meetingAvailable??false,proceduralJoints:characters?.proceduralJoints??0,seated:characters?.seated??0,meetingSeated:characters?.meetingSeated??0,movableChairs:chairs.size,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
+    // Review-only: render the current scene at native Full HD, independently of
+    // the desktop's display resolution and adaptive live-rendering policy.
+    function captureReviewFrame(){
+      if(!reviewCapture||disposed||contextLost||isCancelled())throw Error('Native review capture unavailable');
+      try{
+        renderer.setDrawingBufferSize(1920,1080,1);
+        camera.aspect=1920/1080;camera.updateProjectionMatrix();
+        renderer.render(scene,camera);
+        if(canvas.width!==1920||canvas.height!==1080)throw Error('Native review drawing buffer is not Full HD');
+        return {png:canvas.toDataURL('image/png'),width:canvas.width,height:canvas.height,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles};
+      }finally{sizeToHost();frameScheduler.request();}
+    }
+    return {go,dispose,ready,setGraphicsPreset,setAgentState,setMeeting,captureReviewFrame,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,roleScreens:screens.count,cameraCount:cameras.length,cameraIndex:activeCameraIndex,characters:characters?.count??0,characterLabels:characters?.labels??0,meetingAvailable:characters?.meetingAvailable??false,proceduralJoints:characters?.proceduralJoints??0,seated:characters?.seated??0,meetingSeated:characters?.meetingSeated??0,movableChairs:chairs.size,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
   }catch(err){dispose();throw err;}
 }

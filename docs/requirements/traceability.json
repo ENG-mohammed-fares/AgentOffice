@@ -53,13 +53,20 @@
       "decision": "accepted",
       "acceptance": "See docs/requirements/srs.md scenario FR-OFFICE-002",
       "implementation": [
-        "assets/agile-office/agile-renderer.js"
+        "assets/agile-office/main.js",
+        "assets/agile-office/agile-renderer.js",
+        "assets/agile-office/office-task-panel.mjs"
       ],
       "tests": [
         {
           "path": "scripts/renderer-lifecycle.test.mjs",
           "id": "renderer controls camera/drag, pauses hidden work, and disposes real scene resources",
           "level": "integration"
+        },
+        {
+          "path": "assets/agile-office/office-task-panel.test.mjs",
+          "id": "four authored camera views never start a meeting; explicit meeting demo requests reset on teardown",
+          "level": "unit"
         }
       ],
       "verification": "IMPLEMENTED BUT UNVERIFIED",
@@ -169,9 +176,24 @@
       "owner": "Product owner / maintainer",
       "decision": "accepted",
       "acceptance": "See docs/requirements/srs.md scenario FR-MOTION-001",
-      "implementation": [],
-      "tests": [],
-      "verification": "BLOCKED",
+      "implementation": [
+        "assets/agile-office/office-motion.mjs",
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/agent-animation.mjs"
+      ],
+      "tests": [
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "seated agents type, pull the chair, rise before walking, then sit and push it in",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "destination chair is pulled gradually before stepping into the seat space",
+          "level": "unit"
+        }
+      ],
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
       "validation": "BLOCKED",
       "evidence": []
     },
@@ -229,7 +251,7 @@
         },
         {
           "path": "assets/agile-office/office-task-panel.test.mjs",
-          "id": "camera view buttons change only the camera; meeting simulation remains explicit and resets when unavailable",
+          "id": "four authored camera views never start a meeting; explicit meeting demo requests reset on teardown",
           "level": "unit"
         }
       ],
@@ -254,11 +276,11 @@
       "tests": [
         {
           "path": "scripts/office-characters.test.mjs",
-          "id": "roster identity labels are role-based and first-name only",
+          "id": "role identities use first names only and render bold names beside regular role titles",
           "level": "unit"
         }
       ],
-      "verification": "BLOCKED",
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
       "validation": "BLOCKED",
       "evidence": []
     },
@@ -275,9 +297,21 @@
         "assets/agile-office/office-characters.mjs",
         "assets/agile-office/agent-animation.mjs",
         "assets/agile-office/characters/manifest.json",
-        "scripts/office-motion.test.mjs"
+        "scripts/office-motion.test.mjs",
+        "scripts/audit_character_rigs.py"
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "scripts/test_rig_audit.py",
+          "id": "test_all_seven_assets",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/agent-animation.test.mjs",
+          "id": "rig-audit static neck, shoulder, wrist, thumb, toe and eye joints receive subtle secondary motion",
+          "level": "unit"
+        }
+      ],
       "verification": "BLOCKED",
       "validation": "BLOCKED",
       "evidence": []
@@ -304,7 +338,7 @@
           "level": "unit"
         }
       ],
-      "verification": "BLOCKED",
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
       "validation": "BLOCKED",
       "evidence": []
     },
@@ -324,11 +358,11 @@
       "tests": [
         {
           "path": "scripts/office-characters.test.mjs",
-          "id": "both hand IK targets remain on the workstation mouse surface",
+          "id": "both arms reach separate positions on the same mouse interaction surface",
           "level": "unit"
         }
       ],
-      "verification": "BLOCKED",
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
       "validation": "BLOCKED",
       "evidence": []
     },
@@ -348,11 +382,11 @@
       "tests": [
         {
           "path": "scripts/office-motion.test.mjs",
-          "id": "meeting preparation starts for all seven agents before reserved doorway travel",
+          "id": "all agents prepare and stand concurrently while only one doorway crossing is reserved",
           "level": "unit"
         }
       ],
-      "verification": "BLOCKED",
+      "verification": "IMPLEMENTED BUT UNVERIFIED",
       "validation": "BLOCKED",
       "evidence": []
     }
@@ -780,7 +814,9 @@
         "assets/agile-office/agile-renderer.js",
         "assets/agile-office/office-task-panel.mjs",
         "scripts/office-runtime-benchmark.cjs",
-        "assets/agile-office/bake-office-candidate.py"
+        "assets/agile-office/bake-office-candidate.py",
+        "assets/agile-office/office-task-panel.test.mjs",
+        "scripts/apply-agile-office.py"
       ],
       "tests": [
         {
@@ -790,7 +826,7 @@
         },
         {
           "path": "assets/agile-office/office-task-panel.test.mjs",
-          "id": "camera view buttons change only the camera; meeting simulation remains explicit and resets when unavailable",
+          "id": "four authored camera views never start a meeting; explicit meeting demo requests reset on teardown",
           "level": "unit"
         }
       ],
@@ -815,7 +851,7 @@
           "id": "AC-02",
           "given": "A label is displayed",
           "when": "Typography is rendered",
-          "then": "Only the first name is bold; the separator and role title use regular weight"
+          "then": "Only the first name is bold; the middle-dot separator and role title use regular weight"
         },
         {
           "id": "AC-03",
@@ -844,7 +880,7 @@
       "tests": [
         {
           "path": "scripts/office-characters.test.mjs",
-          "id": "roster identity labels are role-based and first-name only",
+          "id": "role identities use first names only and render bold names beside regular role titles",
           "level": "unit"
         }
       ],
@@ -908,13 +944,19 @@
         "assets/agile-office/agent-animation.mjs",
         "assets/agile-office/characters/manifest.json",
         "scripts/office-motion.test.mjs",
-        "scripts/audit_character_rigs.py"
+        "scripts/audit_character_rigs.py",
+        "scripts/agent-animation.test.mjs"
       ],
       "tests": [
         {
           "path": "scripts/test_rig_audit.py",
           "id": "test_all_seven_assets",
           "level": "integration"
+        },
+        {
+          "path": "scripts/agent-animation.test.mjs",
+          "id": "rig-audit static neck, shoulder, wrist, thumb, toe and eye joints receive subtle secondary motion",
+          "level": "unit"
         }
       ],
       "evidence": []
@@ -1001,7 +1043,7 @@
       "assumptions": "The existing arm rig exposes LeftArm/RightArm, ForeArm and Hand joints; per-rig visual contact still requires rendered review.",
       "dependencies": "Seven GLB rigs, seatingPlan, mouse geometry and two-bone arm IK.",
       "impact": "Seated character ergonomics only.",
-      "status": "ready",
+      "status": "in progress",
       "implementation": [
         "assets/agile-office/build_scene.py",
         "assets/agile-office/office-characters.mjs"
@@ -1009,7 +1051,7 @@
       "tests": [
         {
           "path": "scripts/office-characters.test.mjs",
-          "id": "both hand IK targets remain on the workstation mouse surface",
+          "id": "both arms reach separate positions on the same mouse interaction surface",
           "level": "unit"
         }
       ],
@@ -1022,7 +1064,9 @@
       "priority": "P1",
       "requirements": [
         "FR-MOTION-001",
-        "FR-MOTION-002"
+        "FR-MOTION-002",
+        "FR-OFFICE-002",
+        "FR-TASK-001"
       ],
       "criteria": [
         {
@@ -1048,6 +1092,18 @@
           "given": "The meeting ends",
           "when": "Agents return to their desks",
           "then": "Each agent restores its own chair, returns to its assigned station and resumes the appropriate activity"
+        },
+        {
+          "id": "AC-05",
+          "given": "A user selects Desk View, Overview, Team View or Meeting Room",
+          "when": "The camera changes",
+          "then": "Only the camera changes; no agent meeting request is emitted"
+        },
+        {
+          "id": "AC-06",
+          "given": "Live character rendering is ready",
+          "when": "The user explicitly starts or ends the meeting demo",
+          "then": "The meeting queue receives a Boolean request and the accessible control reflects the state; the demo is disabled when the seven-character roster is unavailable"
         }
       ],
       "scope": "Overlap preparation and standing for all seven avatars while preserving serialized reservation of the narrow doorway; measure complete meeting and return duration.",
@@ -1055,15 +1111,22 @@
       "assumptions": "Doorway remains a single-occupancy constraint until measured clearance supports a wider safe policy.",
       "dependencies": "office-motion.mjs state machines, seven unique seating plans and camera/meeting control separation.",
       "impact": "Meeting simulation timing and movement coordination.",
-      "status": "ready",
+      "status": "in progress",
       "implementation": [
         "assets/agile-office/office-motion.mjs",
-        "assets/agile-office/office-characters.mjs"
+        "assets/agile-office/office-characters.mjs",
+        "assets/agile-office/main.js",
+        "assets/agile-office/office-task-panel.mjs"
       ],
       "tests": [
         {
           "path": "scripts/office-motion.test.mjs",
-          "id": "meeting preparation starts for all seven agents before reserved doorway travel",
+          "id": "all agents prepare and stand concurrently while only one doorway crossing is reserved",
+          "level": "unit"
+        },
+        {
+          "path": "assets/agile-office/office-task-panel.test.mjs",
+          "id": "four authored camera views never start a meeting; explicit meeting demo requests reset on teardown",
           "level": "unit"
         }
       ],

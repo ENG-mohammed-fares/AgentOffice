@@ -86,7 +86,7 @@ export function identityForRole(role){
  * @param {THREE.Object3D} root - Scaled and positioned character root.
  * @param {THREE.Group} group - Owning roster group; owns the resulting sprite.
  * @param {Function} canvasFactory - Creates a 2D canvas or returns null when unavailable.
- * @returns {THREE.Sprite|null} Owned label sprite, or null when canvas rendering is unavailable.
+ * @returns {{sprite:THREE.Sprite,anchor:THREE.Vector3}|null} Billboard sprite and avatar-local anchor, or null when canvas rendering is unavailable.
  */
 function createIdentitySprite(role,root,group,canvasFactory){
   const identity=identityForRole(role),canvas=canvasFactory();

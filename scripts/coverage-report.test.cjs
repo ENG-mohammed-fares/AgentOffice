@@ -22,7 +22,7 @@ const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
 const {main}=require('./run-coverage.cjs');
-const required=['electron/identity.cjs','electron/update-policy.cjs','src/office-performance.mjs','src/office-batching.mjs'];
+const required=['electron/identity.cjs','electron/update-policy.cjs','src/office-performance.mjs','src/office-batching.mjs','src/screen-content.mjs'];
 function setup(t){
   const rootDir=fs.mkdtempSync(path.join(os.tmpdir(),'agentoffice-coverage-'));
   t.after(()=>fs.rmSync(rootDir,{recursive:true,force:true}));
@@ -36,6 +36,7 @@ function setup(t){
   write('app/src/README.md');
   write('app/scripts/identity.test.cjs');
   write('app/scripts/office-performance.test.mjs');
+  write('app/scripts/screen-content.test.mjs');
   write('app/scripts/README.md');
   const reportFile=path.join(rootDir,'coverage','raw-lcov.info');
   const raw=required.map(file=>fixture(file)).join('');
@@ -43,7 +44,7 @@ function setup(t){
     assert.equal(options.cwd,path.join(rootDir,'app'));
     assert.equal(options.env.NODE_V8_COVERAGE,undefined);
     assert.ok(args.includes('--experimental-test-coverage'));
-    assert.deepEqual(args.slice(-2),['scripts/identity.test.cjs','scripts/office-performance.test.mjs']);
+    assert.deepEqual(args.slice(-3),['scripts/identity.test.cjs','scripts/office-performance.test.mjs','scripts/screen-content.test.mjs']);
     fs.writeFileSync(reportFile,raw);
     return {status:0};
   };
@@ -54,7 +55,7 @@ test('runner inventories nested sources, runs required tests and writes actual r
   f.write('coverage/lcov.info','stale');
   const report=main({rootDir:f.rootDir,run:f.run,environment:{NODE_V8_COVERAGE:'old',GITHUB_STEP_SUMMARY:summary},log:s=>messages.push(s)});
   assert.equal(report.testExitCode,0);
-  assert.equal(report.totals.lines.hit,8);
+  assert.equal(report.totals.lines.hit,10);
   assert.deepEqual(report.unmeasuredFiles,['app/src/nested/unmeasured.js']);
   assert.deepEqual(report.missingRequired,[]);
   assert.match(fs.readFileSync(path.join(f.rootDir,'coverage','lcov.info'),'utf8'),/SF:app\/src\/office-performance\.mjs/);
@@ -92,7 +93,17 @@ test('LCOV rejects absent, duplicate or nonnumeric counters and malformed source
   assert.deepEqual(result.report.unmeasuredFiles,files);
 });
 
-const {canonicalize,writeCanonical}=require('./run-coverage.cjs');
+const {canonicalize,writeCanonical,overlays}=require('./run-coverage.cjs');
+test('Sonar analyzes canonical overlays once and excludes their byte-identical prepared copies',()=>{
+  const properties=fs.readFileSync(path.join(__dirname,'..','sonar-project.properties'),'utf8');
+  const line=properties.split(/\\r?\\n/).find(x=>x.startsWith('sonar.exclusions='));
+  assert.ok(line,'Sonar exclusions must be explicit');
+  const excluded=new Set(line.slice('sonar.exclusions='.length).split(','));
+  for(const [prepared,canonical] of Object.entries(overlays)){
+    assert.ok(excluded.has(prepared),'Prepared duplicate is not excluded: '+prepared);
+    assert.ok(!excluded.has(canonical),'Canonical tracked source must remain analyzed: '+canonical);
+  }
+});
 test('canonical mapping transfers only actual measurements from byte-identical overlays',t=>{
   const f=setup(t),aliases={'app/src/office-performance.mjs':'assets/office-performance.mjs'};
   f.write('assets/office-performance.mjs','// fixture');
@@ -110,7 +121,7 @@ test('canonical writer rejects failed coverage and missing or low task module co
   f.write(file,JSON.stringify({testExitCode:1}));assert.throws(()=>writeCanonical(f.rootDir),/failed test coverage/);
   f.write(file,JSON.stringify({testExitCode:0,measuredFiles:{}}));assert.throws(()=>writeCanonical(f.rootDir),/below 80%/);
   f.write(file,JSON.stringify({testExitCode:0,measuredFiles:{[a]:{lines:{total:10,hit:10}},[b]:{lines:{total:10,hit:7}}}}));assert.throws(()=>writeCanonical(f.rootDir),/below 80%/);
-  const mappings={'app/src/main.js':'assets/agile-office/main.js','app/src/agile-renderer.js':'assets/agile-office/agile-renderer.js','app/src/agile-office.css':'assets/agile-office/agile-office.css','app/src/office-performance.mjs':'assets/agile-office/office-performance.mjs','app/src/office-batching.mjs':'assets/agile-office/office-batching.mjs',[a]:'assets/agile-office/office-tasks.mjs',[b]:'assets/agile-office/office-task-panel.mjs','app/src/agent-animation.mjs':'assets/agile-office/agent-animation.mjs','app/src/office-characters.mjs':'assets/agile-office/office-characters.mjs','app/src/office-motion.mjs':'assets/agile-office/office-motion.mjs','app/electron/crash-monitor.cjs':'assets/crash-monitor/crash-monitor.cjs'};
+  const mappings={'app/src/main.js':'assets/agile-office/main.js','app/src/agile-renderer.js':'assets/agile-office/agile-renderer.js','app/src/agile-office.css':'assets/agile-office/agile-office.css','app/src/office-performance.mjs':'assets/agile-office/office-performance.mjs','app/src/office-batching.mjs':'assets/agile-office/office-batching.mjs',[a]:'assets/agile-office/office-tasks.mjs',[b]:'assets/agile-office/office-task-panel.mjs','app/src/agent-animation.mjs':'assets/agile-office/agent-animation.mjs','app/src/office-characters.mjs':'assets/agile-office/office-characters.mjs','app/src/screen-content.mjs':'assets/agile-office/screen-content.mjs','app/src/office-motion.mjs':'assets/agile-office/office-motion.mjs','app/electron/crash-monitor.cjs':'assets/crash-monitor/crash-monitor.cjs'};
   for(const [from,to] of Object.entries(mappings)){f.write(from,'identical');f.write(to,'identical')}
   f.write(file,JSON.stringify({testExitCode:0,measuredFiles:{[a]:{lines:{total:10,hit:10}},[b]:{lines:{total:10,hit:8}}}}));
   f.write('coverage/lcov.info','SF:'+a+'\nDA:1,3\nend_of_record\nSF:'+b+'\nDA:1,1\nend_of_record\n');

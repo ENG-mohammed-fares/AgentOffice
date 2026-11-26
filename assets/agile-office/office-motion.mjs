@@ -108,7 +108,7 @@ export function advanceWalk(position,yaw,target,speed,dt){
  * @returns {object} Motion controller with activity and meeting requests and phase queries.
  */
 export function createSeatedMotion({plan,position,rotation,setPose,setChair,groundY=0}){
-  let seat=plan.desk,desired=seat,phase='seated',clock=0,activity='idle',route=[],cursor=0,arrivalPull=0,travelAllowed=false,travelSpeed=0;
+  let seat=plan.desk,desired=seat,phase='seated',clock=0,activity='idle',route=[],cursor=0,arrivalPull=0,travelAllowed=false,travelSpeed=0,prepareDelay=0;
   const setPosition=p=>{position.x=p.x;position.z=p.z;position.y=groundY;};
   const pulls=new Map([[plan.desk.id,0],[plan.meeting.id,0]]);
   const setOffset=(s,n)=>{pulls.set(s.id,n);setChair(s.id,chairOffset(s,n));};
@@ -124,15 +124,15 @@ export function createSeatedMotion({plan,position,rotation,setPose,setChair,grou
   function completeSeat(){setPosition(seat.at);rotation.y=yawFor(seat.forward);setOffset(seat,0);setPose(seatedPose());enter('seated');}
   completeSeat();
   return {
-    get phase(){return phase;},get location(){return seat.id;},get atDesk(){return phase==='seated'&&seat===plan.desk;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},get needsTravel(){return phase==='waiting-travel'&&seat!==desired;},get corridorClear(){return cursor>=5;},get corridorReserved(){return travelAllowed&&phase==='walk'&&cursor<5;},
-    requestMeeting(value){desired=value?plan.meeting:plan.desk;},
+    get phase(){return phase;},get location(){return seat.id;},get atDesk(){return phase==='seated'&&seat===plan.desk;},get typing(){return phase==='seated'&&seat===plan.desk&&activity==='working';},get needsTravel(){return phase==='waiting-travel'&&seat!==desired;},get corridorClear(){return phase==='walk'&&cursor>=(seat===plan.desk?5:6);},get corridorReserved(){return travelAllowed&&phase==='walk'&&!this.corridorClear;},
+    requestMeeting(value,stagger=0){const next=value?plan.meeting:plan.desk;if(next!==desired&&phase==='seated'&&seat!==next)prepareDelay=Math.max(0,stagger);desired=next;},
     setTravelAllowed(value){travelAllowed=Boolean(value);},
     setActivity(value){activity=value;if(phase==='seated')setPose(seatedPose());},
     update(seconds){
       if(!Number.isFinite(seconds)||seconds<=0)return;
       const dt=Math.min(seconds,.1);clock+=dt;
       if(phase==='seated'){
-        if(seat!==desired){setPose('sitting');enter('pull');}
+        if(seat!==desired){if(prepareDelay>0)prepareDelay=Math.max(0,prepareDelay-dt);else{setPose('sitting');enter('pull');}}
       }else if(phase==='pull'){
         const t=ease(clock/.65);setOffset(seat,t);setPosition(plus(seat.at,seat.forward,-PULL*t));
         if(clock>=.65){setPose('idle');enter('rise');}
@@ -182,7 +182,7 @@ export function createMeetingQueue(records){
   return {
     request(value){
       target=Boolean(value);
-      for(const record of records)record.requestMeeting(target);
+      records.forEach((record,index)=>record.requestMeeting(target,index*.04));
     },
     update(dt){
       if(active?.corridorClear){active.setTravelAllowed(false);active=null;}

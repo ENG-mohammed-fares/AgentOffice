@@ -258,6 +258,48 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-OFFICE-001",
+      "source": "Owner doing_0 continuation and Character Animation and Rendering Master Prompt section 7: separate camera navigation from explicitly labeled demo meeting activity.",
+      "story": "As a workspace user, I want to inspect the meeting room without changing agent activity and explicitly start or end a simulated meeting.",
+      "priority": "P1",
+      "requirements": [
+        "FR-OFFICE-002",
+        "FR-TASK-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A live workspace with agents at desks",
+          "when": "The user selects Meeting room or Workspace",
+          "then": "Only the camera changes; no meeting request is emitted"
+        },
+        {
+          "id": "AC-02",
+          "given": "Live character rendering is available",
+          "when": "The user starts or ends the meeting demo",
+          "then": "An explicit Boolean request starts or ends simulated movement and the accessible button state matches it"
+        },
+        {
+          "id": "AC-03",
+          "given": "Live rendering is unavailable or the user signs out",
+          "when": "The meeting demo control is disabled or disposed",
+          "then": "The request resets and the control cannot start a new demo"
+        }
+      ],
+      "scope": "Separate camera controls and explicit demo meeting control; regression tests in existing task panel suite.",
+      "constraints": "No actual meeting backend or agent execution claims; preserve auth, task state, renderer, quality gates and version.",
+      "assumptions": "Existing queue supports Boolean meeting requests; visual physical contact is separately unverified.",
+      "dependencies": "Existing task panel and renderer setMeeting interface",
+      "impact": "Workspace UI and demo state only",
+      "status": "ready",
+      "implementation": [
+        "assets/agile-office/main.js",
+        "assets/agile-office/office-task-panel.mjs"
+      ],
+      "tests": [],
+      "evidence": []
     }
   ]
 }

@@ -42,7 +42,7 @@ jobs:
           sudo apt-get install -y "$RUNNER_TEMP/ktx.deb"
       - name: Encode and validate actual base color maps
         run: |
-          python -m coverage run --append --branch --source=scripts,assets/agile-office assets/agile-office/compress-ktx2.py assets/agile-office/office.glb compressed/office-ktx2.glb
+          python scripts/ci_heartbeat.py ktx2
           python -m coverage xml -o compressed/office-assets-coverage.xml
       - name: Measure actual Blender bake execution (review assets only)
         run: |
@@ -52,7 +52,7 @@ jobs:
           export PYTHONPATH=/usr/lib/python3/dist-packages
           blender --version
           blender --background --factory-startup --python-use-system-env --python-exit-code 1 --python-expr "import sys, numpy, coverage; print('Blender Python:', sys.version, 'NumPy:', numpy.__version__, 'coverage:', coverage.__version__)"
-          blender --background --factory-startup --python-use-system-env --python-exit-code 1 --python scripts/test_office_bake_execution.py
+          python scripts/ci_heartbeat.py blender
           test -s compressed/office-bake-coverage.xml
       - uses: actions/upload-artifact@v6
         with:
@@ -104,7 +104,7 @@ jobs:
           python -m pip install --only-binary :all: --disable-pip-version-check "coverage==7.10.7"
           if ($LASTEXITCODE -ne 0) { throw 'Coverage tooling installation failed.' }
           New-Item -ItemType Directory -Force coverage | Out-Null
-          python -m coverage run --branch --source=scripts -m unittest discover -s scripts -p 'test_*.py' -v
+          python scripts/ci_heartbeat.py python-tests
           if ($LASTEXITCODE -ne 0) { throw 'Release validation regression tests failed.' }
           python -m coverage xml -o coverage/python-coverage.xml
           if ($LASTEXITCODE -ne 0 -or !(Test-Path coverage/python-coverage.xml)) { throw 'Python coverage report missing.' }
@@ -227,7 +227,7 @@ jobs:
           if (!(Select-String -Path coverage/tooling-lcov.info -Pattern '^SF:.*run-coverage\.cjs$' -Quiet)) { throw 'Coverage runner missing from tooling report.' }
 
       - name: Unit tests with production-source code coverage
-        run: node scripts/run-coverage.cjs
+        run: python scripts/ci_heartbeat.py node-tests
 
       - name: Verify canonical overlay provenance and map actual coverage
         run: node scripts/run-coverage.cjs --canonicalize
@@ -260,7 +260,7 @@ jobs:
           AGENTOFFICE_GRAPHICS_PRESET: 'performance'
         run: |
           $env:AGENTOFFICE_PREVIEW_DIR = Join-Path $PWD '../seated-review'
-          npx --no-install electron ../scripts/office-runtime-benchmark.cjs
+          python ../scripts/ci_heartbeat.py seated-review
           if ($LASTEXITCODE -ne 0) { throw 'Actual seated character review failed' }
       - name: Preserve seated office screenshots
         if: always() && (github.ref == 'refs/heads/feat/1.6.17-natural-office-motion' || github.ref == 'refs/heads/feat/1.6.17-character-integration' || github.ref == 'refs/heads/development' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'development' && github.event.pull_request.head.repo.full_name == github.repository))
@@ -290,7 +290,7 @@ jobs:
         env:
           AGENTOFFICE_PERF_REPORT: ${{ github.workspace }}/office-performance-report.json
           AGENTOFFICE_REQUIRE_KTX2: '1'
-        run: npx --no-install electron ../scripts/office-runtime-benchmark.cjs
+        run: python ../scripts/ci_heartbeat.py seated-review
 
       - name: Upload optional renderer benchmark report
         if: ${{ always() && vars.AGENTOFFICE_RUN_RENDER_BENCHMARK == 'true' }}
@@ -306,7 +306,7 @@ jobs:
         env:
           NODE_V8_COVERAGE: ${{ github.workspace }}/coverage/runtime-v8
           AGENTOFFICE_EXECUTION_COVERAGE: ${{ github.workspace }}/coverage/runtime-renderer
-        run: npx --no-install electron scripts/auth-smoke.cjs
+        run: python ../scripts/ci_heartbeat.py auth-smoke
 
       - name: Import actual Electron execution coverage
         shell: pwsh
@@ -321,11 +321,11 @@ jobs:
 
       - name: Verify final production bundle with the real authentication smoke test
         working-directory: app
-        run: npx --no-install electron scripts/auth-smoke.cjs
+        run: python ../scripts/ci_heartbeat.py auth-smoke
 
       - name: Real Electron crash monitoring smoke test
         working-directory: app
-        run: npx --no-install electron scripts/crash-monitor-smoke.cjs
+        run: python ../scripts/ci_heartbeat.py crash-smoke
 
       - name: Package tested Windows build (no publishing)
         working-directory: app
@@ -333,7 +333,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GITHUB_REPOSITORY: ${{ github.repository }}
           AGENTOFFICE_REPO: ENG-mohammed-fares/AgentOffice
-        run: npx --no-install electron-builder --config electron-builder.config.cjs --win nsis --x64 --publish never
+        run: python ../scripts/ci_heartbeat.py package
 
       - name: Verify packaged public update feed
         run: python scripts/verify-update-feed.py

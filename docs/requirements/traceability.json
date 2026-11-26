@@ -298,9 +298,38 @@
       "assumptions": "Default heartbeat 30 seconds, silence warning 120 seconds; tune from observed logs.",
       "dependencies": "Python standard library; existing GitHub Actions jobs; PR #26 story protocol",
       "impact": "CI diagnostics only; no runtime or release version change.",
-      "status": "ready",
-      "implementation": [],
-      "tests": [],
+      "status": "in progress",
+      "implementation": [
+        "scripts/ci_heartbeat.py",
+        ".github/workflows/ci.yml"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_ci_heartbeat.py",
+          "id": "test_heartbeat_distinguishes_output_and_silence",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_ci_heartbeat.py",
+          "id": "test_real_silent_child_continues_and_returns_success",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_ci_heartbeat.py",
+          "id": "test_real_failure_preserves_binary_stdout_stderr_and_exit",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_ci_heartbeat.py",
+          "id": "test_active_output_reports_recent_progress",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_ci_heartbeat.py",
+          "id": "test_cli_selects_only_allowlisted_workloads",
+          "level": "unit"
+        }
+      ],
       "evidence": []
     }
   ]

@@ -35,7 +35,7 @@ class TraceabilityTests(unittest.TestCase):
 
     def test_story_change_contract(self):
         root = Path(__file__).resolve().parents[1]
-        matrix = json.loads((root / 'docs/requirements/traceability.json').read_text())
+        matrix = json.loads((root / 'docs/requirements/traceability.json').read_text(encoding='utf-8'))
         validate_changes(matrix, ['scripts/validate_traceability.py'])
         validate_changes(matrix, ['docs/README.md'])
         with self.assertRaisesRegex(ValueError, 'story'):

@@ -59,7 +59,7 @@ async function fixture({fallback=false,noGL=false,failParse=false,cancelled=fals
     './agile-layout.json':{default:JSON.parse(readFileSync(new URL('../src/agile-layout.json',import.meta.url),'utf8'))},
     './office-performance.mjs':performancePolicy,'./office-batching.mjs':batching,
     './office-characters.mjs':{async loadCharacterRoster(){if(characterFailure)throw Error('Invalid roster');return characterLayer}},
-     './screen-content.mjs':{createRoleScreens({screens=[]}={}){return {group:new THREE.Group(),count:screens.reduce((sum,item)=>sum+(item.monitors?.length??0),0)}}}}};
+     './screen-content.mjs':{createRoleScreens({screens=[]}={}){return {group:new THREE.Group(),count:screens.reduce((sum,item)=>sum+(item.monitors?.length??0),0)}}}};
   const module=new SourceTextModule(readFileSync(source,'utf8'),{context,identifier:source});
   await module.link(name=>{
     const namespace=namespaces[name];assert.ok(namespace,'Unexpected renderer import '+name);

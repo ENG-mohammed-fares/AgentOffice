@@ -839,7 +839,8 @@
         "scripts/office-runtime-benchmark.cjs",
         "assets/agile-office/bake-office-candidate.py",
         "assets/agile-office/office-task-panel.test.mjs",
-        "scripts/apply-agile-office.py"
+        "scripts/apply-agile-office.py",
+        "assets/agile-office/agile-office.css"
       ],
       "tests": [
         {

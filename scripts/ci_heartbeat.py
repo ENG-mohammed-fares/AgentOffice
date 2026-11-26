@@ -19,7 +19,7 @@ WORKLOADS = {
     "blender": (".", ["blender", "--background", "--factory-startup", "--python-use-system-env",
                       "--python-exit-code", "1", "--python", "scripts/test_office_bake_execution.py"]),
     "python-tests": (".", [sys.executable, "-m", "coverage", "run", "--branch",
-                           "--source=scripts", "-m", "unittest", "discover", "-s", "scripts",
+                           "--source=scripts,assets/agile-office", "-m", "unittest", "discover", "-s", "scripts",
                            "-p", "test_*.py", "-v"]),
     "node-tests": (".", ["node", "scripts/run-coverage.cjs"]),
     "seated-review": ("app", ["node", "node_modules/electron/cli.js",

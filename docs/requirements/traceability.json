@@ -359,9 +359,34 @@
       "assumptions": "PR #26 is already merged; exact integrated revision needs fresh gates.",
       "dependencies": "PR #24 verifier and fixtures; PR #27 heartbeat; merged #26 RTM.",
       "impact": "CI and office validation; no version bump.",
-      "status": "ready",
-      "implementation": [],
-      "tests": [],
+      "status": "in progress",
+      "implementation": [
+        "scripts/ci_heartbeat.py",
+        "assets/agile-office/office-batching.mjs",
+        "assets/agile-office/verify-ktx2.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_valid_fixture_and_fixed_location",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_missing_and_symlink_artifact",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_header_and_chunk_rejection",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_missing_extension_changed_geometry_and_bad_texture",
+          "level": "unit"
+        }
+      ],
       "evidence": []
     }
   ]

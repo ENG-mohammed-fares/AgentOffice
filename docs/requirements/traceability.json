@@ -546,8 +546,10 @@
       "assumptions": "The exact Windows logs identify implicit read_text encoding as the failure; production validator already specifies UTF-8.",
       "dependencies": "Published v1.6.17, PRs #30–32, canonical RTM.",
       "impact": "Regression test portability and integration; no new public release.",
-      "status": "ready",
-      "implementation": [],
+      "status": "in progress",
+      "implementation": [
+        "scripts/test_traceability.py"
+      ],
       "tests": [
         {
           "path": "scripts/test_traceability.py",

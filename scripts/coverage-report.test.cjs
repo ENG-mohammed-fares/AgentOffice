@@ -96,7 +96,7 @@ test('LCOV rejects absent, duplicate or nonnumeric counters and malformed source
 const {canonicalize,writeCanonical,overlays}=require('./run-coverage.cjs');
 test('Sonar analyzes canonical overlays once and excludes their byte-identical prepared copies',()=>{
   const properties=fs.readFileSync(path.join(__dirname,'..','sonar-project.properties'),'utf8');
-  const line=properties.split(/\\r?\\n/).find(x=>x.startsWith('sonar.exclusions='));
+  const line=properties.split(/\r?\n/).find(x=>x.startsWith('sonar.exclusions='));
   assert.ok(line,'Sonar exclusions must be explicit');
   const excluded=new Set(line.slice('sonar.exclusions='.length).split(','));
   for(const [prepared,canonical] of Object.entries(overlays)){

@@ -292,9 +292,28 @@
       "assumptions": "Prior failure is consistent with mock argument/exit handling; native fixture will establish actual behavior.",
       "dependencies": "PR #26 merged, PR #27 still independent, existing PowerShell and Python runner.",
       "impact": "Release tooling only; version remains candidate until approved.",
-      "status": "ready",
-      "implementation": [],
-      "tests": [],
+      "status": "in progress",
+      "implementation": [
+        "release-version.txt",
+        "scripts/publish-public-update.ps1"
+      ],
+      "tests": [
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "retries stale public metadata without recreating or republishing the release",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "rejects an invalid draft without publishing it",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/release-coverage.Tests.ps1",
+          "id": "rejects tampered downloaded bytes without publishing them",
+          "level": "integration"
+        }
+      ],
       "evidence": []
     }
   ]

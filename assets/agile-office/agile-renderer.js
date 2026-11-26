@@ -66,6 +66,9 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
   const started=performance.now(),motionMetrics=makeFrameMetrics();
   let contextLost=false,assetLoadMs=0,readyMs=0,selectedPreset=preset;
   let characters=null,pendingRoster=null,characterFrame=0,characterStatus=characterRoster.length?'loading':'not bundled';
+  let resolveReady,readinessSettled=false;
+  const ready=new Promise(resolve=>{resolveReady=resolve;});
+  const settleReady=result=>{if(!readinessSettled){readinessSettled=true;resolveReady(result);}};
   const activity=new Map();let meetingRequested=false;
   const maxRatio=()=>graphicsPixelRatio(selectedPreset,devicePixelRatio,host.clientWidth,host.clientHeight);
   const gpuExtension=gl.getExtension?.('WEBGL_debug_renderer_info');
@@ -78,9 +81,9 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     scene.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);for(const t of Object.values(m))if(t?.isTexture)textures.add(t);}});
     textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());
   };
-  const lost=e=>{e.preventDefault();contextLost=true;onLost?.();};
-  const dispose=()=>{if(disposed)return;disposed=true;characters?.dispose();characters=null;pendingRoster?.dispose();pendingRoster=null;frameScheduler?.dispose();document.removeEventListener('visibilitychange',visibility);observer?.disconnect();canvas.removeEventListener('webglcontextlost',lost);disposeScene();environment?.dispose();pmrem?.dispose();renderer?.dispose();canvas.remove();};
-  function visibility(){characterFrame=0;if(document.hidden){frameScheduler?.pause();lastFrame=0;}else{lastFrame=0;frameScheduler?.resume();}}
+  const lost=e=>{e.preventDefault();contextLost=true;settleReady({ok:false,reason:'context-lost'});onLost?.();};
+  const dispose=()=>{if(disposed)return;disposed=true;settleReady({ok:false,reason:'cancelled'});characters?.dispose();characters=null;pendingRoster?.dispose();pendingRoster=null;frameScheduler?.dispose();document.removeEventListener('visibilitychange',visibility);observer?.disconnect();canvas.removeEventListener('webglcontextlost',lost);disposeScene();environment?.dispose();pmrem?.dispose();renderer?.dispose();canvas.remove();};
+  function visibility(){characterFrame=0;if(document.hidden){frameScheduler?.pause();lastFrame=0;}else{lastFrame=0;frameScheduler?.resume();frameScheduler?.request();}}
   try{
     renderer=new THREE.WebGLRenderer({canvas,context:gl,antialias:true});
     resolution=makeResolutionController(maxRatio(),{stable:true});
@@ -174,7 +177,8 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
       const firstCharacterFrame=characters&&characterStatus==='preview ready';
       if(firstCharacterFrame)onProgress('avatar-first-render');
       renderer.render(scene,camera);report();
-      if(firstCharacterFrame){characterStatus='rendering';onProgress('avatar-first-render-complete');}
+      if(firstCharacterFrame){characterStatus='rendering';onProgress('avatar-first-render-complete');settleReady({ok:true,characters:characters.count});}
+      else if(!characterRoster.length)settleReady({ok:true,characters:0});
       if(characters||move||drag){settleFrames=0;frameScheduler.request();}
       else if(moving||settleFrames===1){if(settleFrames===0){settleFrames=1;frameScheduler.request();}else settleFrames=0;}
     }
@@ -191,7 +195,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     if(isCancelled()||contextLost)throw Error('Office cancelled');
     setCamera(cameras[getInitialIndex()]||cameras[0]);
     onProgress('office-first-render');
-    if(document.hidden)frameScheduler.pause();else{renderer.render(scene,camera);report();}
+    if(document.hidden)frameScheduler.pause();else{renderer.render(scene,camera);report();if(!characterRoster.length)settleReady({ok:true,characters:0});}
     onProgress('office-first-render-complete');
     readyMs=performance.now()-started;
     host.replaceChildren(canvas);observer=new ResizeObserver(resize);observer.observe(host);
@@ -199,7 +203,7 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
     if(characterRoster.length){
       // Load only after the first office frame; keep the office usable on failure.
       loadCharacterRoster({roster:characterRoster,stations:layout.stations,officeURL:url,isCancelled:()=>disposed||contextLost||isCancelled(),onProgress,chairs:chairs.size===15?chairs:null}).then(async roster=>{
-        if(disposed||contextLost||isCancelled()){roster.dispose();return;}
+        if(disposed||contextLost||isCancelled()){roster.dispose();settleReady({ok:false,reason:'cancelled'});return;}
         pendingRoster=roster;characterStatus='compiling characters';onProgress('avatar-shader-compile');
         try{await renderer.compileAsync(roster.group,camera,scene);}
         catch(error){if(pendingRoster===roster){pendingRoster=null;roster.dispose();}throw error;}
@@ -209,10 +213,10 @@ export async function mountAgileRenderer(host,url,{onLost,isCancelled,getInitial
         for(const [role,state] of activity)roster.setState(role,state);
         roster.setMeeting?.(meetingRequested);
         frameScheduler.request();
-      }).catch(err=>{if(!disposed&&!contextLost){characterStatus='preview unavailable';onProgress('avatar-roster-failed');console.warn('Character preview unavailable',err?.message);}});
+      }).catch(err=>{if(!disposed&&!contextLost){characterStatus='preview unavailable';onProgress('avatar-roster-failed');console.warn('Character preview unavailable',err?.message);settleReady({ok:false,reason:'characters-unavailable'});}else settleReady({ok:false,reason:'cancelled'});});
     }
     function setAgentState(role,state){activity.set(role,state);return characters?.setState(role,state)??false;}
     function setMeeting(value){meetingRequested=Boolean(value);characters?.setMeeting?.(meetingRequested);}
-    return {go,dispose,setGraphicsPreset,setAgentState,setMeeting,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,characters:characters?.count??0,seated:characters?.seated??0,meetingSeated:characters?.meetingSeated??0,movableChairs:chairs.size,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
+    return {go,dispose,ready,setGraphicsPreset,setAgentState,setMeeting,metrics:()=>({...stats,...motionMetrics.snapshot(),bakedMeshes,characters:characters?.count??0,seated:characters?.seated??0,meetingSeated:characters?.meetingSeated??0,movableChairs:chairs.size,characterStatus,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,pixelRatio:resolution.ratio,width:canvas.width,height:canvas.height,geometries:renderer.info.memory?.geometries??null,textures:renderer.info.memory?.textures??null,gpuRenderer,softwareRendering,assetLoadMs,readyMs,preset:selectedPreset})};
   }catch(err){dispose();throw err;}
 }

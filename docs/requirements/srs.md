@@ -17,6 +17,7 @@ are not proof those tests passed on a later revision.
 |---|---|---|
 | FR-AUTH-001 | As a user I can enter and leave my workspace safely | Given supported authentication, when sign-in/out completes, then the corresponding destination appears; failed logout preserves the session UI |
 | FR-OFFICE-001 | As a user I see a complete office after startup | Given loading assets, when initialization is incomplete, then a genuine preview remains visible; failed WebGL has a usable fallback |
+| FR-STARTUP-001 | As an authenticated user I enter the office without an unnecessary intro | Given sign-in succeeds, when required workspace assets and the first usable frame are not ready, then a blurred office with an indeterminate circular loader remains only until actual readiness; no fixed delay or fabricated progress is used |
 | FR-OFFICE-002 | As a user I can visit the meeting room | Given the workspace, when I choose Meeting room and return, then the authored views and doorway navigation remain intact |
 | FR-TASK-001 | As a user I can manage demonstration tasks | Given a valid task title/role, when I submit, then local task state updates; the demo is not described as real AI execution |
 | DR-QUALITY-001 | As the owner I retain engineering controls | Given a candidate change, when any required gate fails, then it cannot be treated as merge/release ready |

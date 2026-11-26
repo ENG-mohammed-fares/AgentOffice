@@ -174,6 +174,21 @@
       "verification": "BLOCKED",
       "validation": "BLOCKED",
       "evidence": []
+    },
+    {
+      "id": "FR-STARTUP-001",
+      "summary": "Show a truthful, readiness-driven loading overlay after sign-in without a fixed intro",
+      "component": "authentication handoff / office renderer",
+      "priority": "P0",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26: remove the intro between successful sign-in and workspace entry; blur the office and show a circular loader only while the office is genuinely initializing.",
+      "owner": "Product owner / maintainer",
+      "decision": "accepted",
+      "acceptance": "After sign-in, transition directly to the office. If required scene assets, characters, materials, renderer and first usable frame are not ready, show a blurred-office overlay with a circular indeterminate loader and truthful status. Remove it immediately when ready; no fixed-duration intro, fake percentage, artificial delay or arbitrary 80% pause. If already ready, do not show it.",
+      "implementation": [],
+      "tests": [],
+      "verification": "BLOCKED",
+      "validation": "BLOCKED",
+      "evidence": []
     }
   ],
   "stories": [
@@ -482,6 +497,58 @@
           "level": "unit"
         }
       ],
+      "evidence": []
+    },
+    {
+      "id": "US-STARTUP-001",
+      "source": "Owner-approved 1.6.18 addition, 2026-11-26; explicitly removes the post-authentication intro because it adds to a measured 3–5 second office initialization delay.",
+      "story": "As an authenticated user, I want to enter the office immediately and see a subtle loading indicator only while the actual workspace is becoming usable, so that I do not wait through an unnecessary intro.",
+      "priority": "P0",
+      "requirements": [
+        "FR-STARTUP-001",
+        "FR-AUTH-001",
+        "FR-OFFICE-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "Authentication succeeds and the workspace is not ready",
+          "when": "The app transitions to the office",
+          "then": "It skips the post-login intro, shows the office under a subtle blur with a circular indeterminate loader and truthful status, and keeps the overlay until actual readiness"
+        },
+        {
+          "id": "AC-02",
+          "given": "Scene assets, seven character assets, required materials/textures and renderer are ready and the first usable frame has been submitted",
+          "when": "The readiness contract resolves",
+          "then": "The overlay fades away smoothly immediately without an artificial minimum duration"
+        },
+        {
+          "id": "AC-03",
+          "given": "The workspace is already ready before the overlay would be shown",
+          "when": "The app enters the office",
+          "then": "The overlay is skipped entirely"
+        },
+        {
+          "id": "AC-04",
+          "given": "Loading fails, is cancelled, or the renderer cannot initialize",
+          "when": "The readiness contract rejects",
+          "then": "A recoverable error or usable fallback is shown; the user is never left in an infinite loading state"
+        },
+        {
+          "id": "AC-05",
+          "given": "Loading progress is not measurable as a truthful percentage",
+          "when": "The overlay is displayed",
+          "then": "It uses an indeterminate spinner and truthful stage text, never a fabricated 80% progress value"
+        }
+      ],
+      "scope": "Remove only the intro between successful sign-in and office entry. Preserve any separately approved app-launch or sign-out animation. Introduce a readiness-driven blurred-office overlay with a circular indeterminate loader, truthful status text, immediate hide on usable first frame, and recoverable failure/cancellation behavior.",
+      "constraints": "No fixed duration, fake progress, 80% stall or artificial wait. Do not block authentication. Preserve sign-in, sign-out, renderer functionality and update flow.",
+      "assumptions": "The renderer can expose an explicit readiness promise/event covering critical office assets, characters, material/texture setup and first usable rendered frame; readiness signals must be defined from actual load/decode/compile completion rather than timers.",
+      "dependencies": "Electron authentication handoff, agile office asset loader, renderer lifecycle and character manager.",
+      "impact": "Post-authentication UX and renderer startup only; no visual redesign of the office.",
+      "status": "ready",
+      "implementation": [],
+      "tests": [],
       "evidence": []
     }
   ]

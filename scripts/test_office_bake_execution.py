@@ -5,6 +5,7 @@ unittest discovery. Coverage records executed Python lines and branches.
 """
 import json
 import runpy
+import struct
 import sys
 from pathlib import Path
 
@@ -42,10 +43,24 @@ def run_bake_coverage():
                 raise RuntimeError("Baked topology changed")
             if any(name.lower().startswith("chair_") for name in report["baked_nodes"]):
                 raise RuntimeError("A movable chair was baked as static geometry")
+            chair_nodes = report["original"]["chair_nodes"]
+            if (not chair_nodes or report["candidate"]["chair_nodes"] != chair_nodes
+                    or report["excluded_movable_chair_nodes"] != chair_nodes):
+                raise RuntimeError("Movable chair exclusion or export mismatch")
+            # Inspect the real Blender scene after baking, not only the generated report.
+            import bpy
+            if any(bpy.data.objects[name].hide_render for name in chair_nodes):
+                raise RuntimeError("Movable chairs were not restored for export")
+            (output / f"{expected_mode}-report.json").write_text(
+                json.dumps(report, indent=2) + "\n", encoding="utf-8")
             if not combined:
                 for index in range(4):
-                    if not (output / f"view-{index}.png").is_file():
-                        raise RuntimeError("Missing actual Full HD preview")
+                    with (output / f"view-{index}.png").open("rb") as preview:
+                        header = preview.read(24)
+                    if (len(header) != 24 or header[:8] != b"\x89PNG\r\n\x1a\n"
+                            or header[12:16] != b"IHDR"
+                            or struct.unpack(">II", header[16:24]) != (1920, 1080)):
+                        raise RuntimeError("Preview is not a native Full HD PNG")
     finally:
         cov.stop()
         cov.save()

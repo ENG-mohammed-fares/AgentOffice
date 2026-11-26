@@ -1,8 +1,6 @@
 name: AgentOffice CI
 
 on:
-  push:
-    branches-ignore: [development]
   pull_request:
   workflow_dispatch:
   workflow_call:
@@ -44,7 +42,7 @@ jobs:
         run: |
           python scripts/ci_heartbeat.py ktx2
           python -m coverage xml -o compressed/office-assets-coverage.xml
-      - name: Measure actual Blender bake execution (review assets only)
+      - name: Install and identify Blender toolchain
         run: |
           sudo apt-get update
           # Blender uses the distribution Python, not actions/setup-python.
@@ -52,8 +50,47 @@ jobs:
           export PYTHONPATH=/usr/lib/python3/dist-packages
           blender --version
           blender --background --factory-startup --python-use-system-env --python-exit-code 1 --python-expr "import sys, numpy, coverage; print('Blender Python:', sys.version, 'NumPy:', numpy.__version__, 'coverage:', coverage.__version__)"
+      - name: Identify exact Blender source and tool inputs
+        id: bake_inputs
+        run: python scripts/office_bake_cache.py key >> "$GITHUB_OUTPUT"
+      - name: Restore verified review-only bake cache
+        id: bake_cache
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            office-candidates/
+            compressed/office-bake-coverage.xml
+          key: ${{ steps.bake_inputs.outputs.key }}
+      - name: Verify restored bake outputs
+        id: bake_verify
+        if: steps.bake_cache.outputs.cache-hit == 'true'
+        run: |
+          if python scripts/office_bake_cache.py verify; then
+            echo 'valid=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Invalid cache; run the actual Blender bake.'
+          fi
+      - name: Measure actual Blender bake execution (review assets only)
+        if: steps.bake_verify.outputs.valid != 'true'
+        env:
+          PYTHONPATH: /usr/lib/python3/dist-packages
+        run: |
+          rm -rf -- office-candidates
+          rm -f -- compressed/office-bake-coverage.xml
           python scripts/ci_heartbeat.py blender
           test -s compressed/office-bake-coverage.xml
+          python scripts/office_bake_cache.py write
+      - name: Preserve exact-input bake results for subsequent CI runs
+        if: steps.bake_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            office-candidates/
+            compressed/office-bake-coverage.xml
+          key: ${{ steps.bake_inputs.outputs.key }}
+      - name: Require validated bake outputs before packaging
+        run: python scripts/office_bake_cache.py verify
       - uses: actions/upload-artifact@v6
         with:
           name: agentoffice-compressed-textures
@@ -92,6 +129,8 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Set up Python
         uses: actions/setup-python@v6

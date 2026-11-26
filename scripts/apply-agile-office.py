@@ -28,18 +28,19 @@ with tempfile.TemporaryDirectory(prefix='agentoffice-model-') as tmp:
         image=base64.b64decode((assets/f'view-{i}.webp.b64').read_text().strip(),validate=True)
         assert image.startswith(b'RIFF') and image[8:12]==b'WEBP'
         (target/f'view-{i}.webp').write_bytes(image)
-    layout={k:scene[k] for k in ('lights','cameras','roles','stations')}
+    layout={k:scene[k] for k in ('lights','cameras','roles','stations','screens')}
     characters=stage_characters(assets,target/'characters')
     if characters:
         layout['characters']=characters
     (app/'src'/'agile-layout.json').write_text(json.dumps(layout),encoding='utf-8')
-for src,dest in [('main.js','main.js'),('agile-renderer.js','agile-renderer.js'),('agile-office.css','agile-office.css'),('office-performance.mjs','office-performance.mjs'),('office-batching.mjs','office-batching.mjs'),('office-tasks.mjs','office-tasks.mjs'),('office-task-panel.mjs','office-task-panel.mjs'),('office-characters.mjs','office-characters.mjs'),('agent-animation.mjs','agent-animation.mjs'),('office-motion.mjs','office-motion.mjs')]:
+for src,dest in [('main.js','main.js'),('agile-renderer.js','agile-renderer.js'),('agile-office.css','agile-office.css'),('office-performance.mjs','office-performance.mjs'),('office-batching.mjs','office-batching.mjs'),('office-tasks.mjs','office-tasks.mjs'),('office-task-panel.mjs','office-task-panel.mjs'),('office-characters.mjs','office-characters.mjs'),('screen-content.mjs','screen-content.mjs'),('agent-animation.mjs','agent-animation.mjs'),('office-motion.mjs','office-motion.mjs')]:
     shutil.copyfile(assets/src,app/'src'/dest)
 shutil.copyfile(assets/'office-performance.test.mjs',app/'scripts'/'office-performance.test.mjs')
 shutil.copyfile(assets/'office-tasks.test.mjs',app/'scripts'/'office-tasks.test.mjs')
 shutil.copyfile(assets/'office-task-panel.test.mjs',app/'scripts'/'office-task-panel.test.mjs')
 shutil.copyfile(root/'scripts'/'agent-animation.test.mjs',app/'scripts'/'agent-animation.test.mjs')
 shutil.copyfile(root/'scripts'/'office-characters.test.mjs',app/'scripts'/'office-characters.test.mjs')
+shutil.copyfile(root/'scripts'/'screen-content.test.mjs',app/'scripts'/'screen-content.test.mjs')
 shutil.copyfile(root/'scripts'/'office-motion.test.mjs',app/'scripts'/'office-motion.test.mjs')
 # Keep original authentication fixture coverage; assert the new destination.
 path=app/'scripts'/'auth-smoke.cjs'

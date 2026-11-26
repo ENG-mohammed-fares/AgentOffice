@@ -1181,9 +1181,15 @@
           "given": "Two or more agents need to use the same left or right meeting aisle",
           "when": "Meeting or return travel is scheduled",
           "then": "At most one agent occupies each aisle segment at a time; agents in the other aisle may continue independently"
+        },
+        {
+          "id": "AC-08",
+          "given": "Visible frames arrive irregularly or slowly during a meeting transition",
+          "when": "The roster advances its motion and animations",
+          "then": "Elapsed time is processed in bounded substeps with doorway and lane reservations preserved; extreme suspension time is capped and failed Electron transitions report actual seat and frame progress"
         }
       ],
-      "scope": "Overlap preparation and standing for all seven avatars while preserving serialized reservation of the narrow doorway; measure complete meeting and return duration.",
+      "scope": "Overlap preparation and standing for all seven avatars while preserving serialized reservation of the narrow doorway; measure complete meeting and return duration. Correct lost elapsed time reported by Windows job 139928505608 and record progress on failed transitions.",
       "constraints": "No teleportation, shared chairs, collisions, wall/furniture clipping, or camera-triggered meeting requests.",
       "assumptions": "Doorway remains a single-occupancy constraint until measured clearance supports a wider safe policy.",
       "dependencies": "office-motion.mjs state machines, seven unique seating plans and camera/meeting control separation.",
@@ -1193,7 +1199,8 @@
         "assets/agile-office/office-motion.mjs",
         "assets/agile-office/office-characters.mjs",
         "assets/agile-office/main.js",
-        "assets/agile-office/office-task-panel.mjs"
+        "assets/agile-office/office-task-panel.mjs",
+        "scripts/office-runtime-benchmark.cjs"
       ],
       "tests": [
         {
@@ -1204,6 +1211,16 @@
         {
           "path": "assets/agile-office/office-task-panel.test.mjs",
           "id": "four authored camera views never start a meeting; explicit meeting demo requests reset on teardown",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "slow rendered frames preserve bounded meeting simulation time",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "motion catch-up bounds long stalls and ignores invalid time",
           "level": "unit"
         }
       ],

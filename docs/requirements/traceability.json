@@ -184,8 +184,22 @@
       "owner": "Product owner / maintainer",
       "decision": "accepted",
       "acceptance": "After sign-in, transition directly to the office. If required scene assets, characters, materials, renderer and first usable frame are not ready, show a blurred-office overlay with a circular indeterminate loader and truthful status. Remove it immediately when ready; no fixed-duration intro, fake percentage, artificial delay or arbitrary 80% pause. If already ready, do not show it.",
-      "implementation": [],
-      "tests": [],
+      "implementation": [
+        "assets/agile-office/main.js",
+        "assets/agile-office/agile-renderer.js"
+      ],
+      "tests": [
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "workspace readiness resolves only after the first usable character frame",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "character initialization failure returns a recoverable office fallback",
+          "level": "integration"
+        }
+      ],
       "verification": "BLOCKED",
       "validation": "BLOCKED",
       "evidence": []
@@ -606,9 +620,23 @@
       "assumptions": "The renderer can expose an explicit readiness promise/event covering critical office assets, characters, material/texture setup and first usable rendered frame; readiness signals must be defined from actual load/decode/compile completion rather than timers.",
       "dependencies": "Electron authentication handoff, agile office asset loader, renderer lifecycle and character manager.",
       "impact": "Post-authentication UX and renderer startup only; no visual redesign of the office.",
-      "status": "ready",
-      "implementation": [],
-      "tests": [],
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/main.js",
+        "assets/agile-office/agile-renderer.js"
+      ],
+      "tests": [
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "workspace readiness resolves only after the first usable character frame",
+          "level": "integration"
+        },
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "character initialization failure returns a recoverable office fallback",
+          "level": "integration"
+        }
+      ],
       "evidence": []
     },
     {

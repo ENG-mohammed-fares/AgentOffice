@@ -260,8 +260,138 @@
       "evidence": []
     },
     {
+      "id": "US-CI-001",
+      "source": "Owner request 2026-11-26: Heartbeat — طبق هذا",
+      "story": "As the project owner, I want observable heartbeats for long-running CI workloads, so that slow work is distinguishable from missing progress without killing healthy tests.",
+      "priority": "P1",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "A monitored subprocess remains alive",
+          "when": "A heartbeat interval elapses",
+          "then": "Report elapsed time and age of last observed output, or explicitly report no output yet."
+        },
+        {
+          "id": "AC-02",
+          "given": "No subprocess output for 120 seconds",
+          "when": "A heartbeat is due",
+          "then": "Warn about missing output without declaring a hang or terminating the subprocess."
+        },
+        {
+          "id": "AC-03",
+          "given": "A monitored workload exits",
+          "when": "The monitor completes",
+          "then": "Preserve its exit result and actual output; never convert a failure into success."
+        },
+        {
+          "id": "AC-04",
+          "given": "The mandatory CI runs its long asset, test and packaging workloads",
+          "when": "They execute",
+          "then": "Use the heartbeat wrapper without removing existing hard deadlines, coverage or security checks."
+        }
+      ],
+      "scope": "Long subprocesses in the reusable CI workflow; progress signals are subprocess output and liveness, not proof of internal progress.",
+      "constraints": "No new paid service or external dependency; no silent-time termination; retain existing blocking gates and job deadlines.",
+      "assumptions": "Default heartbeat 30 seconds, silence warning 120 seconds; tune from observed logs.",
+      "dependencies": "Python standard library; existing GitHub Actions jobs; PR #26 story protocol",
+      "impact": "CI diagnostics only; no runtime or release version change.",
+      "status": "in progress",
+      "implementation": [
+        "scripts/ci_heartbeat.py",
+        ".github/workflows/ci.yml"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_ci_heartbeat.py",
+          "id": "test_heartbeat_distinguishes_output_and_silence",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_ci_heartbeat.py",
+          "id": "test_real_silent_child_continues_and_returns_success",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_ci_heartbeat.py",
+          "id": "test_real_failure_preserves_binary_stdout_stderr_and_exit",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_ci_heartbeat.py",
+          "id": "test_active_output_reports_recent_progress",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_ci_heartbeat.py",
+          "id": "test_cli_selects_only_allowlisted_workloads",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "id": "US-CI-002",
+      "source": "Owner request 2026-11-26: monitor tests, consolidate branches and close superseded PRs without conflicts.",
+      "story": "As the owner, I want all retained fixes reconciled against one tested development revision so obsolete PRs can close without losing changes.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "The verified asset changes from PR #24 overlap CI heartbeat",
+          "when": "The changes are reconciled",
+          "then": "The explicit GLB validation and test fixtures, stable sorting locale and coverage source are preserved alongside heartbeat."
+        },
+        {
+          "id": "AC-02",
+          "given": "The combined revision targets development",
+          "when": "Mandatory CI executes",
+          "then": "The story gate, production build, security and blocking SonarCloud all execute without lowering thresholds."
+        }
+      ],
+      "scope": "Consolidate PR #24 with heartbeat in PR #27; close superseded PRs after verifying retained changes; keep release version separate.",
+      "constraints": "No production publication from this quality PR; no bypass or loss of coverage, tests or canonical source.",
+      "assumptions": "PR #26 is already merged; exact integrated revision needs fresh gates.",
+      "dependencies": "PR #24 verifier and fixtures; PR #27 heartbeat; merged #26 RTM.",
+      "impact": "CI and office validation; no version bump.",
+      "status": "in progress",
+      "implementation": [
+        "scripts/ci_heartbeat.py",
+        "assets/agile-office/office-batching.mjs",
+        "assets/agile-office/verify-ktx2.py"
+      ],
+      "tests": [
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_valid_fixture_and_fixed_location",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_missing_and_symlink_artifact",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_header_and_chunk_rejection",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/test_office_asset_verification.py",
+          "id": "test_missing_extension_changed_geometry_and_bad_texture",
+          "level": "unit"
+        }
+      ],
+      "evidence": []
+    },
+    {
       "id": "US-REL-001",
-      "source": "Owner request 2026-11-26: اصلحه واعده; failed CI 45768123240 draft validation",
+      "source": "Owner request 2026-11-26: اصلحه واعده; failed CI 45768123240 draft validation; Owner 2026-11-26 explicitly requests 1.6.17 as-is, deferring unfinished graphics improvements to the following release.",
       "story": "As the owner, I want an isolated native CLI regression test for verified release publication, so that the release gate reliably catches real failures instead of mock artifacts.",
       "priority": "P0",
       "requirements": [
@@ -287,10 +417,10 @@
           "then": "No publish command occurs and the script fails."
         }
       ],
-      "scope": "Release 1.6.17 and isolated PowerShell regression fixtures; reconcile current development story protocol.",
-      "constraints": "No external writes from tests, no disabled gates, preserve actual publication checks and existing release policies.",
+      "scope": "Release 1.6.17 from the integrated development baseline including verified KTX2 and CI heartbeat; exclude PR #30, #31, #32 and subsequent graphics experiments. Preserve isolated PowerShell publication regression tests.",
+      "constraints": "Keep blocking automated CI, security, SonarCloud and exact candidate provenance. Owner explicitly defers remaining physical GPU, visual contact and installed-device validation; do not claim these passed. No unreviewed graphics assets in default runtime.",
       "assumptions": "Prior failure is consistent with mock argument/exit handling; native fixture will establish actual behavior.",
-      "dependencies": "PR #26 merged, PR #27 still independent, existing PowerShell and Python runner.",
+      "dependencies": "PR #26 and #27 integrated; release verification and publication tests; current development and reconciled PR gates.",
       "impact": "Release tooling only; version remains candidate until approved.",
       "status": "in progress",
       "implementation": [

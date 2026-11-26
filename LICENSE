@@ -1,0 +1,34 @@
+AgentOffice - Proprietary Software Notice
+
+Copyright (c) 2026 Mohammed fares. All rights reserved.
+
+Effective November 24, 2026.
+
+This notice applies to AgentOffice source code, documentation, designs and
+other project materials owned by the copyright holder, to the extent that
+they are not subject to a separate license or previously granted rights.
+
+No permission is granted to copy, modify, publish, redistribute, sublicense,
+sell, or commercially exploit these proprietary materials except with the
+copyright holder's express authorization, as required by applicable law,
+or as permitted by the applicable GitHub Terms of Service.
+
+The copyright holder may authorize employees, contractors, collaborators
+and automated development tools to access and work on the project within
+the scope of their authorization. Such access does not grant independent
+redistribution or commercialization rights. Authorized recipients must
+comply with applicable confidentiality and intellectual property agreements.
+
+Official executable releases may be downloaded, installed and used as
+authorized by the copyright holder and any accompanying end-user terms.
+No additional source-code rights are granted by that permission.
+
+Previously granted MIT rights are not revoked. Third-party components,
+including dependencies and bundled assets, remain governed by their own
+licenses. See docs/legacy-mit-notice.txt for the previous project notice.
+
+The proprietary materials are provided AS IS, without warranties to the
+extent permitted by applicable law. Nothing in this notice limits rights
+that cannot lawfully be excluded.
+
+For additional permissions, contact the copyright holder.

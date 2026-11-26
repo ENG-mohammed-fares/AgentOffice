@@ -1,0 +1,105 @@
+name: AgentOffice Development CI/CD
+
+on:
+  push:
+    branches: [development]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agentoffice-development-release
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: Validate and build
+    if: github.ref == 'refs/heads/development' && github.repository == 'ENG-mohammed-fares/AgentOffice'
+    uses: ./.github/workflows/ci.yml
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    permissions:
+      contents: read
+
+  private-security:
+    name: Verify local security scans
+    if: github.ref == 'refs/heads/development' && github.repository == 'ENG-mohammed-fares/AgentOffice'
+    uses: ./.github/workflows/private-security.yml
+    permissions:
+      contents: read
+
+  verify:
+    name: Verify exact tested candidate
+    needs: [ci, private-security]
+    runs-on: windows-latest
+    timeout-minutes: 10
+    outputs:
+      eligible: ${{ steps.verify.outputs.eligible }}
+      version: ${{ steps.verify.outputs.version }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_RUN_ID: ${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v7
+        with:
+          name: agentoffice-windows-candidate
+          path: candidate
+      - name: Check commit, version, lockfile and hashes
+        id: verify
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content release-version.txt -Raw).Trim()
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid version.' }
+          $env:EXPECTED_VERSION = $version
+          python scripts/release-candidate.py verify
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate verification failed.' }
+          $head = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/heads/development" --jq '.object.sha'
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot verify branch head.' }
+          $latest = gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $latest.tag_name -notmatch '^v\d+\.\d+\.\d+$') { throw 'Cannot verify stable version.' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          if ($head -ne $env:GITHUB_SHA -or [version]$version -le [version]($latest.tag_name.Substring(1))) {
+            'eligible=false' >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+          'eligible=true' >> $env:GITHUB_OUTPUT
+      - uses: actions/upload-artifact@v6
+        if: steps.verify.outputs.eligible == 'true'
+        with:
+          name: verified-release-candidate
+          path: candidate/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish verified public update assets
+    needs: verify
+    if: needs.verify.outputs.eligible == 'true' && github.ref == 'refs/heads/development' && github.repository == 'ENG-mohammed-fares/AgentOffice'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: verified-release-candidate
+          path: candidate
+      - name: Publish only verified public distribution assets
+        shell: pwsh
+        env:
+          SOURCE_TOKEN: ${{ github.token }}
+          RELEASE_TOKEN: ${{ github.token }}
+          EXPECTED_RUN_ID: ${{ github.run_id }}
+          EXPECTED_VERSION: ${{ needs.verify.outputs.version }}
+        run: ./scripts/publish-public-update.ps1

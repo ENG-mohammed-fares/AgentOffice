@@ -1,0 +1,36 @@
+## Change summary
+
+Story ID(s):
+Requirement ID(s) / AC IDs:
+Canonical story: `docs/requirements/traceability.json`
+Test/evidence links and exact revision:
+Assumptions, impact and scope changes:
+
+- [ ] Stories and measurable acceptance criteria were recorded and presented before implementation.
+- [ ] Changed canonical implementation paths and tests are mapped in the story records.
+<!-- Explain what changed and why. -->
+
+## Verification evidence
+<!-- Link CI results, relevant test reports and screenshots where appropriate. -->
+
+## Risk and rollback
+<!-- Describe security, privacy, compatibility, migration or release risks. State how to revert. -->
+
+## Author checklist
+- [ ] Tests added or updated for changed behavior, including negative regression cases.
+- [ ] Root cause, evidence and prevention recorded in docs/engineering-lessons.md for fixes; no unresolved finding marked verified.
+- [ ] Existing CI checks pass; no tests or security gates bypassed.
+- [ ] No secrets, credentials, or personal data added.
+- [ ] User-facing, dependency, and release changes documented where applicable.
+
+## Reviewer checklist
+- [ ] Independently inspect the diff and linked evidence.
+- [ ] Check correctness, error handling, security, and maintainability.
+- [ ] Resolve blocking findings before approving the latest revision.
+- [ ] Confirm release impact and rollback plan.
+
+An author checklist or AI-generated comment is not an independent approval.
+
+## Refactoring changes
+- [ ] For behavior-preserving changes, confirm the refactoring gate and affected regression tests pass.
+- [ ] For intentional behavior changes, document the expected change and obtain review before changing characterization expectations or baselines.

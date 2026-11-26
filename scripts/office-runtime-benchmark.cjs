@@ -141,6 +141,10 @@ async function run(){
     assert.ok(result.ok,result.error);
     if(characterReview){
       assert.equal(result.initial.characters,7);
+      assert.equal(result.initial.characterLabels,7);
+      assert.ok(result.initial.proceduralJoints>=91,'Rig-audited secondary joints were not animated');
+      assert.equal(result.initial.roleScreens,13);
+      assert.equal(result.initial.cameraCount,4);
       if(seatedReview){assert.equal(result.initial.movableChairs,15);assert.equal(result.initial.seated,7);}
       assert.equal(result.textureFormat,bakedCandidate?'baked-ktx2':'ktx2');
       if(bakedCandidate)assert.ok(result.initial.bakedMeshes>0,'No actual baked meshes');
@@ -152,12 +156,12 @@ async function run(){
     for(const index of [0,1,2,3]){
       lastStage='capture-view-'+index;
       const metrics=await win.webContents.executeJavaScript('window.previewView('+index+')');
+      assert.equal(metrics.cameraIndex,index,'Capture must match the selected authored camera');
       assert.ok(metrics.width>=1920&&metrics.height>=1080,'Actual rendering buffer is below Full HD; select High or use a larger display.');
-      else {assert.equal(metrics.characters,7);if(seatedReview)assert.equal(metrics.seated,7);assert.ok(metrics.width>0&&metrics.height>0);}
+      if(characterReview){assert.equal(metrics.characters,7);assert.equal(metrics.characterLabels,7);if(seatedReview)assert.equal(metrics.seated,7);}
       const shot=await win.webContents.capturePage();
       const {width,height}=shot.getSize();
       assert.ok(width>=1920&&height>=1080,'Captured viewport is below Full HD.');
-      else assert.ok(width>0&&height>0);
       fs.writeFileSync(path.join(destination,'view-'+index+'.png'),shot.toPNG(),{flag:'wx'});
       views.push({index,width,height,...metrics});
     }

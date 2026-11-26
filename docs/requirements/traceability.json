@@ -1039,6 +1039,11 @@
           "path": "scripts/agent-animation.test.mjs",
           "id": "rig-audit static neck, shoulder, wrist, thumb, toe and eye joints receive subtle secondary motion",
           "level": "unit"
+        },
+        {
+          "path": "scripts/office-characters.test.mjs",
+          "id": "workstation reach places both wrists at keyboard targets without changing bone lengths",
+          "level": "unit"
         }
       ],
       "evidence": []
@@ -1296,6 +1301,12 @@
           "given": "A meeting or return request",
           "when": "The queue runs including a reversed request",
           "then": "Agents complete transitions without snapping, overshooting, or sharing chairs and resume desk activity"
+        },
+        {
+          "id": "AC-04",
+          "given": "An avatar is seated at an authored workstation",
+          "when": "The avatar is working, thinking or reviewing",
+          "then": "Both wrist targets align to the actual keyboard halves or mouse surface using station-local orientation, and workstation IK is disabled during travel, meeting and non-interaction poses"
         }
       ],
       "scope": "Bounded heading, acceleration and braking; correct one known static obstacle route; extend existing motion regression tests.",
@@ -1305,7 +1316,8 @@
       "impact": "Visual travel and navigation; no actual agent execution changes.",
       "status": "in progress",
       "implementation": [
-        "assets/agile-office/office-motion.mjs"
+        "assets/agile-office/office-motion.mjs",
+        "assets/agile-office/office-characters.mjs"
       ],
       "tests": [
         {
@@ -1321,6 +1333,16 @@
         {
           "path": "scripts/office-motion.test.mjs",
           "id": "meeting reversal while walking returns all avatars without seat sharing",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "typing targets lie on opposite halves of the authored keyboard at key height",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "workstation IK is selected only for seated working and pointing activities",
           "level": "unit"
         }
       ],

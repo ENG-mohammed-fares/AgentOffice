@@ -50,7 +50,12 @@ function reachArm(upper,fore,hand,target){
   const nextElbow=shoulder.clone().addScaledVector(direction,along).addScaledVector(bend.normalize(),height);
   aimBone(upper,fore,nextElbow);aimBone(fore,hand,shoulder.clone().addScaledVector(direction,d));
 }
-/** Resolves both arm chains and returns a per-frame reach to the mouse interaction surface. */
+/**
+ * Resolves both arm chains and returns a per-frame reach to the mouse interaction surface.
+ * @param {THREE.Object3D} root - Character hierarchy containing Left/RightArm, ForeArm and Hand.
+ * @param {{mouse:{x:number,z:number}}} seat - Authored desk seat and mouse centre in world metres.
+ * @returns {Function} Updates shoulder/elbow orientation toward paired wrist targets without scaling bones.
+ */
 export function mouseReach(root,seat){
   const targets=mouseSurfaceTargets(seat.mouse).map(p=>new THREE.Vector3(p.x,.885,p.z));
   const arms=['Left','Right'].map((side,i)=>({upper:root.getObjectByName(side+'Arm'),fore:root.getObjectByName(side+'ForeArm'),hand:root.getObjectByName(side+'Hand'),target:targets[i]}));
@@ -66,12 +71,23 @@ const FIRST_NAMES=Object.freeze({
   'DevOps Engineer':'Kwame',
   'Scrum Master':'Freja'
 });
-/** Returns the approved first-name-only identity for a role. */
+/**
+ * Resolves a role to its approved first-name-only identity.
+ * @param {string} role - Stable role identifier from the character roster.
+ * @returns {{firstName:string,role:string}|null} Identity label data, or null for an unsupported role.
+ */
 export function identityForRole(role){
   const firstName=FIRST_NAMES[role];
   return firstName?{firstName,role}:null;
 }
-/** Builds a camera-facing label with a bold first name and regular-weight role. */
+/**
+ * Builds a camera-facing identity sprite above the transformed character bounds.
+ * @param {string} role - Stable role identifier used for identity lookup.
+ * @param {THREE.Object3D} root - Scaled and positioned character root.
+ * @param {THREE.Group} group - Owning roster group; owns the resulting sprite.
+ * @param {Function} canvasFactory - Creates a 2D canvas or returns null when unavailable.
+ * @returns {THREE.Sprite|null} Owned label sprite, or null when canvas rendering is unavailable.
+ */
 function createIdentitySprite(role,root,group,canvasFactory){
   const identity=identityForRole(role),canvas=canvasFactory();
   if(!identity||!canvas)return null;

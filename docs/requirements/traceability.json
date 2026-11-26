@@ -423,12 +423,18 @@
       "assumptions": "Cycles hide_render excludes chair meshes from rendered illumination; visual inspection and hardware comparison remain necessary.",
       "dependencies": "Canonical GLB generation, actual Cycles integration test and existing CI asset job.",
       "impact": "Review-only lighting and evidence pipeline; no default runtime changes.",
-      "status": "ready",
+      "status": "in progress",
       "implementation": [
         "assets/agile-office/bake-office-candidate.py",
         ".github/workflows/ci.yml"
       ],
-      "tests": [],
+      "tests": [
+        {
+          "path": "scripts/test_office_bake_execution.py",
+          "id": "run_bake_coverage",
+          "level": "integration"
+        }
+      ],
       "evidence": []
     }
   ]

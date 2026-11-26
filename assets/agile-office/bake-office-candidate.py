@@ -23,10 +23,12 @@ def glb_summary(path):
     if kind != b"JSON":
         raise ValueError("Missing GLB JSON chunk")
     doc = json.loads(raw[20:20 + size])
-    triangles, secondary_uv = 0, []
+    triangles, secondary_uv, chair_nodes = 0, [], []
     for node in doc["nodes"]:
         if "mesh" not in node:
             continue
+        if node["name"].lower().startswith("chair_"):
+            chair_nodes.append(node["name"])
         primitives = doc["meshes"][node["mesh"]]["primitives"]
         for primitive in primitives:
             if primitive.get("mode", 4) != 4:
@@ -36,6 +38,7 @@ def glb_summary(path):
         if all("TEXCOORD_1" in p["attributes"] for p in primitives):
             secondary_uv.append(node["name"])
     return {"triangles": triangles, "secondary_uv_nodes": sorted(secondary_uv),
+            "chair_nodes": sorted(chair_nodes),
             "sha256": hashlib.sha256(raw).hexdigest()}
 
 
@@ -350,7 +353,22 @@ def main():
     test_material_classification()
     targets = select_targets(scene, source, output, args.combined)
     unwrap_targets(targets)
-    bake_lightmap(scene, targets, output, args.atlas, args.combined)
+    # Movable chairs must not contribute occlusion or shadows to a static atlas.
+    # Keep them visible in the actual architectural previews and restore them for export.
+    chairs = [obj for obj in scene.objects
+              if obj.type == "MESH" and obj.name.lower().startswith("chair_")]
+    if sorted(obj.name for obj in chairs) != original["chair_nodes"] or not chairs:
+        raise ValueError("Imported movable-chair geometry does not match the source")
+    visibility = [(obj, obj.hide_render) for obj in chairs]
+    try:
+        for obj, _ in visibility:
+            obj.hide_render = True
+        bpy.context.view_layer.update()
+        bake_lightmap(scene, targets, output, args.atlas, args.combined)
+    finally:
+        for obj, hidden in visibility:
+            obj.hide_render = hidden
+        bpy.context.view_layer.update()
     candidate = output / "office-bake-uv.glb"
     bpy.ops.export_scene.gltf(filepath=str(candidate), export_format="GLB",
                               export_cameras=False, export_lights=False,
@@ -358,6 +376,8 @@ def main():
     summary = glb_summary(candidate)
     if summary["triangles"] != original["triangles"]:
         raise ValueError("Candidate changed the number of triangles")
+    if summary["chair_nodes"] != original["chair_nodes"]:
+        raise ValueError("Candidate changed movable-chair geometry")
     missing = sorted({obj.name for obj in targets} - set(summary["secondary_uv_nodes"]))
     if missing:
         raise ValueError(f"Missing secondary UVs: {missing}")
@@ -369,6 +389,7 @@ def main():
     report = {"status": "review_only", "mode": "combined" if args.combined else "diffuse", "blender": bpy.app.version_string,
               "original": original, "candidate": summary,
               "baked_nodes": sorted(obj.name for obj in targets),
+              "excluded_movable_chair_nodes": sorted(obj.name for obj in chairs),
               "atlas": args.atlas, "samples": args.samples,
               "preview_resolution": RESOLUTION,
               "notes": "Approximate light power; visual, UV overlap and GPU validation required"}

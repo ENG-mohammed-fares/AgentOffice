@@ -42,3 +42,7 @@ A separate workflow downloads the exact successful hybrid bake artifact from run
 ## Current integration safety
 
 The former hybrid artifact predates the individually movable chairs and is not a valid release asset for the seated scene. The canonical bake command accepts only the fixed source, layout and review-output locations. Movable chair nodes are excluded from static baking. CI now measures real Cycles execution in both modes, including native preview renders; the resulting candidate remains review-only until visual and GPU validation. Only coverage XML is transferred to the Windows build, not the baked scene.
+
+## Review artifact and moving furniture
+
+The current CI bake temporarily hides movable chair meshes from Cycles rendering during the static bake, then restores their original render flags before export. Integration checks compare actual imported/exported chair-node names with the canonical source, inspect restored visibility, and check the three native PNG headers for 1920x1080. This does not prove visual shadow parity or UV non-overlap; those remain explicit review requirements. The separate office-lighting-review artifact is tied to the checked-out Git SHA and contains the actual three static architectural previews, combined candidate, atlases, and both mode reports. Nothing in that artifact is copied to the default Windows runtime. Inspect the captures before accepting a new startup poster, and measure actual GPU performance before promoting hybrid lighting.

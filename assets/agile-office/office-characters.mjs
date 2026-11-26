@@ -117,12 +117,16 @@ function createIdentitySprite(role,root,group,canvasFactory){
   const sprite=new THREE.Sprite(material);sprite.name='Identity '+identity.firstName+' · '+identity.role;
   root.updateWorldMatrix(true,true);
   const bounds=new THREE.Box3().setFromObject(root,true),center=new THREE.Vector3();bounds.getCenter(center);
-  const worldAnchor=new THREE.Vector3(center.x,bounds.max.y+.18,center.z);
+  // Anchor the lower edge, not the middle of the billboard, above the crown.
+  const clearance=.14;
+  const worldAnchor=new THREE.Vector3(center.x,bounds.max.y+clearance,center.z);
   const localAnchor=root.worldToLocal(worldAnchor.clone());
   const head=root.getObjectByName('Head')||root.getObjectByName('head')||null;
   const headPosition=head?head.getWorldPosition(new THREE.Vector3()):null;
-  const headOffsetY=head?Math.max(.12,bounds.max.y-headPosition.y+.12):0;
-  sprite.position.copy(worldAnchor);sprite.scale.set(canvas.width*.00245,canvas.height*.00245,1);sprite.renderOrder=3;group.add(sprite);
+  const headOffsetY=head?Math.max(0,bounds.max.y-headPosition.y)+clearance:0;
+  const scale=Math.min(.00115,.85/canvas.width);
+  sprite.center.set(.5,0);
+  sprite.position.copy(worldAnchor);sprite.scale.set(canvas.width*scale,canvas.height*scale,1);sprite.renderOrder=3;group.add(sprite);
   return {sprite,anchor:localAnchor,head,headOffsetY,position:new THREE.Vector3()};
 }
 const filePattern=/^[a-z-]+\.glb$/;

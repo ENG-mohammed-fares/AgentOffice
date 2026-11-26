@@ -11,11 +11,12 @@ test('roster requires distinct roles, filenames and stations, with contained loc
  }
  assert.throws(()=>rosterPlan(roster.slice(1),stations),/Expected seven/);
 });
-function fixture({missing=false,skinned=true}={}){
+function fixture({missing=false,skinned=true,withHead=false}={}){
  let disposed=0,loaded=0;
  const read=async url=>{assert.ok(url.startsWith('https://example.test/office/characters/'));return new ArrayBuffer(32)};
  const loader={async parseAsync(){loaded++;const scene=new THREE.Group(),geometry=new THREE.BoxGeometry(.4,1.7,.4);geometry.addEventListener('dispose',()=>disposed++);
  const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial());mesh.isSkinnedMesh=skinned;scene.add(mesh);
+ if(withHead){const head=new THREE.Bone();head.name='Head';head.position.y=.65;scene.add(head);}
  const animations=(missing?['Idle']:CLIPS).map(name=>new THREE.AnimationClip(name,1,[]));return {scene,animations}}};
  return {read,loader,get loaded(){return loaded},get disposed(){return disposed}};
 }
@@ -64,7 +65,7 @@ test('role identities use first names only and render bold names beside regular 
  const expected=[['Product Owner','Luca'],['Frontend Developer','Sara'],['AI Engineer','Aiko'],['Backend Developer','Diego'],['QA Engineer','Arjun'],['DevOps Engineer','Kwame'],['Scrum Master','Freja']];
  assert.deepEqual(expected.map(([role])=>identityForRole(role)?.firstName),expected.map(([,name])=>name));
  assert.equal(identityForRole('Unknown'),null);
- const f=fixture(),drawn=[];
+ const f=fixture({withHead:true}),drawn=[];
  const canvasFactory=()=>({
   width:0,height:0,
   getContext(){return {
@@ -80,6 +81,14 @@ test('role identities use first names only and render bold names beside regular 
  const root=layer.group.children.find(x=>x.name==='Product Owner');
  const label=layer.group.children.find(x=>x.name==='Identity Luca · Product Owner');
  assert.ok(root&&label,'each character has a role identity sprite');
+ layer.update(.05);
+ for(const [role,name] of expected){
+  const avatar=layer.group.children.find(x=>x.name===role),tag=layer.group.children.find(x=>x.name==='Identity '+name+' · '+role);
+  const crown=new THREE.Box3().setFromObject(avatar,true).max.y;
+  assert.ok(tag.scale.y<=.148&&tag.scale.x<=.85+1e-9,'complete identity should remain compact');
+  assert.equal(tag.center.x,.5);assert.equal(tag.center.y,0);
+  assert.ok(tag.position.y>=crown+.139,'lower label edge must clear the crown');
+ }
  const before=label.position.clone();root.position.x+=1;layer.update(.05);
  assert.ok(Math.abs(label.position.x-before.x-1)<1e-6,'identity sprite follows its avatar root');
  const head=root.getObjectByName('Head')||root.getObjectByName('head');

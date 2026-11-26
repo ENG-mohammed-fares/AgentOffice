@@ -924,9 +924,15 @@
           "given": "The seven character assets are loaded in any roster order",
           "when": "Labels are assigned",
           "then": "Names are mapped by role, never by array position"
+        },
+        {
+          "id": "AC-05",
+          "given": "The full first name, middle dot and role are rendered on a seated or moving character",
+          "when": "The label is positioned in the office",
+          "then": "The billboard is compact (height at most 0.148 m, width at most 0.85 m), preserves all identity text and has its lower edge anchored above the crown with 0.14 m clearance in the reference pose"
         }
       ],
-      "scope": "Add camera-facing name/role labels for all seven characters, mapped by stable role identifiers. The name is bold, the middle-dot separator and role are regular weight.",
+      "scope": "Add camera-facing name/role labels for all seven characters, mapped by stable role identifiers. The name is bold, the middle-dot separator and role are regular weight. Owner requested a smaller full identity label above the head, without truncating the role, after viewing the actual Electron captures.",
       "constraints": "First names only; no surname; do not infer or change character appearance; no UI redesign; preserve camera navigation and character lifecycle/disposal.",
       "assumptions": "Use a lightweight Three.js sprite or HTML overlay integrated with existing renderer; verify legibility at FHD and all approved views.",
       "dependencies": "Character roster and office character manager, renderer camera, avatar world transforms.",

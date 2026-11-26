@@ -1381,6 +1381,74 @@
         }
       ],
       "evidence": []
+    },
+    {
+      "id": "US-CI-004",
+      "source": "Owner: تابع العمل ونزل الاصدار — 2026-11-26; Windows CI run 45813294206 exposed cross-platform and stale-baseline regressions before release.",
+      "story": "As a maintainer, I want the exact 1.6.18 candidate to pass the same deterministic unit contracts on Windows and Linux, so that the release cannot advance with runtime defects or platform-dependent assertions.",
+      "priority": "P0",
+      "requirements": [
+        "DR-QUALITY-001"
+      ],
+      "criteria": [
+        {
+          "id": "AC-01",
+          "given": "The canonical animation module is loaded without browser globals",
+          "when": "Secondary joint motion is evaluated in Node and Electron",
+          "then": "The module uses the rig quaternion interface without a browser global or forbidden static dependency and updates every audited joint without a ReferenceError"
+        },
+        {
+          "id": "AC-02",
+          "given": "Readiness results cross an isolated VM context",
+          "when": "Lifecycle tests validate success, fallback and cancellation",
+          "then": "Assertions compare the documented readiness fields without depending on cross-realm object prototypes"
+        },
+        {
+          "id": "AC-03",
+          "given": "The 1.6.18 scene, identity roster and reserved meeting routes",
+          "when": "Regression tests execute",
+          "then": "They use the current measured triangle baseline, approved role identities, rear-desk clearance route and explicit travel reservation contract"
+        },
+        {
+          "id": "AC-04",
+          "given": "A malformed seven-role monitor layout",
+          "when": "Duplicate-role validation is tested",
+          "then": "The fixture preserves the required list length and exercises the intended duplicate-layout branch"
+        }
+      ],
+      "scope": "Repair the exact Windows CI regressions on PR #37 and add focused platform-stable assertions before release validation resumes.",
+      "constraints": "Do not weaken coverage, SonarCloud, security, packaging or release gates; do not change product behavior merely to satisfy stale tests.",
+      "assumptions": "The measured canonical 1.6.18 geometry baseline is 116,332 triangles and meeting travel remains controlled by the queue reservation API.",
+      "dependencies": "Canonical overlay modules, generated app tests, Node VM lifecycle harness and Windows CI.",
+      "impact": "Release eligibility and regression reliability; no authentication, updater or public distribution change.",
+      "status": "in progress",
+      "implementation": [
+        "assets/agile-office/agent-animation.mjs",
+        "assets/agile-office/agile-renderer.js"
+      ],
+      "tests": [
+        {
+          "path": "scripts/agent-animation.test.mjs",
+          "id": "rig-audit static neck, shoulder, wrist, thumb, toe and eye joints receive subtle secondary motion",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/renderer-lifecycle.test.mjs",
+          "id": "workspace readiness resolves only after the first usable character frame",
+          "level": "unit"
+        },
+        {
+          "path": "scripts/office-motion.test.mjs",
+          "id": "seated agents type, pull the chair, rise before walking, then sit and push it in",
+          "level": "unit"
+        },
+        {
+          "path": "assets/agile-office/office-performance.test.mjs",
+          "id": "actual packaged office: preserve all triangles and transparent materials during batching",
+          "level": "integration"
+        }
+      ],
+      "evidence": []
     }
   ]
 }
